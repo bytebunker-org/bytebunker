@@ -1,0 +1,153 @@
+{
+    "name": "@bytebunker/backend",
+    "version": "0.0.1",
+    "description": "",
+    "author": {
+        "name": "Moritz Hein",
+        "email": "moritz.hein@live.de",
+        "url": "https://moritz.website"
+    },
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "scripts": {
+        "build": "nest build",
+        "dev": "cross-env NODE_ENV=development TZ=UTC nest start --watch",
+        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+        "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+        "start": "cross-env NODE_ENV=production TZ=UTC nest start",
+        "start:debug": "cross-env NODE_ENV=development TZ=UTC nest start --debug --watch",
+        "start:prod": "cross-env NODE_ENV=production TZ=UTC node dist/main.js",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:cov": "jest --coverage",
+        "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+        "test:e2e": "jest --config ./test/jest-e2e.json",
+        "prepare": "ts-patch install && typia patch"
+    },
+    "engines": {
+        "node": ">=22",
+        "pnpm": ">=9"
+    },
+    "dependencies": {
+        "@mikro-orm/core": "^6.2.8",
+        "@mikro-orm/nestjs": "^6.0.1",
+        "@mikro-orm/postgresql": "^6.2.8",
+        "@nestia/core": "^3.2.0",
+        "@nestia/e2e": "^0.4.3",
+        "@nestia/fetcher": "^3.2.0",
+        "@nestjs/axios": "^3.0.2",
+        "@nestjs/cache-manager": "^2.2.2",
+        "@nestjs/cli": "^10.3.2",
+        "@nestjs/common": "^10.3.8",
+        "@nestjs/core": "^10.3.8",
+        "@nestjs/passport": "^10.0.3",
+        "@nestjs/platform-express": "^10.3.8",
+        "@nestjs/platform-fastify": "^10.3.8",
+        "@nestjs/schedule": "^4.0.2",
+        "@nestjs/swagger": "^7.3.1",
+        "axios": "^1.7.2",
+        "bcrypt": "^5.1.1",
+        "cache-manager": "^5.5.3",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.14.1",
+        "express": "^4.19.2",
+        "express-basic-auth": "^1.2.1",
+        "express-session": "^1.18.0",
+        "helmet": "^7.1.0",
+        "ioredis": "^5.4.1",
+        "json-schema": "^0.4.0",
+        "luxon": "^3.4.4",
+        "morgan": "^1.10.0",
+        "nest-typed-config": "^2.9.3",
+        "passport": "^0.7.0",
+        "passport-custom": "^1.1.1",
+        "passport-local": "^1.0.0",
+        "pg": "^8.11.5",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.1",
+        "svelte-advanced-datatable": "^0.6.3",
+        "typia": "^6.0.3"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.2.0",
+        "@mikro-orm/cli": "^6.2.8",
+        "@mikro-orm/reflection": "^6.2.8",
+        "@nestia/sdk": "^3.2.0",
+        "@nestjs/schematics": "^10.1.1",
+        "@nestjs/testing": "^10.3.8",
+        "@total-typescript/ts-reset": "^0.5.1",
+        "@types/bcrypt": "^5.0.2",
+        "@types/express": "^4.17.21",
+        "@types/express-session": "^1.18.0",
+        "@types/jest": "29.5.12",
+        "@types/json-schema": "^7.0.15",
+        "@types/luxon": "^3.4.2",
+        "@types/morgan": "^1.9.9",
+        "@types/node": "20.12.12",
+        "@types/passport-local": "^1.0.38",
+        "@types/pg": "^8.11.6",
+        "@types/supertest": "^6.0.2",
+        "cross-env": "^7.0.3",
+        "eslint": "^9.2.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-n": "^17.4.0",
+        "eslint-plugin-prettier": "^5.1.3",
+        "eslint-plugin-unicorn": "^52.0.0",
+        "jest": "29.7.0",
+        "nestia": "^5.3.0",
+        "prettier": "^3.2.5",
+        "source-map-support": "^0.5.21",
+        "supertest": "^7.0.0",
+        "ts-jest": "29.1.3",
+        "ts-loader": "^9.5.1",
+        "ts-node": "^10.9.2",
+        "ts-patch": "^3.1.2",
+        "tsconfig-paths": "4.2.0",
+        "typescript": "^5.4.5",
+        "typescript-eslint": "^7.8.0"
+    },
+    "jest": {
+        "moduleFileExtensions": [
+            "js",
+            "json",
+            "ts"
+        ],
+        "rootDir": "src",
+        "testRegex": ".*\\.spec\\.ts$",
+        "transform": {
+            "^.+\\.(t|j)s$": [
+                "ts-jest",
+                {
+                    "tsconfig": "tsconfig.json"
+                }
+            ]
+        },
+        "coverageReporters": [
+            "html-spa",
+            "text"
+        ],
+        "collectCoverageFrom": [
+            "**/*.(t|j)s",
+            "!main.(t|j)s",
+            "!**/index.(t|j)s",
+            "!**/*.module.(t|j)s",
+            "!**/*.input.(t|j)s",
+            "!**/*.entity.(t|j)s",
+            "!**/*.dto.(t|j)s"
+        ],
+        "coveragePathIgnorePatterns": [
+            "node_modules",
+            "test-config",
+            "interfaces",
+            "jestGlobalMocks.ts",
+            ".module.ts",
+            "<rootDir>/src/main.ts",
+            ".mock.ts",
+            "md5"
+        ],
+        "coverageDirectory": "../coverage",
+        "testEnvironment": "node"
+    },
+    "types": "./lib/index.d.ts"
+}

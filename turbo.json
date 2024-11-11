@@ -1,0 +1,47 @@
+{
+    "$schema": "https://turbo.build/schema.json",
+    "globalDependencies": ["**/tsconfig.json", "**/tsconfig.*.json", ".nvmrc"],
+    "pipeline": {
+        "@bytebunker/backend#build:generate-metadata": {
+            "inputs": ["src/**/*.ts"],
+            "outputs": ["src/metadata.ts"],
+            "outputMode": "new-only"
+        },
+        "@bytebunker/backend#build:lib": {
+            "inputs": ["src/**/*.ts"],
+            "outputs": ["lib/**"],
+            "outputMode": "new-only"
+        },
+        "@bytebunker/backend#build": {
+            "inputs": ["src/**"],
+            "dependsOn": ["build:generate-metadata"],
+            "outputs": ["dist/**"],
+            "outputMode": "new-only"
+        },
+        "@bytebunker/frontend#build": {
+            "inputs": [
+                "src/**",
+                "static/**",
+                ".env.*",
+                "postcss.config.cjs",
+                "svelte.config.js",
+                "tailwind.config.ts",
+                "vite.config.ts"
+            ],
+            "env": ["PUBLIC_*"],
+            "dependsOn": ["^build:lib"],
+            "outputs": [".svelte-kit/**"],
+            "outputMode": "new-only"
+        },
+        "lint": {},
+        "dev": {
+            "dependsOn": ["^build:lib"],
+            "cache": false,
+            "persistent": true
+        },
+        "@bytebunker/-backend#typeorm": {
+            "dependsOn": ["@bytebunker/-backend#build"],
+            "cache": false
+        }
+    }
+}

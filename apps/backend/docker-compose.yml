@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  bytebunker-database:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${TYPEORM_USERNAME}
+      POSTGRES_PASSWORD: ${TYPEORM_PASSWORD}
+      POSTGRES_DB: ${TYPEORM_DATABASE}
+    ports:
+      - '${TYPEORM_PORT}:5432'
+    volumes:
+      - bytebunker-database:/var/lib/postgresql/data
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '${REDIS_PORT}:6379'
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - bytebunker-redis:/data
+  minio:
+    image: minio/minio
+    ports:
+      - '${MINIO_PORT}:9000'
+      - '${MINIO_CONSOLE_PORT}:9001'
+    command: 'server /data --console-address ":${MINIO_CONSOLE_PORT}"'
+    volumes:
+      - bytebunker-minio:/data
+    environment:
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+volumes:
+  bytebunker-database:
+  bytebunker-redis:
+    driver: local
+  bytebunker-minio: { }

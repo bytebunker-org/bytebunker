@@ -1,0 +1,41 @@
+{
+    "compilerOptions": {
+        "declaration": true,
+        "removeComments": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "verbatimModuleSyntax": true,
+        "lib": ["ES2023"],
+        "module": "node16",
+        "target": "ES2022",
+        "moduleResolution": "nodenext",
+        "sourceMap": true,
+        "outDir": "./dist",
+        "baseUrl": "./",
+        "rootDir": "./",
+        "incremental": false,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "strict": true,
+        "allowUnusedLabels": false,
+        "allowUnreachableCode": false,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "resolveJsonModule": true,
+        "plugins": [
+            {
+                "transform": "@nestia/core/lib/transform",
+                "validate": "validateEquals",
+                "stringify": "validate"
+            },
+            {
+                "transform": "typia/lib/transform"
+            }
+        ],
+        "strictNullChecks": true
+    }
+}
