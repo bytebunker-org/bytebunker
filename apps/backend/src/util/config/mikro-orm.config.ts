@@ -1,30 +1,48 @@
-import { tags } from 'typia';
-import { Allow } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 
-enum TypeOrmLogLevel {
+export enum MikroOrmLogLevel {
     QUERY = 'query',
+    QUERY_PARAMS = 'query-params',
     SCHEMA = 'schema',
-    ERROR = 'error',
-    WARN = 'warn',
+    DISCOVERY = 'discovery',
     INFO = 'info',
-    LOG = 'log',
-    MIGRATION = 'migration',
+    DEPRECATED = 'deprecated',
 }
 
 export class MikroOrmConfig {
+    @IsString()
+    @IsNotEmpty()
     public readonly host!: string;
 
-    public readonly port!: number & tags.Minimum<1> & tags.Maximum<65_535>;
+    @IsInt()
+    @Min(1)
+    @Max(65_536)
+    public readonly port!: number;
 
-    public readonly user!: string & tags.MinLength<1>;
+    @IsString()
+    @IsNotEmpty()
+    public readonly user!: string;
 
-    public readonly password!: string & tags.MinLength<1>;
+    @IsString()
+    @IsNotEmpty()
+    public readonly password!: string;
 
-    public readonly database!: string & tags.MinLength<1>;
+    @IsString()
+    @IsNotEmpty()
+    public readonly database!: string;
 
-    public readonly logging!: TypeOrmLogLevel[];
+    @IsOptional()
+    @IsArray()
+    @IsEnum(MikroOrmLogLevel, { each: true })
+    public readonly logging!: MikroOrmLogLevel[];
 
-    public readonly entities!: string[] & tags.MinItems<1>;
+    @IsArray()
+    @IsString({ each: true })
+    @IsNotEmpty({ each: true })
+    public readonly entities!: string[];
 
-    public readonly entitiesTs!: string[] & tags.MinItems<1>;
+    @IsArray()
+    @IsString({ each: true })
+    @IsNotEmpty({ each: true })
+    public readonly entitiesTs!: string[];
 }

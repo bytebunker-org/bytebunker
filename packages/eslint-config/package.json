@@ -1,0 +1,23 @@
+{
+    "name": "@bytebunker/eslint-config",
+    "private": true,
+    "type": "module",
+    "files": [
+        "svelte.eslint.config.js",
+        "node.eslint.config.js"
+    ],
+    "devDependencies": {
+        "@eslint/js": "^9.11.1",
+        "@typescript-eslint/eslint-plugin": "^8.7.0",
+        "@typescript-eslint/parser": "^8.7.0",
+        "eslint": "^9.11.1",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-n": "^17.10.3",
+        "eslint-plugin-prettier": "^5.2.1",
+        "eslint-plugin-svelte": "^2.44.0",
+        "eslint-plugin-unicorn": "^55.0.0",
+        "globals": "^15.9.0",
+        "svelte-eslint-parser": "^0.41.1",
+        "typescript-eslint": "^8.7.0"
+    }
+}

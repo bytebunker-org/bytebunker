@@ -1,3 +1,4 @@
-import type { UserDto } from './user.dto.js';
+import { UserDto } from './user.dto.js';
+import { OmitType } from '@nestjs/swagger';
 
-export interface UserSessionDto extends Omit<UserDto, 'password'> {}
+export class UserSessionDto extends OmitType(UserDto, ['password'] as const) {}

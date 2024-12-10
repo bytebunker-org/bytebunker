@@ -1,9 +1,6 @@
-import { tags } from 'typia';
+import { Allow } from 'class-validator';
 
 export class CorsConfig {
-    public readonly endpoint!:
-        | boolean
-        | (string & tags.MinLength<1>)
-        | RegExp
-        | ((string & tags.MinLength<1>) | RegExp)[];
+    @Allow()
+    public readonly endpoint!: boolean | string | RegExp | (string | RegExp)[];
 }

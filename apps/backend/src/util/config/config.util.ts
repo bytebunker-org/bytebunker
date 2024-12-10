@@ -1,3 +1,27 @@
+import type { ClassConstructor } from 'class-transformer';
+import { dotenvLoader, fileLoader, type TypedConfigModuleOptions } from 'nest-typed-config';
+import { AppConfig } from './app.config.js';
+
+export function buildTypedConfigModuleOptions(
+    schema: ClassConstructor<any>,
+    basename?: string,
+): TypedConfigModuleOptions {
+    return {
+        isGlobal: true,
+        schema,
+        load: [
+            fileLoader({
+                basename,
+                ignoreEnvironmentVariableSubstitution: false,
+            }),
+            dotenvLoader({
+                separator: '__',
+            }),
+        ],
+        normalize: (config) => normalizeConfig(AppConfig, config),
+    };
+}
+
 /**
  * Convert strings from `MACRO_CASE` to `camelCase`. Only converts values, which are in `MACRO_CASE`, by checking if there is an underscore `_`,
  * or if the whole string is uppercase for exceptions such as `PASSWORD`

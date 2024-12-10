@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 
 export class TimestampDto {
-    public createdAt!: Date;
+    public createdAt!: DateTime;
 
-    public updatedAt!: Date;
+    public updatedAt!: DateTime;
 }

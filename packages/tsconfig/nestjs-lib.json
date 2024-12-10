@@ -1,0 +1,11 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "display": "NestJS Library",
+    "extends": "./nestjs.json",
+    "compilerOptions": {
+        "declaration": true,
+        "module": "ESNext",
+        "target": "ESNext",
+        "moduleResolution": "Bundler"
+    }
+}

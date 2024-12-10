@@ -1,3 +1,4 @@
-import type { UserDto } from '../../user/dto/user.dto.js';
+import { PickType } from '@nestjs/swagger';
+import { UserDto } from '../../user/dto/user.dto.js';
 
-export interface SerializedUserDto extends Pick<UserDto, 'id'> {}
+export class SerializedUserDto extends PickType(UserDto, ['id'] as const) {}

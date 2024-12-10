@@ -1,0 +1,10 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "display": "NestJS Build",
+    "extends": "./nestjs.json",
+    "compilerOptions": {
+        "rootDir": "./src"
+    },
+    "include": ["./src/**/*.ts"],
+    "exclude": ["lib", "*.entity.ts", "*.d.ts", "./src/shared/find-rest-api/find-rest-api.constant.ts"]
+}

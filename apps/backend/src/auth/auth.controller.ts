@@ -1,55 +1,51 @@
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Logger, Post, Req, Session, UseGuards } from '@nestjs/common';
+import type { Request as RequestType } from 'express';
+import { LoginDto } from './dto/login.dto.js';
+import { SerializedUserDto } from './dto/serialized-user.dto.js';
+import { CurrentUser } from './decorator/user.decorator.js';
+import { LocalGuard } from './local.guard.js';
+import { LocalLoginGuard } from './local-login.guard.js';
+
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
-    constructor() {}
+    private readonly logger = new Logger(AuthController.name);
 
-    /*@Public()
-    @UseGuards(LocalGuard)
+    @UseGuards(LocalLoginGuard)
     @Post('login')
-    public login(@Body() data: LoginDto, @CurrentUser() user: UserSessionDto): Promise<UserSessionDto> {
-        return this.dataSource.transaction(async (em) => {
-            const linkedDevice = await em.findOneByOrFail(DeviceEntity, { internalId: data.linkedDeviceId });
-
-            await this.deviceService.linkDevice(em, data.linkedDeviceId, user.id);
-
-            user.linkedDeviceId = data.linkedDeviceId;
-            user.linkedDevice = linkedDevice;
-
-            return user;
-        });
+    @ApiOperation({
+        summary: 'Login',
+        description: 'Logs in a user and returns the session',
+    })
+    public login(@Body() _: LoginDto, @CurrentUser() user: SerializedUserDto): SerializedUserDto {
+        return user;
     }
 
-    @Public()
-    @UseGuards(LocalWorkerGuard)
-    @Post('login/worker')
-    public loginWorker(@Body() data: LoginWorkerDto, @CurrentUser() user: UserSessionDto): Promise<UserSessionDto> {
-        return this.dataSource.transaction(async (em) => {
-            const linkedDevice = await em.findOneByOrFail(DeviceEntity, { internalId: data.linkedDeviceId });
-
-            await this.deviceService.linkDevice(em, data.linkedDeviceId, user.id);
-
-            user.linkedDeviceId = data.linkedDeviceId;
-            user.linkedDevice = linkedDevice;
-
-            return user;
-        });
-    }
-
-    @Public()
+    @UseGuards(LocalGuard)
     @Get('session')
-    public getSession(@Req() request: RequestType, @Session() session: Record<string, any>): void {
-        console.log(request.user);
-        console.log(session);
+    @ApiOperation({
+        summary: 'Get session',
+        description: 'Gets the current session',
+    })
+    public getSession(
+        @Req() request: RequestType,
+        @Session() session: Record<string, any>,
+        @CurrentUser() user: SerializedUserDto,
+    ): SerializedUserDto {
+        return user;
     }
 
-    @UseGuards(AuthGuard)
+    @UseGuards(LocalGuard)
     @Post('logout')
-    public logout(@Request() request: RequestType): Record<string, never> {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
+    @ApiOperation({
+        summary: 'Logout',
+        description: 'Logs out the current user',
+    })
+    public logout(@Req() request: RequestType): Record<string, never> {
         request.session.destroy(() => {});
+
         return {};
-    }*/
+    }
 }

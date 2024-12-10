@@ -1,15 +1,23 @@
 import { TimestampDto } from '../../database/util/timestamp.dto.js';
 import type { DateTime } from 'luxon';
-import { tags } from 'typia';
+import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDateTime } from '../../util/custom-validator.util.js';
 
-export interface UserDto extends TimestampDto {
-    id: number;
+export class UserDto extends TimestampDto {
+    @IsInt()
+    public id!: number;
 
-    username: string & tags.MinLength<1> & tags.MaxLength<32>;
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(32)
+    public username!: string;
 
-    password?: string & tags.MinLength<1> & tags.MaxLength<60>;
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(60)
+    public password?: string;
 
-    deletedAt?: DateTime;
-
-    //userSettingValues?: SettingValueDto[];
+    @IsOptional()
+    @IsDateTime()
+    public deletedAt?: DateTime;
 }

@@ -1,0 +1,17 @@
+{
+    "extends": "@bytebunker/tsconfig/nestjs-lib.json",
+    "compilerOptions": {
+        "rootDir": "./src",
+        "outDir": "./lib"
+    },
+    "include": [
+        "./src/**/*.constant.ts",
+        "./src/**/*.dto.ts",
+        "./src/**/*.enum.ts",
+        "./src/**/*.interface.ts",
+        "./src/**/*.type.ts",
+        "./src/util/generated-library-mapped-types/*.ts"
+    ],
+    "exclude": ["lib", "*.entity.ts", "./src/shared/find-rest-api/find-rest-api.constant.ts"],
+    "files": ["./src/util/rest-error.ts"]
+}

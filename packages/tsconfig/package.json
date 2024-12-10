@@ -1,0 +1,11 @@
+{
+    "name": "@bytebunker/tsconfig",
+    "private": true,
+    "files": [
+        "nestjs.json",
+        "nestjs-build.json",
+        "nestjs-lib.json",
+        "svelte.json",
+        "svelte-lib.json"
+    ]
+}

@@ -1,10 +1,10 @@
-import { Property } from '@mikro-orm/core';
+import { type Opt, Property } from '@mikro-orm/core';
+import { DateTime } from 'luxon';
 
 export abstract class TimestampEntity {
-    // TODO: Use custom DateTime type!
     @Property()
-    public createdAt!: Date;
+    public createdAt: DateTime & Opt = DateTime.now();
 
-    @Property()
-    public updatedAt!: Date;
+    @Property({ onUpdate: () => DateTime.now() })
+    public updatedAt: DateTime & Opt = DateTime.now();
 }

@@ -1,0 +1,20 @@
+{
+  "branches": [
+    "stable"
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/changelog",
+    "@semantic-release/npm",
+    [
+      "@semantic-release/git",
+      {
+        "assets": [
+          "package.json"
+        ]
+      }
+    ]
+  ],
+  "extends": "semantic-release-monorepo"
+}
+

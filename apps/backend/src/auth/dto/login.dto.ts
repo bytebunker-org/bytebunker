@@ -1,7 +1,9 @@
-import { tags } from 'typia';
+import { IsEmail, IsString } from 'class-validator';
 
-export interface LoginDto {
-    username: string;
+export class LoginDto {
+    @IsEmail()
+    public email!: string;
 
-    password: string & tags.MinLength<12> & tags.MaxLength<256>;
+    @IsString()
+    public password!: string;
 }

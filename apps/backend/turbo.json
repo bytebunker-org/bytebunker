@@ -1,0 +1,22 @@
+{
+    "$schema": "https://turbo.build/schema.json",
+    "extends": ["//"],
+    "tasks": {
+        "build:generate-metadata": {
+            "inputs": ["src/**/*.ts"],
+            "outputs": ["src/metadata.ts"],
+            "outputLogs": "new-only"
+        },
+        "build:lib": {
+            "inputs": ["src/**/*.ts"],
+            "outputs": ["lib/**"],
+            "outputLogs": "new-only"
+        },
+        "build": {
+            "inputs": ["src/**"],
+            "dependsOn": ["build:generate-metadata", "^build:lib"],
+            "outputs": ["dist/**"],
+            "outputLogs": "new-only"
+        }
+    }
+}

@@ -2,6 +2,7 @@ import type { UserDto } from '../dto/user.dto.js';
 import { TimestampEntity } from '../../database/util/timestamp.entity.js';
 import type { DateTime } from 'luxon';
 import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
+import type { EntityProperties } from '../../database/type/entity-properties.type.js';
 
 @Entity()
 export class UserEntity extends TimestampEntity implements UserDto {
@@ -11,9 +12,17 @@ export class UserEntity extends TimestampEntity implements UserDto {
     @Property({ unique: true })
     public username!: string;
 
-    @Property()
+    @Property({
+        hidden: true,
+    })
     public password?: string;
 
     @Property()
     public deletedAt?: DateTime;
+
+    constructor(data: EntityProperties<UserEntity>) {
+        super();
+
+        Object.assign(this, data);
+    }
 }
