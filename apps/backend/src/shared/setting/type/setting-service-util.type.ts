@@ -1,13 +1,10 @@
 import { SettingDto } from '../dto/setting.dto.js';
 import { SettingValueDto } from '../dto/setting-value.dto.js';
 import type { GetSettingValueType } from './setting-config.type.js';
-import type {
-    WarehouseControllerSettingConfig,
-    WarehouseControllerSettingKeys,
-} from '../../../util/setting/setting.constant.js';
+import type { ByteBunkerSettingConfig, ByteBunkerSettingKeys } from '../../../util/setting/setting.constant.js';
 
-type SettingConfig = WarehouseControllerSettingConfig;
-type SettingKeys = WarehouseControllerSettingKeys;
+type SettingConfig = ByteBunkerSettingConfig;
+type SettingKeys = ByteBunkerSettingKeys;
 
 export type GetSettingsReturnType = {
     [P in SettingKeys]:

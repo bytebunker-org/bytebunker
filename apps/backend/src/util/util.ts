@@ -29,3 +29,33 @@ export function indexObject(
 export function isEnumValue<E extends Record<string, any>>(enumType: E, value: unknown): value is E[keyof E] {
     return Object.values(enumType).includes(value);
 }
+
+export function groupByKey<T, KeyType extends string | number | symbol = string>(
+    array: T[],
+    key: keyof T,
+): Record<KeyType, T[]> {
+    // @ts-ignore
+    return array.reduce((hash, object) => {
+        if (object[key] === undefined) {
+            return hash;
+        }
+
+        // @ts-ignore
+        return Object.assign(hash, { [object[key]]: [...(hash[object[key]] || []), object] });
+    }, {});
+}
+
+export function groupByKeySingle<T, KeyType extends string | number | symbol = string>(
+    array: T[],
+    key: keyof T,
+): Record<KeyType, T> {
+    // @ts-ignore
+    return array.reduce((hash, object) => {
+        if (object[key] === undefined) {
+            return hash;
+        }
+
+        // @ts-ignore
+        return Object.assign(hash, { [object[key]]: object });
+    }, {});
+}
