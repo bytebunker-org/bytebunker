@@ -6,16 +6,27 @@ import { SettingTypeEnum } from '../type/setting-type.enum.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { SettingTargetTypeEnum } from '../type/setting-target-type.enum.js';
 import type { ByteBunkerSettingKeys } from '../../../util/setting/setting.constant.js';
-import { Entity, type EntityProperty, Enum, PrimaryKey, Property, t } from '@mikro-orm/core';
-import { settingValueTransformer } from '../../../database/util/database-transformer.util.js';
+import {
+    Collection,
+    Entity,
+    Enum,
+    ManyToOne,
+    OneToMany,
+    PrimaryKey,
+    Property,
+    type Ref,
+    t,
+    types,
+} from '@mikro-orm/core';
+import { toDatabaseEnumName } from '../../../database/util/database.util.js';
+import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
+import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
 
 @Entity()
 export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingKeys>
     extends TimestampEntity
-    implements SettingDto<SK>
+    implements DtoToEntityType<SettingDto<SK>, 'parentCategory' | 'settingValues'>
 {
-    public static PRIMARY_KEY_CONSTRAINT_NAME = 'PK_1c4c95d773004250c157a744d6e';
-
     @PrimaryKey({
         type: t.string,
         length: 128,
@@ -23,52 +34,42 @@ export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingK
     })
     public key!: SK;
 
-    @Property({})
-    @Enum()
+    @Enum({ items: () => SettingTypeEnum, nativeEnumName: toDatabaseEnumName('SettingTypeEnum') })
     public type!: SettingTypeEnum;
 
-    @Index()
-    @Column('varchar', {
+    @Property({
         length: 64,
+        index: true,
     })
     public parentCategoryKey!: string;
 
-    @ManyToOne(() => SettingCategoryEntity, (category) => category.settings)
-    @JoinColumn({
-        name: 'parentCategoryKey',
+    @ManyToOne(() => SettingCategoryEntity, {
+        joinColumn: 'parentCategoryKey',
     })
-    public parentCategory?: Relation<SettingCategoryEntity>;
+    public parentCategory!: Ref<SettingCategoryEntity>;
 
-    @Column('enum', {
-        enum: SettingTargetTypeEnum,
+    @Enum({
+        items: () => SettingTargetTypeEnum,
+        nativeEnumName: toDatabaseEnumName('SettingTargetTypeEnum'),
     })
     public targetType!: SettingTargetTypeEnum;
 
-    @Column('varchar', {
-        nullable: true,
-    })
+    @Property()
     public validationSchemaUri?: string;
 
-    @Column('text', {
-        transformer: settingValueTransformer,
-        nullable: true,
-    })
+    @Property({ type: types.json })
     public defaultValue?: NonNullable<JSONSchema7Type> | undefined;
 
-    @Column('boolean', {
-        default: true,
-    })
-    public required!: boolean;
+    @Property()
+    public required: boolean = true;
 
-    @Column('boolean', {
-        default: false,
-    })
-    public hidden!: boolean;
+    @Property()
+    public hidden: boolean = false;
 
     @OneToMany(() => SettingValueEntity, (settingValue) => settingValue.setting)
-    public settingValues?: SettingValueEntity[];
+    public settingValues = new Collection<SettingValueEntity>(this);
 
-    constructor(data: EntityProperty<SettingEntity, 'required' | 'hidden'>) {
+    constructor(data: EntityProperties<SettingEntity, 'required' | 'hidden'>) {
         super();
 
         Object.assign(this, data);

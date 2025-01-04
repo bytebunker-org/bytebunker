@@ -25,7 +25,7 @@ import type {
 } from '../../util/setting/setting.constant.js';
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { groupByKeySingle } from '../../util/util.js';
-import type { ObjectQuery } from '@mikro-orm/core';
+import { type ObjectQuery } from '@mikro-orm/core';
 import { JsonSchemaService } from '../json-schema/json-schema.service.js';
 import { JsonSchemaValidationService } from '../json-schema-validation/json-schema-validation.service.js';
 
@@ -41,7 +41,6 @@ export class SettingService {
         private readonly jsonSchemaService: JsonSchemaService,
         private readonly jsonSchemaValidationService: JsonSchemaValidationService,
         @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-        // private readonly eventEmitter: EventEmitter2,
         private readonly userService: UserService,
     ) {}
 
@@ -84,7 +83,7 @@ export class SettingService {
                 throw new Error(`Setting ${settingKey} has no validationSchemaUri`);
             }
 
-            await this.jsonSchemaValidationService.validateOrThrow(setting.validationSchemaUri, value, settingKey);
+            await this.jsonSchemaValidationService.validateOrThrow(em, setting.validationSchemaUri, value, settingKey);
 
             const userRequired = setting.targetType === SettingTargetTypeEnum.USER;
 
@@ -148,7 +147,7 @@ export class SettingService {
                 settingValue: s.settingValues?.[0],
             })),
             'key',
-        ) as GetSettingsReturnType;
+        ) as unknown as GetSettingsReturnType; // TODO: Fix type instead of converting to unknown
     }
 
     public async getSettingValues<SK extends SettingKeys>(
@@ -227,9 +226,15 @@ export class SettingService {
     }
 
     public async reloadCachedGlobalSettings(em: EntityManager): Promise<void> {
-        const globalSettingEntities = await em.find(SettingEntity, {
-            select: ['key'],
-        });
+        const globalSettingEntities = await em.find(
+            SettingEntity,
+            {
+                targetType: SettingTargetTypeEnum.GLOBAL,
+            },
+            {
+                fields: ['key'],
+            },
+        );
 
         const globalSettingKeys = globalSettingEntities.map((s) => s.key as GlobalSettingKeys);
 
@@ -288,6 +293,7 @@ export class SettingService {
         em: EntityManager,
         settingFields: Record<string, SettingFieldConfig<CategoryKeys>>,
     ): Promise<void> {
+        const validationSchemas: JSONSchema7[] = [];
         const validationSchemaUriMap: Record<string, string> = {};
 
         for (const [settingKey, data] of Object.entries(settingFields)) {
@@ -307,8 +313,13 @@ export class SettingService {
                 data.targetType
             } setting for the warehouse controller`;
 
-            validationSchemaUriMap[settingKey] = await this.jsonSchemaService.registerSchema(validationSchema);
+            validationSchemaUriMap[settingKey] = validationSchema.$id;
+            validationSchemas.push(validationSchema);
         }
+
+        await this.jsonSchemaService.storeMultiple(em, {
+            jsonSchemas: validationSchemas,
+        });
 
         const settingFieldValues = Object.entries(settingFields).map(([settingKey, SettingDto]) =>
             this.buildSetting(settingKey as SettingKeys, SettingDto, validationSchemaUriMap[settingKey]),
@@ -317,6 +328,7 @@ export class SettingService {
         if (!settingFieldValues.length) {
             return;
         }
+
         await em.upsertMany(SettingEntity, settingFieldValues, {
             onConflictAction: 'merge',
             onConflictMergeFields: [

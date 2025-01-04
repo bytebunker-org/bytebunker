@@ -5,9 +5,10 @@ import { SettingCategoryDto } from './setting-category.dto.js';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 import { SettingTypeEnum } from '../type/setting-type.enum.js';
 import { SettingTargetTypeEnum } from '../type/setting-target-type.enum.js';
-import type { DtoRelation } from '../../../util/type/dto-relation.type.js';
+import type { DtoRef } from '../../../util/type/dto-ref.type.js';
 import { Type } from 'class-transformer';
 import type { ByteBunkerSettingKeys } from '../../../util/setting/setting.constant.js';
+import type { DtoCollection } from '../../../util/type/dto-collection.type.js';
 
 export class SettingDto<SettingKey extends ByteBunkerSettingKeys = ByteBunkerSettingKeys> extends TimestampDto {
     @IsString()
@@ -24,7 +25,7 @@ export class SettingDto<SettingKey extends ByteBunkerSettingKeys = ByteBunkerSet
     @ValidateNested()
     @IsOptional()
     @Type(() => SettingCategoryDto)
-    public parentCategory?: DtoRelation<SettingCategoryDto>;
+    public parentCategory!: DtoRef<SettingCategoryDto>;
 
     @IsEnum(SettingTargetTypeEnum)
     public targetType!: SettingTargetTypeEnum;
@@ -45,5 +46,5 @@ export class SettingDto<SettingKey extends ByteBunkerSettingKeys = ByteBunkerSet
     @ValidateNested({ each: true })
     @IsOptional()
     @Type(() => SettingValueDto)
-    public settingValues?: SettingValueDto[];
+    public settingValues?: DtoCollection<SettingValueDto>;
 }

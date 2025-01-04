@@ -1,7 +1,6 @@
 import { MikroOrmConfig } from './mikro-orm.config.js';
 import { CorsConfig } from './cors.config.js';
 import { SwaggerConfig } from './swagger.config.js';
-import { RedisConfig } from './redis.config.js';
 import { Type } from 'class-transformer';
 import { SessionConfig } from './session.config.js';
 import { IsEnum, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
@@ -39,11 +38,6 @@ export class AppConfig {
     @IsObject()
     @ValidateNested()
     public readonly mikroOrm!: MikroOrmConfig;
-
-    @IsObject()
-    @Type(() => RedisConfig)
-    @ValidateNested()
-    public readonly redis!: RedisConfig;
 
     @Type(() => SessionConfig)
     @IsObject()

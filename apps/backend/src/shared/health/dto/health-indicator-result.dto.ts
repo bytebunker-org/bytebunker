@@ -14,11 +14,6 @@ export class HealthIndicatorResultDto {
     @ValidateNested()
     public database!: HealthIndicatorStatusDto;
 
-    @Type(() => HealthIndicatorStatusDto)
-    @IsObject()
-    @ValidateNested()
-    public redis!: HealthIndicatorStatusDto;
-
     @IsOptional()
     @Type(() => HealthIndicatorStatusDto)
     @IsObject()

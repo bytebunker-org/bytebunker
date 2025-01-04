@@ -2,7 +2,8 @@ import { IsBoolean, IsOptional, IsString, MaxLength, ValidateNested } from 'clas
 import { SettingDto } from './setting.dto.js';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 import { Type } from 'class-transformer';
-import type { DtoRelation } from '../../../util/type/dto-relation.type.js';
+import type { DtoRef } from '../../../util/type/dto-ref.type.js';
+import type { DtoCollection } from '../../../util/type/dto-collection.type.js';
 
 export class SettingCategoryDto extends TimestampDto {
     @IsString()
@@ -17,7 +18,7 @@ export class SettingCategoryDto extends TimestampDto {
     @ValidateNested()
     @IsOptional()
     @Type(() => SettingCategoryDto)
-    public parentCategory?: DtoRelation<SettingCategoryDto>;
+    public parentCategory?: DtoRef<SettingCategoryDto>;
 
     @IsString()
     @IsOptional()
@@ -30,10 +31,10 @@ export class SettingCategoryDto extends TimestampDto {
     @ValidateNested({ each: true })
     @IsOptional()
     @Type(() => SettingCategoryDto)
-    public subCategories?: SettingCategoryDto[];
+    public subCategories?: DtoCollection<SettingCategoryDto>;
 
     @ValidateNested({ each: true })
     @IsOptional()
     @Type(() => SettingDto)
-    public settings?: SettingDto[];
+    public settings?: DtoCollection<SettingDto>;
 }

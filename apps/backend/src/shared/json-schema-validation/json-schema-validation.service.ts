@@ -6,6 +6,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ValidationResultDto } from './dto/validation-result.dto.js';
 import { AJV_PROVIDER } from '../ajv/ajv.constant.js';
 import { BadRequestError } from '../../util/rest-error.js';
+import type { EntityManager } from '@mikro-orm/postgresql';
 
 @Injectable()
 export class JsonSchemaValidationService {
@@ -15,8 +16,13 @@ export class JsonSchemaValidationService {
         @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     ) {}
 
-    public async validate(schemaUri: string, object: unknown, fieldName: string): Promise<ValidationResultDto> {
-        const validationFunction = await this.getValidationFunction(schemaUri);
+    public async validate(
+        em: EntityManager,
+        schemaUri: string,
+        object: unknown,
+        fieldName: string,
+    ): Promise<ValidationResultDto> {
+        const validationFunction = await this.getValidationFunction(em, schemaUri);
 
         const valid = validationFunction(object);
         const errors = valid ? [] : [...validationFunction.errors!];
@@ -28,8 +34,13 @@ export class JsonSchemaValidationService {
         };
     }
 
-    public async validateOrThrow(schemaUri: string, object: unknown, fieldName: string): Promise<true> {
-        const result = await this.validate(schemaUri, object, fieldName);
+    public async validateOrThrow(
+        em: EntityManager,
+        schemaUri: string,
+        object: unknown,
+        fieldName: string,
+    ): Promise<true> {
+        const result = await this.validate(em, schemaUri, object, fieldName);
 
         if (!result.success) {
             const error = new BadRequestError(result.message);
@@ -41,14 +52,14 @@ export class JsonSchemaValidationService {
         return true;
     }
 
-    private getValidationFunction<T = unknown>(schemaUri: string): Promise<ValidateFunction<T>> {
+    private getValidationFunction<T = unknown>(em: EntityManager, schemaUri: string): Promise<ValidateFunction<T>> {
         schemaUri = this.jsonSchemaService.normalizeAndValidateInternalSchemaUri(schemaUri);
 
-        return this.cacheManager.wrap(`validationFunc-${schemaUri}`, () => this.compileSchema(schemaUri));
+        return this.cacheManager.wrap(`validationFunc-${schemaUri}`, () => this.compileSchema(em, schemaUri));
     }
 
-    private async compileSchema<T = unknown>(schemaUri: string): Promise<ValidateFunction<T>> {
-        const schemaObject = await this.jsonSchemaService.loadSchema(schemaUri);
+    private async compileSchema<T = unknown>(em: EntityManager, schemaUri: string): Promise<ValidateFunction<T>> {
+        const schemaObject = await this.jsonSchemaService.loadSchema(em, schemaUri);
 
         return this.ajv.compileAsync<T>(schemaObject);
     }

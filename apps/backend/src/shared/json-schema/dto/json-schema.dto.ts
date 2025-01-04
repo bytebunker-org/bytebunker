@@ -1,10 +1,9 @@
-import { IsNotEmpty, IsObject, IsString, IsUrl, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsObject, IsString, IsUrl } from 'class-validator';
 import type { JSONSchema7 } from 'json-schema';
-import { TimestampDto } from '../../database/util/timestamp.dto.js';
 import { PARALO_SCHEMA_HOST } from '../json-schema.constant.js';
-import type { Uuid } from '../../util/type/opaque.type.js';
 import { ApiProperty } from '@nestjs/swagger';
-import exampleJsonSchema from '../../util/example.schema.json.js';
+import exampleJsonSchema from '../util/example.schema.json.js';
+import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 
 export class JsonSchemaDto extends TimestampDto {
     @IsUrl({
@@ -20,10 +19,6 @@ export class JsonSchemaDto extends TimestampDto {
     })
     @IsNotEmpty()
     public schemaUri!: string;
-
-    @IsUUID()
-    @ApiProperty({ type: String, example: '7e577e57-0123-4567-8900-000000000000', title: 'UUID' })
-    public addonId!: Uuid;
 
     @IsString()
     @IsNotEmpty()

@@ -13,48 +13,55 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { FindAllJsonSchemaResponseDto } from './dto/find-all-json-schema-response.dto.js';
 import { StoreJsonSchemaRequestDto } from './dto/store-json-schema-request.dto.js';
-import { EntityManager } from '@mikro-orm/postgresql';
+import type { EntityManager } from '@mikro-orm/postgresql';
+import { BadRequestError } from '../../util/rest-error.js';
 
 @Injectable()
 export class JsonSchemaService {
     constructor(
-        private readonly em: EntityManager,
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
         private readonly httpService: HttpService,
     ) {}
 
-    public findAll(): Promise<FindAllJsonSchemaResponseDto[]> {
-        return this.em.findAll(JsonSchemaEntity, {
+    public findAll(em: EntityManager): Promise<FindAllJsonSchemaResponseDto[]> {
+        return em.findAll(JsonSchemaEntity, {
             fields: ['schemaUri', 'title', 'description'],
         });
     }
 
-    public getSchema(schemaUri: string): Promise<JSONSchema7> {
+    public getSchema(em: EntityManager, schemaUri: string): Promise<JSONSchema7> {
         schemaUri = this.normalizeAndValidateInternalSchemaUri(schemaUri);
 
         return this.cacheManager.wrap(`jsonSchema-${schemaUri}`, async () => {
-            const jsonSchemaEntry = await this.jsonSchemaRepository.findOneOrFail({
-                where: { schemaUri },
-                select: ['jsonSchema'],
-            });
+            const jsonSchemaEntry = await em.findOneOrFail(
+                JsonSchemaEntity,
+                { schemaUri },
+                {
+                    fields: ['jsonSchema'],
+                },
+            );
 
             return jsonSchemaEntry.jsonSchema;
         });
     }
 
-    public async getMultipleSchemas(schemaUriPrefix: string): Promise<JSONSchema7[]> {
+    public async getMultipleSchemas(em: EntityManager, schemaUriPrefix: string): Promise<JSONSchema7[]> {
         schemaUriPrefix = this.normalizeAndValidateInternalSchemaUri(schemaUriPrefix, true);
 
-        const jsonSchemaList = await this.jsonSchemaRepository
-            .createQueryBuilder('jsonSchemaEntry')
-            .select('jsonSchemaEntry.jsonSchema')
-            .where("jsonSchemaEntry.schemaUri LIKE :schemaUriPrefix || '%'", { schemaUriPrefix })
-            .getMany();
+        const jsonSchemaList = await em.find(
+            JsonSchemaEntity,
+            {
+                schemaUri: new RegExp('^' + schemaUriPrefix + '.*', 'i'),
+            },
+            {
+                fields: ['jsonSchema'],
+            },
+        );
 
         return jsonSchemaList.map((entry) => entry.jsonSchema);
     }
 
-    public async storeMultiple(data: StoreJsonSchemaRequestDto): Promise<void> {
+    public storeMultiple(em: EntityManager, data: StoreJsonSchemaRequestDto): Promise<JsonSchemaEntity[]> {
         const jsonSchemaValues = data.jsonSchemas.map((jsonSchema) => {
             let schemaUri = jsonSchema.$id;
 
@@ -76,20 +83,15 @@ export class JsonSchemaService {
 
             return new JsonSchemaEntity({
                 schemaUri,
-                addonId: data.addonId,
                 title: jsonSchema.title!,
                 description: jsonSchema.description,
                 jsonSchema,
             });
         });
 
-        // conflict target is the primary key constraint name
-        await this.jsonSchemaRepository
-            .createQueryBuilder()
-            .insert()
-            .values(jsonSchemaValues)
-            .orUpdate(['title', 'description', 'jsonSchema'], JsonSchemaEntity.PRIMARY_KEY_CONSTRAINT_NAME)
-            .execute();
+        return em.upsertMany(JsonSchemaEntity, jsonSchemaValues, {
+            onConflictMergeFields: ['title', 'description', 'jsonSchema'],
+        });
     }
 
     /**
@@ -173,14 +175,15 @@ export class JsonSchemaService {
 
     /**
      * Loads an internal schema or external schemas from json-schema.org
+     * @param em
      * @param schemaUri
      */
-    public async loadSchema(schemaUri: string): Promise<AnySchemaObject> {
+    public async loadSchema(em: EntityManager, schemaUri: string): Promise<AnySchemaObject> {
         if (!this.isInternalSchemaUri(schemaUri)) {
             return this.loadExternalSchema(schemaUri);
         }
 
-        const schemaObject = await this.getSchema(schemaUri);
+        const schemaObject = await this.getSchema(em, schemaUri);
 
         return schemaObject as AnySchemaObject;
     }

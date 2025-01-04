@@ -1,49 +1,44 @@
-import type { Relation } from 'typeorm';
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from 'typeorm';
 import { SettingEntity } from './setting.entity.js';
-import { SettingCategoryDto } from '../dto/setting-category.dto.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
-import type { EntityProperties } from '../../../database/util/entity-properties.type.js';
+import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property, type Ref } from '@mikro-orm/core';
+import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
+import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
+import type { SettingCategoryDto } from '../dto/setting-category.dto.js';
 
 @Entity()
-export class SettingCategoryEntity extends TimestampEntity implements SettingCategoryDto {
-    public static PRIMARY_KEY_CONSTRAINT_NAME = 'PK_7af30ba1419f022d5ff0567beff';
-
-    @PrimaryColumn('varchar', {
+export class SettingCategoryEntity
+    extends TimestampEntity
+    implements DtoToEntityType<SettingCategoryDto, 'parentCategory' | 'subCategories' | 'settings'>
+{
+    @PrimaryKey({
         length: 64,
         unique: true,
-        primaryKeyConstraintName: SettingCategoryEntity.PRIMARY_KEY_CONSTRAINT_NAME,
     })
     public key!: string;
 
-    @Column('varchar', {
+    @Property({
         length: 64,
-        nullable: true,
     })
-    public parentCategoryKey?: string;
+    public parentCategoryKey!: string;
 
-    @ManyToOne(() => SettingCategoryEntity, (category) => category.subCategories)
-    @JoinColumn({
-        name: 'parentCategoryKey',
+    @ManyToOne(() => SettingCategoryEntity, {
+        joinColumn: 'parentCategoryKey',
     })
-    public parentCategory?: Relation<SettingCategoryEntity>;
+    public parentCategory!: Ref<SettingCategoryEntity>;
 
-    @Column('varchar', {
+    @Property({
         length: 32,
-        nullable: true,
     })
     public icon?: string;
 
-    @Column('boolean', {
-        default: false,
-    })
-    public hidden!: boolean;
+    @Property()
+    public hidden: boolean = false;
 
     @OneToMany(() => SettingCategoryEntity, (category) => category.parentCategory)
-    public subCategories?: Relation<SettingCategoryEntity[]>;
+    public subCategories = new Collection<SettingCategoryEntity>(this);
 
     @OneToMany(() => SettingEntity, (setting) => setting.parentCategory)
-    public settings?: Relation<SettingEntity[]>;
+    public settings = new Collection<SettingEntity>(this);
 
     constructor(data: EntityProperties<SettingCategoryEntity>) {
         super();

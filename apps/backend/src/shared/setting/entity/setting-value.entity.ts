@@ -1,50 +1,40 @@
-import type { Relation } from 'typeorm';
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { SettingEntity } from './setting.entity.js';
 import { SettingValueDto } from '../dto/setting-value.dto.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { UserEntity } from '../../../user/entity/user.entity.js';
-import { settingValueTransformer } from '../../../database/util/database-transformer.util.js';
-import type { EntityProperties } from '../../../database/util/entity-properties.type.js';
 import type { SettingValueType } from '../type/setting-config.type.js';
+import { Entity, ManyToOne, PrimaryKey, Property, type Ref } from '@mikro-orm/core';
+import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
+import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
 
 @Entity()
-export class SettingValueEntity extends TimestampEntity implements SettingValueDto {
-    public static PRIMARY_KEY_CONSTRAINT_NAME = 'PK_5b8edd68f0a64338a2784dc7c5e';
-
-    @PrimaryColumn('varchar', {
+export class SettingValueEntity
+    extends TimestampEntity
+    implements DtoToEntityType<SettingValueDto, 'setting' | 'targetUser'>
+{
+    @PrimaryKey({
         length: 128,
-        primaryKeyConstraintName: SettingValueEntity.PRIMARY_KEY_CONSTRAINT_NAME,
     })
     public settingKey!: string;
 
-    @ManyToOne(() => SettingEntity, (setting) => setting.settingValues, {
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+    @ManyToOne<SettingEntity, SettingValueEntity>(() => SettingEntity, {
+        updateRule: 'cascade',
+        deleteRule: 'cascade',
+        joinColumn: 'settingKey',
     })
-    @JoinColumn({
-        name: 'settingKey',
-    })
-    public setting?: Relation<SettingEntity>;
+    public setting!: Ref<SettingEntity>;
 
-    @PrimaryColumn({
-        primaryKeyConstraintName: SettingValueEntity.PRIMARY_KEY_CONSTRAINT_NAME,
-    })
-    public targetUserId!: number;
+    @PrimaryKey()
+    public targetUserId?: number;
 
-    @ManyToOne(() => UserEntity, (user) => user.userSettingValues, {
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+    @ManyToOne(() => UserEntity, {
+        updateRule: 'cascade',
+        deleteRule: 'cascade',
+        joinColumn: 'targetUserId',
     })
-    @JoinColumn({
-        name: 'targetUserId',
-    })
-    public targetUser?: Relation<UserEntity>;
+    public targetUser?: UserEntity;
 
-    @Column('text', {
-        transformer: settingValueTransformer,
-        nullable: true,
-    })
+    @Property({ type: 'json' })
     public value!: SettingValueType;
 
     constructor(data: EntityProperties<SettingValueEntity>) {

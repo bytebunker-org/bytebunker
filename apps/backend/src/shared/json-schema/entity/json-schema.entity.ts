@@ -1,26 +1,21 @@
 import type { JSONSchema7 } from 'json-schema';
 import { JsonSchemaDto } from '../dto/json-schema.dto.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
+import { Entity, PrimaryKey, Property, types } from '@mikro-orm/core';
+import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
 
 @Entity()
-@Index(['addonId'])
 export class JsonSchemaEntity extends TimestampEntity implements JsonSchemaDto {
-    public static PRIMARY_KEY_CONSTRAINT_NAME = 'PK_2b7dbc861713c6196fa5e949b26';
-
-    @PrimaryColumn('varchar', {
-        primaryKeyConstraintName: JsonSchemaEntity.PRIMARY_KEY_CONSTRAINT_NAME,
-    })
+    @PrimaryKey()
     public schemaUri!: string;
 
-    @Column('varchar')
+    @Property()
     public title!: string;
 
-    @Column('varchar', {
-        default: '',
-    })
-    public description!: string;
+    @Property()
+    public description: string = '';
 
-    @Column('jsonb')
+    @Property({ type: types.json })
     public jsonSchema!: JSONSchema7;
 
     constructor(data: EntityProperties<JsonSchemaEntity, 'description'>) {

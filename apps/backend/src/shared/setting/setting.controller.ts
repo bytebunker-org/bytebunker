@@ -2,7 +2,6 @@ import { Body, Controller, Get, HttpCode, Param, Put, Query } from '@nestjs/comm
 import { SettingService } from './setting.service.js';
 import { SettingCategoryDto } from './dto/setting-category.dto.js';
 import { SettingValueDto } from './dto/setting-value.dto.js';
-import { SettingCategoryEntity } from './entity/setting-category.entity.js';
 import { ApiTags } from '@nestjs/swagger';
 import type {
     GetSettingsReturnType,
@@ -11,17 +10,17 @@ import type {
 } from './type/setting-service-util.type.js';
 import { getGlobalSettings } from './global-setting.constant.js';
 import type { UserDto } from '../../user/dto/user.dto.js';
-import { CurrentUser } from '../../user/decorator/user.decorator.js';
 import type { ByteBunkerSettingKeys } from '../../util/setting/setting.constant.js';
+import { EntityManager } from '@mikro-orm/postgresql';
+import { CurrentUser } from '../../auth/decorator/user.decorator.js';
+import { SettingCategoryEntity } from './entity/setting-category.entity.js';
 
 @Controller('settings')
 @ApiTags('setting')
 export class SettingController {
     constructor(
         private readonly settingService: SettingService,
-        @InjectRepository(SettingCategoryEntity)
-        private readonly settingCategoryEntityRepository: Repository<SettingCategoryEntity>,
-        private readonly dataSource: DataSource,
+        private readonly em: EntityManager,
     ) {}
 
     @Get('/values')
@@ -29,7 +28,7 @@ export class SettingController {
         @CurrentUser() user: UserDto,
         @Query('keys') keys: string,
     ): Promise<GetSettingValuesReturnType<ByteBunkerSettingKeys>> {
-        return this.dataSource.transaction((em) =>
+        return this.em.transactional((em) =>
             this.settingService.getSettingValues(em, keys.split(',') as ByteBunkerSettingKeys[], user.id),
         );
     }
@@ -44,28 +43,29 @@ export class SettingController {
         @CurrentUser() user: UserDto,
         @Param('categoryKey') categoryKey: string,
     ): Promise<SettingCategoryDto> {
-        return this.settingCategoryEntityRepository.findOneOrFail({
-            where: { key: categoryKey },
-            relations: {
-                subCategories: true,
-                parentCategory: {
-                    subCategories: true,
-                },
+        return this.em.findOneOrFail(
+            SettingCategoryEntity,
+            {
+                key: categoryKey,
             },
-        });
+            {
+                populate: ['subCategories', 'parentCategory.subCategories'],
+            },
+        );
     }
 
     @Get('/categories')
     public listMenuCategories(): Promise<SettingCategoryDto[]> {
-        return [];
-        /*return this.settingCategoryEntityRepository.find({
-            select: ['key', 'icon', 'subCategories'],
-            relations: ['subCategories'],
-            where: {
-                parentCategoryKey: IsNull(),
+        return this.em.find(
+            SettingCategoryEntity,
+            {
+                parentCategoryKey: null,
                 hidden: false,
             },
-        });*/
+            {
+                populate: ['subCategories'],
+            },
+        );
     }
 
     @Get('/')
@@ -73,7 +73,7 @@ export class SettingController {
         @CurrentUser() user: UserDto,
         @Query('categoryKey') categoryKey: string,
     ): Promise<GetSettingsReturnType> {
-        return this.settingService.getSettings(categoryKey, user.id);
+        return this.em.transactional((em) => this.settingService.getSettings(em, categoryKey, user.id));
     }
 
     @Put('/')
@@ -82,6 +82,6 @@ export class SettingController {
         @CurrentUser() user: UserDto,
         @Body() data: Pick<SettingValueDto, 'settingKey' | 'value'>[],
     ): Promise<void> {
-        return this.dataSource.transaction((em) => this.settingService.storeSettings(em, data, user.id));
+        return this.em.transactional((em) => this.settingService.storeSettings(em, data, user.id));
     }
 }

@@ -1,6 +1,16 @@
-// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-type NonFunctionPropertyNames<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T];
-export type NonFunctionProperties<T> = Pick<T, NonFunctionPropertyNames<T>>;
+import type { Collection, Ref } from '@mikro-orm/core';
+type ExcludedEntityPropertyNames<T> = {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    [K in keyof T]: T[K] extends Function
+        ? never
+        : T[K] extends Ref<any>
+          ? never
+          : T[K] extends Collection<any>
+            ? never
+            : K;
+}[keyof T];
+
+export type NonFunctionProperties<T> = Pick<T, ExcludedEntityPropertyNames<T>>;
 export type EntityProperties<
     T,
     OptionalProperties extends keyof T = never,

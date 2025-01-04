@@ -1,16 +1,14 @@
 import { Global, Logger, Module, type OnApplicationBootstrap } from '@nestjs/common';
 import { SettingService } from './setting.service.js';
 import { SettingController } from './setting.controller.js';
-import { SettingEntity } from './entity/setting.entity.js';
-import { SettingCategoryEntity } from './entity/setting-category.entity.js';
-import { SettingValueEntity } from './entity/setting-value.entity.js';
 import { CacheModule } from '@nestjs/cache-manager';
 import { settingsConfig } from '../../util/setting/setting.constant.js';
+import { UserModule } from '../../user/user.module.js';
+import type { EntityManager } from '@mikro-orm/postgresql';
 
 @Global()
 @Module({
     imports: [
-        TypeOrmModule.forFeature([SettingEntity, SettingCategoryEntity, SettingValueEntity]),
         CacheModule.register({
             ttl: 1000 * 60 * 10,
         }),
@@ -25,11 +23,11 @@ export class SettingModule implements OnApplicationBootstrap {
 
     constructor(
         private readonly settingService: SettingService,
-        private readonly dataSource: DataSource,
+        private readonly em: EntityManager,
     ) {}
 
     onApplicationBootstrap(): Promise<void> {
-        return this.dataSource.transaction(async (em) => {
+        return this.em.transactional(async (em) => {
             await this.settingService.applySettingConfig(em, settingsConfig);
 
             await this.settingService.reloadCachedGlobalSettings(em);

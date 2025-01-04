@@ -8,6 +8,8 @@ import type { UserSessionDto } from './dto/user-session.dto.js';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from '../auth/decorator/user.decorator.js';
+import { FindRestApiService } from '../shared/find-rest-api/find-rest-api.service.js';
+import type { FindAllOptions } from '@mikro-orm/core';
 
 @UseGuards(AuthGuard)
 @Controller('users')
@@ -15,7 +17,7 @@ import { CurrentUser } from '../auth/decorator/user.decorator.js';
 export class UserController {
     constructor(
         private readonly userService: UserService,
-        //private readonly findRestApiService: FindRestApiService,
+        private readonly findRestApiService: FindRestApiService,
         private readonly em: EntityManager,
     ) {}
 
@@ -25,7 +27,7 @@ export class UserController {
     }
 
     @Get()
-    public findAll(@Query() data: FindManyDto): Promise<UserDto[]> {
+    public findAll(@Query() data: FindAllOptions<UserEntity>): Promise<UserDto[]> {
         return this.findRestApiService.findMany(UserEntity, data);
     }
 
@@ -36,12 +38,12 @@ export class UserController {
 
     @Get(':id')
     public findOne(@Param('id', ParseIntPipe) id: number): Promise<UserDto> {
-        return this.userRepository.findOneByOrFail({ id });
+        return this.em.findOneOrFail(UserEntity, { id });
     }
 
     @Delete(':id')
     @HttpCode(204)
     public remove(@Param('id', ParseIntPipe) userId: number): Promise<void> {
-        return this.userService.deleteUser(userId);
+        return this.em.transactional((em) => this.userService.deleteUser(em, userId));
     }
 }
