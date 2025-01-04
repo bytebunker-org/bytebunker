@@ -56,13 +56,7 @@ export default tseslint.config(
             'unicorn/switch-case-braces': 'off',
             // conflicts with prettier
             'unicorn/no-nested-ternary': 'off',
-            'unicorn/prevent-abbreviations': [
-                'error',
-                {
-                    checkFilenames: false,
-                    ignore: ['i', 'moduleRef', 'PageParams', 'args']
-                }
-            ],
+            'unicorn/prevent-abbreviations': 'off',
             'unicorn/filename-case': [
                 'error',
                 {
