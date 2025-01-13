@@ -26,11 +26,14 @@ export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlD
             debug: this.config.logging ?? false,
             metadataProvider:
                 this.appConfig.nodeEnv === NodeEnvironment.DEVELOPMENT ? TsMorphMetadataProvider : undefined, // TODO: Use cached metadata file for production
+            metadataCache: {
+                options: {
+                    cacheDir: './temp/mikro-orm-cache',
+                },
+            },
             autoLoadEntities: true,
             ignoreUndefinedInQuery: true,
-            findOneOrFailHandler: (entityName: string) => {
-                return new NotFoundError(`${entityName} not found!`);
-            },
+            findOneOrFailHandler: (entityName: string) => new NotFoundError(`${entityName} not found!`),
         };
     }
 }

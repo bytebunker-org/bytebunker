@@ -35,6 +35,11 @@ export default defineConfig({
     entitiesTs: config.entitiesTs,
     debug: config.logging ?? false,
     metadataProvider: TsMorphMetadataProvider,
+    metadataCache: {
+        options: {
+            cacheDir: './temp/mikro-orm-cache',
+        },
+    },
     ignoreUndefinedInQuery: true,
     findOneOrFailHandler: (entityName: string) => new NotFoundError(`${entityName} not found!`),
 });
