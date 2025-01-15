@@ -1,6 +1,7 @@
-import { Entity, PrimaryKey, Property, types } from '@mikro-orm/core';
+import { Collection, Entity, OneToMany, PrimaryKey, Property, types } from '@mikro-orm/core';
 import { TimestampEntity } from '../../../../database/util/timestamp.entity.js';
 import { BlueprintDataDto } from '../dto/blueprint-data.dto.js';
+import { PipelineExecutionEntity } from '../../entity/pipeline-execution.entity.js';
 
 @Entity()
 export class PipelineBlueprintEntity extends TimestampEntity {
@@ -15,4 +16,7 @@ export class PipelineBlueprintEntity extends TimestampEntity {
 
     @Property({ type: types.json })
     public data!: BlueprintDataDto;
+
+    @OneToMany(() => PipelineExecutionEntity, (execution) => execution.blueprint)
+    public pipelineExecutions = new Collection<PipelineExecutionEntity>(this);
 }
