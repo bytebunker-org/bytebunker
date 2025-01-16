@@ -1,3 +1,12 @@
+import { CreateHoldExecutionDto } from '../dto/create-hold-execution.dto.js';
+
+export function holdExecution(): HoldExecutionBuilder {
+    return new HoldExecutionBuilder();
+}
+
+/**
+ * @internal
+ */
 export class HoldExecutionBuilder {
     protected logStatusCode = 500;
     protected logMessage = '';
@@ -67,15 +76,14 @@ export class HoldExecutionBuilder {
         return this;
     }
 
-    public build(): AddonCallbackHoldExecutionEvent {
-        return new AddonCallbackHoldExecutionEvent({
+    public build(): CreateHoldExecutionDto {
+        return new CreateHoldExecutionDto({
             executionLog: {
                 statusCode: this.logStatusCode,
                 message: this.logMessage,
                 data: this.logData,
                 error: this.logError,
             },
-            retryTriggers: this.retryTriggers,
             isUnexpectedError: this.isUnexpected,
             isAbort: this.isAbort,
         });

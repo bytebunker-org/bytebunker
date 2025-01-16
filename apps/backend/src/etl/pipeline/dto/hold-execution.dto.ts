@@ -1,4 +1,7 @@
-import { IsInt, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { PipelineExecutionLogDataDto } from './pipeline-execution-log-data.dto.js';
+import type { PipelineModuleIdentifier } from '../type/pipeline-module-identifier.type.js';
 
 export class HoldExecutionDto {
     @IsInt()
@@ -6,26 +9,21 @@ export class HoldExecutionDto {
     public executionId!: number;
 
     @IsString()
-    @Required()
-    public moduleId!: ModuleIdentifier;
+    public moduleId!: PipelineModuleIdentifier;
 
-    @IsNumber()
-    @Required()
+    @IsInt()
+    @Min(0)
     public nodeId!: number;
 
     @IsBoolean()
-    @Required()
     public isAbort!: boolean;
 
     @IsBoolean()
-    @Required()
     public isUnexpectedError!: boolean;
 
-    @Type(() => BlueprintExecutionLog)
-    @SchemaType(BlueprintExecutionLog)
+    @Type(() => PipelineExecutionLogDataDto)
+    @IsOptional()
     @IsObject()
     @ValidateNested()
-    @IsOptional()
-    @Optional()
-    public executionLog!: BlueprintExecutionLog;
+    public executionLog?: PipelineExecutionLogDataDto;
 }
