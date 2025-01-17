@@ -1,3 +1,5 @@
+import type { Collection } from '@mikro-orm/core';
+
 export function hasOwn<X, Y extends PropertyKey>(
     object: X,
     property: Y,
@@ -45,17 +47,15 @@ export function groupByKey<T, KeyType extends string | number | symbol = string>
     }, {});
 }
 
-export function groupByKeySingle<T, KeyType extends string | number | symbol = string>(
-    array: T[],
+export function groupByKeySingle<T extends object, KeyType extends string | number | symbol = string>(
+    array: T[] | Collection<T>,
     key: keyof T,
 ): Record<KeyType, T> {
-    // @ts-ignore
     return array.reduce((hash, object) => {
         if (object[key] === undefined) {
             return hash;
         }
 
-        // @ts-ignore
-        return Object.assign(hash, { [object[key]]: object });
-    }, {});
+        return Object.assign(hash, { [object[key] as KeyType]: object });
+    }, {}) as Record<KeyType, T>;
 }

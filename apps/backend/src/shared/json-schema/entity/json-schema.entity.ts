@@ -1,8 +1,9 @@
 import type { JSONSchema7 } from 'json-schema';
 import { JsonSchemaDto } from '../dto/json-schema.dto.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
-import { Entity, PrimaryKey, Property, types } from '@mikro-orm/core';
+import { Entity, ManyToOne, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
 import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
+import { ExtensionEntity } from '../../../extension/entity/extension.entity.js';
 
 @Entity()
 export class JsonSchemaEntity extends TimestampEntity implements JsonSchemaDto {
@@ -17,6 +18,18 @@ export class JsonSchemaEntity extends TimestampEntity implements JsonSchemaDto {
 
     @Property({ type: types.json })
     public jsonSchema!: JSONSchema7;
+
+    @Property({
+        type: types.uuid,
+    })
+    public extensionId!: string;
+
+    @ManyToOne(() => ExtensionEntity, {
+        joinColumn: 'extensionId',
+        updateRule: 'cascade',
+        deleteRule: 'cascade',
+    })
+    public extension?: Ref<ExtensionEntity>;
 
     constructor(data: EntityProperties<JsonSchemaEntity, 'description'>) {
         super();

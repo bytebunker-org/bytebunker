@@ -14,6 +14,7 @@ export class UserEntity extends TimestampEntity implements UserDto {
 
     @Property({
         hidden: true,
+        lazy: true,
     })
     public password?: string & Hidden;
 

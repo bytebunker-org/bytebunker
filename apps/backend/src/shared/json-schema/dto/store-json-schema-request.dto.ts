@@ -1,10 +1,13 @@
 import type { JSONSchema7 } from 'json-schema';
-import { ArrayNotEmpty, IsArray } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import exampleJsonSchema from '../util/example.schema.json.js';
 
 export class StoreJsonSchemaRequestDto {
+    @IsUUID()
+    public extensionId!: string;
+
     @IsArray()
     @ArrayNotEmpty()
     @Type(() => Object)

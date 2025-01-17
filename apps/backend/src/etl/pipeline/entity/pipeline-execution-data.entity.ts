@@ -1,4 +1,4 @@
-import { Entity, Enum, ManyToOne, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
+import { Entity, Enum, ManyToOne, type Opt, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
 import { PipelineExecutionEntity } from './pipeline-execution.entity.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
@@ -7,7 +7,7 @@ import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 @Entity()
 export class PipelineExecutionDataEntity extends TimestampEntity {
     @PrimaryKey()
-    public pipelineExecutionId!: number;
+    public pipelineExecutionId!: number & Opt;
 
     @ManyToOne(() => PipelineExecutionEntity, {
         joinColumn: 'pipelineExecutionId',
@@ -26,7 +26,7 @@ export class PipelineExecutionDataEntity extends TimestampEntity {
         items: () => PipelineExecutionStatusEnum,
         nativeEnumName: toDatabaseEnumName('PipelineNodeExecutionStatusEnum'),
     })
-    public executionStatus!: PipelineExecutionStatusEnum;
+    public executionStatus: PipelineExecutionStatusEnum & Opt = PipelineExecutionStatusEnum.WAITING;
 
     @Property({
         type: types.json,

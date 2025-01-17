@@ -1,10 +1,13 @@
 import { applyDecorators, Injectable, SetMetadata } from '@nestjs/common';
 import type { Constructable } from '../../../../util/type/constructable.interface.js';
+import type { PipelineModuleTypeEnum } from '../type/pipeline-module-type.enum.js';
 
 export interface PipelineModuleOptions<Input, Output> {
     extensionName: string;
 
     version?: number;
+
+    type?: PipelineModuleTypeEnum;
 
     inputType?: Constructable<Input>;
 

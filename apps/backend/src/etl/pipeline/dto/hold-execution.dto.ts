@@ -1,7 +1,7 @@
 import { IsBoolean, IsInt, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PipelineExecutionLogDataDto } from './pipeline-execution-log-data.dto.js';
-import type { PipelineModuleIdentifier } from '../type/pipeline-module-identifier.type.js';
+import type { PipelineModuleIdentifier } from '../pipeline-module/type/pipeline-module-identifier.type.js';
 
 export class HoldExecutionDto {
     @IsInt()

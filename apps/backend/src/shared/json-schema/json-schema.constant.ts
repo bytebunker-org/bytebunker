@@ -1,5 +1,5 @@
-export const PARALO_SCHEMA_HOST = 'schema.paralo.de';
-export const PARALO_SCHEMA_ORIGIN = 'https://schema.paralo.de/';
+export const BYTEBUNKER_SCHEMA_HOST = 'schema.bytebunker.dev';
+export const BYTEBUNKER_SCHEMA_ORIGIN = 'https://schema.bytebunker.dev';
 export const SCHEMA_FILE_EXTENSION = '.schema.json';
 
 /**

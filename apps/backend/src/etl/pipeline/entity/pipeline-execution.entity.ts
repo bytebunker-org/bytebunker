@@ -1,9 +1,18 @@
-import { Collection, Entity, Enum, ManyToOne, OneToMany, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
+import {
+    Collection,
+    Entity,
+    Enum,
+    ManyToOne,
+    OneToMany,
+    type Opt,
+    PrimaryKey,
+    Property,
+    type Ref,
+    types,
+} from '@mikro-orm/core';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { PipelineBlueprintEntity } from '../blueprint/entity/pipeline-blueprint.entity.js';
-import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
-import { SettingTypeEnum } from '../../../shared/setting/type/setting-type.enum.js';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import { PipelineExecutionLogEntity } from './pipeline-execution-log.entity.js';
 import { PipelineExecutionDataEntity } from './pipeline-execution-data.entity.js';
@@ -15,7 +24,7 @@ export class PipelineExecutionEntity extends TimestampEntity {
     public id!: number;
 
     @Property()
-    public blueprintId!: number;
+    public blueprintId!: number & Opt;
 
     @ManyToOne(() => PipelineBlueprintEntity, {
         joinColumn: 'blueprintId',
@@ -33,17 +42,19 @@ export class PipelineExecutionEntity extends TimestampEntity {
         ],
         nativeEnumName: toDatabaseEnumName('PipelineExecutionStatusEnum'),
     })
-    public executionStatus!:
+    public executionStatus: (
         | PipelineExecutionStatusEnum.WAITING
         | PipelineExecutionStatusEnum.SUCCESS
         | PipelineExecutionStatusEnum.FAILED
-        | PipelineExecutionStatusEnum.ABORTED;
+        | PipelineExecutionStatusEnum.ABORTED
+    ) &
+        Opt = PipelineExecutionStatusEnum.WAITING;
 
     @Property({
         type: types.tinyint,
         unsigned: true,
     })
-    public errorRetryCount = 0;
+    public errorRetryCount: number & Opt = 0;
 
     @Property({
         type: types.smallint,
@@ -69,11 +80,5 @@ export class PipelineExecutionEntity extends TimestampEntity {
     public executionData = new Collection<PipelineExecutionDataEntity>(this);
 
     @OneToMany(() => PipelineExecutionLogEntity, (executionLog) => executionLog.pipelineExecution)
-    public pipelineExecutions = new Collection<PipelineExecutionEntity>(this);
-
-    constructor(data: EntityProperties<PipelineExecutionEntity>) {
-        super();
-
-        Object.assign(this, data);
-    }
+    public executionLogs = new Collection<PipelineExecutionLogEntity>(this);
 }

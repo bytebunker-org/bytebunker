@@ -3,8 +3,8 @@ import type { JSONSchema7 } from 'json-schema';
 import { JsonSchemaEntity } from './entity/json-schema.entity.js';
 import type { AnySchemaObject } from 'ajv';
 import {
-    PARALO_SCHEMA_HOST,
-    PARALO_SCHEMA_ORIGIN,
+    BYTEBUNKER_SCHEMA_HOST,
+    BYTEBUNKER_SCHEMA_ORIGIN,
     SCHEMA_PARTIAL_PATH_REGEX,
     SCHEMA_PATH_REGEX,
 } from './json-schema.constant.js';
@@ -86,6 +86,7 @@ export class JsonSchemaService {
                 title: jsonSchema.title!,
                 description: jsonSchema.description,
                 jsonSchema,
+                extensionId: data.extensionId,
             });
         });
 
@@ -113,7 +114,7 @@ export class JsonSchemaService {
             }
         }
 
-        return parsedUri.host === PARALO_SCHEMA_HOST;
+        return parsedUri.host === BYTEBUNKER_SCHEMA_HOST;
     }
 
     /**
@@ -126,7 +127,7 @@ export class JsonSchemaService {
         const originalSchemaUri = schemaUri;
 
         if (!schemaUri.startsWith('https://') && !schemaUri.startsWith('http://')) {
-            schemaUri = PARALO_SCHEMA_ORIGIN + schemaUri;
+            schemaUri = BYTEBUNKER_SCHEMA_ORIGIN + '/' + schemaUri;
         }
 
         schemaUri = schemaUri.replace(/\/{2,}/, '/').toLowerCase();
@@ -141,7 +142,7 @@ export class JsonSchemaService {
 
         if (!this.isInternalSchemaUri(parsedUri)) {
             throw new BadRequestError(
-                `Invalid schema uri ${originalSchemaUri}, doesn't belong to an internal schema on ${PARALO_SCHEMA_HOST}.`,
+                `Invalid schema uri ${originalSchemaUri}, doesn't belong to an internal schema on ${BYTEBUNKER_SCHEMA_HOST}.`,
             );
         }
 

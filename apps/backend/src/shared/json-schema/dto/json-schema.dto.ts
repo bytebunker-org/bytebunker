@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsObject, IsString, IsUrl } from 'class-validator';
 import type { JSONSchema7 } from 'json-schema';
-import { PARALO_SCHEMA_HOST } from '../json-schema.constant.js';
+import { BYTEBUNKER_SCHEMA_HOST } from '../json-schema.constant.js';
 import { ApiProperty } from '@nestjs/swagger';
 import exampleJsonSchema from '../util/example.schema.json.js';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
@@ -14,7 +14,7 @@ export class JsonSchemaDto extends TimestampDto {
         allow_fragments: false,
         allow_query_components: false,
         validate_length: true,
-        host_whitelist: [PARALO_SCHEMA_HOST],
+        host_whitelist: [BYTEBUNKER_SCHEMA_HOST],
         require_valid_protocol: true,
     })
     @IsNotEmpty()
