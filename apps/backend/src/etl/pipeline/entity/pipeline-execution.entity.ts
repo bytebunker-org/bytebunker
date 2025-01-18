@@ -17,9 +17,10 @@ import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import { PipelineExecutionLogEntity } from './pipeline-execution-log.entity.js';
 import { PipelineExecutionDataEntity } from './pipeline-execution-data.entity.js';
 import type { PipelineExecutionLogDataDto } from '../dto/pipeline-execution-log-data.dto.js';
+import type { PipelineExecutionDto } from '../dto/pipeline-execution.dto.js';
 
 @Entity()
-export class PipelineExecutionEntity extends TimestampEntity {
+export class PipelineExecutionEntity extends TimestampEntity implements PipelineExecutionDto {
     @PrimaryKey()
     public id!: number;
 

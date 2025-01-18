@@ -3,7 +3,6 @@ import { BlueprintNodeDto } from '../dto/blueprint-node.dto.js';
 import { BlueprintEdgeDto } from '../dto/blueprint-edge.dto.js';
 import { groupByKeySingle } from '../../../../util/util.js';
 import type { PipelineModuleIdentifier } from '../../pipeline-module/type/pipeline-module-identifier.type.js';
-import { PipelineModuleTypeEnum } from '../../pipeline-module/type/pipeline-module-type.enum.js';
 
 export class Blueprint {
     private nodeIdCounter: number;

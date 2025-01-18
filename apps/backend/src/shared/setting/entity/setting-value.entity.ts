@@ -32,14 +32,8 @@ export class SettingValueEntity
         deleteRule: 'cascade',
         joinColumn: 'targetUserId',
     })
-    public targetUser?: UserEntity;
+    public targetUser?: Ref<UserEntity>;
 
     @Property({ type: 'json' })
     public value!: SettingValueType;
-
-    constructor(data: EntityProperties<SettingValueEntity>) {
-        super();
-
-        Object.assign(this, data);
-    }
 }

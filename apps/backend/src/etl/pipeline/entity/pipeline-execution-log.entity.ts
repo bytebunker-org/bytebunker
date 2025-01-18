@@ -2,10 +2,10 @@ import { Entity, ManyToOne, type Opt, PrimaryKey, Property, type Ref, types } fr
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { PipelineExecutionEntity } from './pipeline-execution.entity.js';
 import type { PipelineExecutionLogDataDto } from '../dto/pipeline-execution-log-data.dto.js';
-import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
+import type { PipelineExecutionLogDto } from '../dto/pipeline-execution-log.dto.js';
 
 @Entity()
-export class PipelineExecutionLogEntity extends TimestampEntity {
+export class PipelineExecutionLogEntity extends TimestampEntity implements PipelineExecutionLogDto {
     @PrimaryKey()
     public id!: number;
 
@@ -34,10 +34,4 @@ export class PipelineExecutionLogEntity extends TimestampEntity {
         type: types.json,
     })
     public data?: Omit<PipelineExecutionLogDataDto, 'message'>;
-
-    constructor(data: EntityProperties<PipelineExecutionLogEntity>) {
-        super();
-
-        Object.assign(this, data);
-    }
 }

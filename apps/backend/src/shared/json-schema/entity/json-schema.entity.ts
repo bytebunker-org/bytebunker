@@ -2,7 +2,6 @@ import type { JSONSchema7 } from 'json-schema';
 import { JsonSchemaDto } from '../dto/json-schema.dto.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { Entity, ManyToOne, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
-import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
 import { ExtensionEntity } from '../../../extension/entity/extension.entity.js';
 
 @Entity()
@@ -30,10 +29,4 @@ export class JsonSchemaEntity extends TimestampEntity implements JsonSchemaDto {
         deleteRule: 'cascade',
     })
     public extension?: Ref<ExtensionEntity>;
-
-    constructor(data: EntityProperties<JsonSchemaEntity, 'description'>) {
-        super();
-
-        Object.assign(this, data);
-    }
 }

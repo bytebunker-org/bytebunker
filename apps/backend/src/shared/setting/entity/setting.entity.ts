@@ -12,6 +12,7 @@ import {
     Enum,
     ManyToOne,
     OneToMany,
+    type Opt,
     PrimaryKey,
     Property,
     type Ref,
@@ -20,7 +21,6 @@ import {
 } from '@mikro-orm/core';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
-import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
 
 @Entity()
 export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingKeys>
@@ -61,17 +61,11 @@ export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingK
     public defaultValue?: NonNullable<JSONSchema7Type> | undefined;
 
     @Property()
-    public required: boolean = true;
+    public required: boolean & Opt = true;
 
     @Property()
-    public hidden: boolean = false;
+    public hidden: boolean & Opt = false;
 
     @OneToMany(() => SettingValueEntity, (settingValue) => settingValue.setting)
     public settingValues = new Collection<SettingValueEntity>(this);
-
-    constructor(data: EntityProperties<SettingEntity, 'required' | 'hidden'>) {
-        super();
-
-        Object.assign(this, data);
-    }
 }

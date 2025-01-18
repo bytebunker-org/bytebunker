@@ -3,9 +3,10 @@ import { PipelineExecutionEntity } from './pipeline-execution.entity.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
+import type { PipelineExecutionDataDto } from '../dto/pipeline-execution-data.dto.js';
 
 @Entity()
-export class PipelineExecutionDataEntity extends TimestampEntity {
+export class PipelineExecutionDataEntity extends TimestampEntity implements PipelineExecutionDataDto {
     @PrimaryKey()
     public pipelineExecutionId!: number & Opt;
 

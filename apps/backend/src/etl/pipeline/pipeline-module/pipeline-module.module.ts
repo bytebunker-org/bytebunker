@@ -6,6 +6,7 @@ import { DiscoveryModule } from '@golevelup/nestjs-discovery';
 @Module({
     imports: [DiscoveryModule],
     providers: [PipelineModuleService],
+    exports: [PipelineModuleService],
 })
 export class PipelineModuleModule implements OnApplicationBootstrap {
     constructor(
