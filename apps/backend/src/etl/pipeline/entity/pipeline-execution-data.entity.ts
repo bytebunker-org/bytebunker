@@ -7,11 +7,8 @@ import type { PipelineExecutionDataDto } from '../dto/pipeline-execution-data.dt
 
 @Entity()
 export class PipelineExecutionDataEntity extends TimestampEntity implements PipelineExecutionDataDto {
-    @PrimaryKey()
-    public pipelineExecutionId!: number & Opt;
-
     @ManyToOne(() => PipelineExecutionEntity, {
-        joinColumn: 'pipelineExecutionId',
+        primary: true,
         deleteRule: 'cascade',
         updateRule: 'cascade',
     })

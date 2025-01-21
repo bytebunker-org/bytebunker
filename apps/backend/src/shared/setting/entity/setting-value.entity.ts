@@ -20,7 +20,7 @@ export class SettingValueEntity
     @ManyToOne<SettingEntity, SettingValueEntity>(() => SettingEntity, {
         updateRule: 'cascade',
         deleteRule: 'cascade',
-        joinColumn: 'settingKey',
+        joinColumn: 'setting_key',
     })
     public setting!: Ref<SettingEntity>;
 
@@ -30,7 +30,7 @@ export class SettingValueEntity
     @ManyToOne(() => UserEntity, {
         updateRule: 'cascade',
         deleteRule: 'cascade',
-        joinColumn: 'targetUserId',
+        joinColumn: 'target_user_id',
     })
     public targetUser?: Ref<UserEntity>;
 

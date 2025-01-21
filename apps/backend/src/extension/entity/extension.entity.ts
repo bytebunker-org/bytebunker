@@ -14,7 +14,7 @@ export class ExtensionEntity extends TimestampEntity implements ExtensionDto {
     public developerId!: string;
 
     @ManyToOne(() => ExtensionDeveloperEntity, {
-        joinColumn: 'developerId',
+        joinColumn: 'developer_id',
         updateRule: 'cascade',
         deleteRule: 'cascade',
     })

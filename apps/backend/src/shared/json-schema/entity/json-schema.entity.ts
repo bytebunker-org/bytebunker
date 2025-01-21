@@ -24,7 +24,7 @@ export class JsonSchemaEntity extends TimestampEntity implements JsonSchemaDto {
     public extensionId!: string;
 
     @ManyToOne(() => ExtensionEntity, {
-        joinColumn: 'extensionId',
+        joinColumn: 'extension_id',
         updateRule: 'cascade',
         deleteRule: 'cascade',
     })

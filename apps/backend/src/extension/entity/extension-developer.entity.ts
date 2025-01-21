@@ -15,6 +15,6 @@ export class ExtensionDeveloperEntity extends TimestampEntity {
     })
     public name!: string;
 
-    @OneToMany(() => ExtensionEntity, (extension) => extension)
+    @OneToMany(() => ExtensionEntity, (extension) => extension.developer)
     public extensions = new Collection<ExtensionEntity>(this);
 }

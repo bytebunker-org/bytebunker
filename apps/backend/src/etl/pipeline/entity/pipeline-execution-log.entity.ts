@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, type Opt, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
+import { Entity, ManyToOne, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { PipelineExecutionEntity } from './pipeline-execution.entity.js';
 import type { PipelineExecutionLogDataDto } from '../dto/pipeline-execution-log-data.dto.js';
@@ -9,11 +9,7 @@ export class PipelineExecutionLogEntity extends TimestampEntity implements Pipel
     @PrimaryKey()
     public id!: number;
 
-    @Property()
-    public pipelineExecutionId!: number & Opt;
-
     @ManyToOne(() => PipelineExecutionEntity, {
-        joinColumn: 'pipelineExecutionId',
         deleteRule: 'cascade',
         updateRule: 'cascade',
     })

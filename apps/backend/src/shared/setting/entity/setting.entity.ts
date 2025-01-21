@@ -21,6 +21,7 @@ import {
 } from '@mikro-orm/core';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
+import { JsonSchemaEntity } from '../../json-schema/entity/json-schema.entity.js';
 
 @Entity()
 export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingKeys>
@@ -44,7 +45,7 @@ export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingK
     public parentCategoryKey!: string;
 
     @ManyToOne(() => SettingCategoryEntity, {
-        joinColumn: 'parentCategoryKey',
+        joinColumn: 'parent_category_key',
     })
     public parentCategory!: Ref<SettingCategoryEntity>;
 
@@ -54,8 +55,8 @@ export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingK
     })
     public targetType!: SettingTargetTypeEnum;
 
-    @Property()
-    public validationSchemaUri?: string;
+    @ManyToOne(() => JsonSchemaEntity)
+    public validationSchema?: Ref<JsonSchemaEntity>;
 
     @Property({ type: types.json })
     public defaultValue?: NonNullable<JSONSchema7Type> | undefined;

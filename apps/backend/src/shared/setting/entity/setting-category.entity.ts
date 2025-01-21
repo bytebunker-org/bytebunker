@@ -21,7 +21,7 @@ export class SettingCategoryEntity
     public parentCategoryKey!: string;
 
     @ManyToOne(() => SettingCategoryEntity, {
-        joinColumn: 'parentCategoryKey',
+        joinColumn: 'parent_category_key',
     })
     public parentCategory!: Ref<SettingCategoryEntity>;
 

@@ -1,4 +1,4 @@
-import { Entity, Enum, ManyToOne, type Opt, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
+import { Entity, Enum, ManyToOne, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
 import { ExtensionEntity } from '../../../../extension/entity/extension.entity.js';
 import { TimestampEntity } from '../../../../database/util/timestamp.entity.js';
 import { PIPELINE_MODULE_IDENTIFIER_LENGTH } from '../pipeline-module.constant.js';
@@ -11,13 +11,7 @@ import type { PipelineModuleDto } from '../dto/pipeline-module.dto.js';
 
 @Entity()
 export class PipelineModuleEntity extends TimestampEntity implements PipelineModuleDto {
-    @Property({
-        type: types.uuid,
-    })
-    public extensionId!: string & Opt;
-
     @ManyToOne(() => ExtensionEntity, {
-        joinColumn: 'extensionId',
         updateRule: 'cascade',
         deleteRule: 'cascade',
     })
@@ -42,20 +36,10 @@ export class PipelineModuleEntity extends TimestampEntity implements PipelineMod
     @Enum({ items: () => PipelineModuleTypeEnum, nativeEnumName: toDatabaseEnumName('PipelineModuleTypeEnum') })
     public type = PipelineModuleTypeEnum.NORMAL;
 
-    @Property()
-    public inputTypeSchemaUri?: string;
-
-    @Property()
-    public outputTypeSchemaUri?: string;
-
-    @ManyToOne(() => JsonSchemaEntity, {
-        joinColumn: 'inputTypeSchemaUri',
-    })
+    @ManyToOne(() => JsonSchemaEntity)
     public inputTypeSchema?: Ref<JsonSchemaEntity>;
 
-    @ManyToOne(() => JsonSchemaEntity, {
-        joinColumn: 'outputTypeSchemaUri',
-    })
+    @ManyToOne(() => JsonSchemaEntity)
     public outputTypeSchema?: Ref<JsonSchemaEntity>;
 
     public get extensionName(): string {
