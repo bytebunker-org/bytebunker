@@ -4,7 +4,7 @@ import { PipelineModuleJsonSchema } from '../decorator/pipeline-module-json-sche
 import { PipelineModule } from '../decorator/pipeline-module.decorator.js';
 import { holdExecution } from '../../util/hold-execution-builder.util.js';
 import type { IPipelineModule, PipelineModuleExecutionContext } from '../type/pipeline-module.interface.js';
-import { PIPELINE_MODULE_CORE_EXTENSION_NAME } from '../pipeline-module.constant.js';
+import { CORE_EXTENSION_NAME } from '../../../../extension/extension.constant.js';
 
 @PipelineModuleJsonSchema()
 export class AbortExecutionInput {
@@ -13,7 +13,7 @@ export class AbortExecutionInput {
 }
 
 @PipelineModule({
-    extensionName: PIPELINE_MODULE_CORE_EXTENSION_NAME,
+    extensionName: CORE_EXTENSION_NAME,
     inputType: AbortExecutionInput,
 })
 export class AbortExecutionPipelineModule implements IPipelineModule<AbortExecutionInput, undefined> {

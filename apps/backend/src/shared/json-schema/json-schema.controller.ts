@@ -6,7 +6,7 @@ import { FindAllJsonSchemaResponseDto } from './dto/find-all-json-schema-respons
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import exampleJsonSchema from './util/example.schema.json.js';
 import type { Request } from 'express';
-import type { EntityManager } from '@mikro-orm/postgresql';
+import { EntityManager } from '@mikro-orm/postgresql';
 import type { JsonSchemaDto } from './dto/json-schema.dto.js';
 
 @ApiTags('json-schema')

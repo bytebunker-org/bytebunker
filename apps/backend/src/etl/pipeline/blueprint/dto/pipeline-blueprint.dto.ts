@@ -4,8 +4,11 @@ import { BlueprintDataDto } from './blueprint-data.dto.js';
 import { PipelineExecutionDto } from '../../dto/pipeline-execution.dto.js';
 import { TimestampDto } from '../../../../database/util/timestamp.dto.js';
 import type { DtoCollection } from '../../../../util/type/dto-collection.type.js';
+import { PrimaryKeyProp } from '@mikro-orm/core';
 
 export class PipelineBlueprintDto extends TimestampDto {
+    [PrimaryKeyProp]?: 'id';
+
     /** The unique identifier for the pipeline blueprint */
     @IsInt()
     public id!: number;

@@ -1,4 +1,4 @@
-import { Entity, Enum, ManyToOne, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
+import { Entity, Enum, ManyToOne, PrimaryKey, PrimaryKeyProp, Property, type Ref, types } from '@mikro-orm/core';
 import { ExtensionEntity } from '../../../../extension/entity/extension.entity.js';
 import { TimestampEntity } from '../../../../database/util/timestamp.entity.js';
 import { PIPELINE_MODULE_IDENTIFIER_LENGTH } from '../pipeline-module.constant.js';
@@ -11,6 +11,8 @@ import type { PipelineModuleDto } from '../dto/pipeline-module.dto.js';
 
 @Entity()
 export class PipelineModuleEntity extends TimestampEntity implements PipelineModuleDto {
+    [PrimaryKeyProp]?: 'id';
+
     @ManyToOne(() => ExtensionEntity, {
         updateRule: 'cascade',
         deleteRule: 'cascade',

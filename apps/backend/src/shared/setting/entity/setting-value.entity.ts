@@ -3,34 +3,25 @@ import { SettingValueDto } from '../dto/setting-value.dto.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { UserEntity } from '../../../user/entity/user.entity.js';
 import type { SettingValueType } from '../type/setting-config.type.js';
-import { Entity, ManyToOne, PrimaryKey, Property, type Ref } from '@mikro-orm/core';
-import type { EntityProperties } from '../../../database/type/entity-properties.type.js';
-import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
+import { Entity, ManyToOne, PrimaryKeyProp, Property, type Ref } from '@mikro-orm/core';
 
 @Entity()
-export class SettingValueEntity
-    extends TimestampEntity
-    implements DtoToEntityType<SettingValueDto, 'setting' | 'targetUser'>
-{
-    @PrimaryKey({
-        length: 128,
-    })
-    public settingKey!: string;
+export class SettingValueEntity extends TimestampEntity implements SettingValueDto {
+    [PrimaryKeyProp]?: ['setting', 'targetUser'];
 
-    @ManyToOne<SettingEntity, SettingValueEntity>(() => SettingEntity, {
+    @ManyToOne(() => SettingEntity, {
+        primary: true,
+        length: 128,
         updateRule: 'cascade',
         deleteRule: 'cascade',
-        joinColumn: 'setting_key',
     })
     public setting!: Ref<SettingEntity>;
 
-    @PrimaryKey()
-    public targetUserId?: number;
-
     @ManyToOne(() => UserEntity, {
+        primary: true,
+        nullable: true,
         updateRule: 'cascade',
         deleteRule: 'cascade',
-        joinColumn: 'target_user_id',
     })
     public targetUser?: Ref<UserEntity>;
 

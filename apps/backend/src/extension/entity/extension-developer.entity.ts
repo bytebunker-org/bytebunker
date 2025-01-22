@@ -1,9 +1,12 @@
-import { Collection, Entity, OneToMany, PrimaryKey, Property, types } from '@mikro-orm/core';
+import { Collection, Entity, OneToMany, PrimaryKey, PrimaryKeyProp, Property, types } from '@mikro-orm/core';
 import { ExtensionEntity } from './extension.entity.js';
 import { TimestampEntity } from '../../database/util/timestamp.entity.js';
+import type { ExtensionDeveloperDto } from '../dto/extension-developer.dto.js';
 
 @Entity()
-export class ExtensionDeveloperEntity extends TimestampEntity {
+export class ExtensionDeveloperEntity extends TimestampEntity implements ExtensionDeveloperDto {
+    [PrimaryKeyProp]?: 'id';
+
     @PrimaryKey({
         type: types.uuid,
     })

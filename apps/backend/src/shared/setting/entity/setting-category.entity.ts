@@ -1,29 +1,32 @@
 import { SettingEntity } from './setting.entity.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
-import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property, type Ref } from '@mikro-orm/core';
-import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
+import {
+    Collection,
+    Entity,
+    ManyToOne,
+    OneToMany,
+    type Opt,
+    PrimaryKey,
+    PrimaryKeyProp,
+    Property,
+    type Ref,
+} from '@mikro-orm/core';
 import type { SettingCategoryDto } from '../dto/setting-category.dto.js';
 
 @Entity()
-export class SettingCategoryEntity
-    extends TimestampEntity
-    implements DtoToEntityType<SettingCategoryDto, 'parentCategory' | 'subCategories' | 'settings'>
-{
+export class SettingCategoryEntity extends TimestampEntity implements SettingCategoryDto {
+    [PrimaryKeyProp]?: 'key';
+
     @PrimaryKey({
         length: 64,
         unique: true,
     })
     public key!: string;
 
-    @Property({
-        length: 64,
-    })
-    public parentCategoryKey!: string;
-
     @ManyToOne(() => SettingCategoryEntity, {
-        joinColumn: 'parent_category_key',
+        nullable: true,
     })
-    public parentCategory!: Ref<SettingCategoryEntity>;
+    public parentCategory?: Ref<SettingCategoryEntity>;
 
     @Property({
         length: 32,
@@ -31,7 +34,7 @@ export class SettingCategoryEntity
     public icon?: string;
 
     @Property()
-    public hidden: boolean = false;
+    public hidden: boolean & Opt = false;
 
     @OneToMany(() => SettingCategoryEntity, (category) => category.parentCategory)
     public subCategories = new Collection<SettingCategoryEntity>(this);

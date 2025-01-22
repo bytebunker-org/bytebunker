@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PipelineBlueprintEntity } from './blueprint/entity/pipeline-blueprint.entity.js';
-import { type EntityManager, MikroORM } from '@mikro-orm/postgresql';
+import { type EntityManager } from '@mikro-orm/postgresql';
 import { Blueprint } from './blueprint/util/blueprint.class.js';
 import { PipelineExecutionEntity } from './entity/pipeline-execution.entity.js';
 import { PipelineExecutionDataEntity } from './entity/pipeline-execution-data.entity.js';
@@ -18,10 +18,7 @@ export class PipelineExecutionService {
 
     private readonly currentlyExecutingPipelineIds = new Set<number>();
 
-    constructor(
-        private readonly orm: MikroORM,
-        private readonly moduleService: PipelineModuleService,
-    ) {}
+    constructor(private readonly moduleService: PipelineModuleService) {}
 
     public async executeBlueprintFromTrigger(
         em: EntityManager,

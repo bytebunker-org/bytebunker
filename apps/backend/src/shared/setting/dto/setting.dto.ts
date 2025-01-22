@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import { IsBoolean, IsEnum, IsObject, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 import type { JSONSchema7Type } from 'json-schema';
 import { SettingValueDto } from './setting-value.dto.js';
 import { SettingCategoryDto } from './setting-category.dto.js';
@@ -9,18 +9,18 @@ import type { DtoRef } from '../../../util/type/dto-ref.type.js';
 import { Type } from 'class-transformer';
 import type { ByteBunkerSettingKeys } from '../../../util/setting/setting.constant.js';
 import type { DtoCollection } from '../../../util/type/dto-collection.type.js';
+import { JsonSchemaDto } from '../../json-schema/dto/json-schema.dto.js';
+import { PrimaryKeyProp } from '@mikro-orm/core';
 
 export class SettingDto<SettingKey extends ByteBunkerSettingKeys = ByteBunkerSettingKeys> extends TimestampDto {
+    [PrimaryKeyProp]?: 'key';
+
     @IsString()
     @MaxLength(128)
     public key!: SettingKey;
 
     @IsEnum(SettingTypeEnum)
     public type!: SettingTypeEnum;
-
-    @IsString()
-    @MaxLength(64)
-    public parentCategoryKey!: string;
 
     @ValidateNested()
     @IsOptional()
@@ -30,9 +30,11 @@ export class SettingDto<SettingKey extends ByteBunkerSettingKeys = ByteBunkerSet
     @IsEnum(SettingTargetTypeEnum)
     public targetType!: SettingTargetTypeEnum;
 
+    @Type(() => JsonSchemaDto)
     @IsOptional()
-    @IsString()
-    public validationSchemaUri?: string;
+    @IsObject()
+    @ValidateNested()
+    public validationSchema!: DtoRef<JsonSchemaDto>;
 
     @IsOptional()
     public defaultValue?: NonNullable<JSONSchema7Type> | undefined;
@@ -43,8 +45,8 @@ export class SettingDto<SettingKey extends ByteBunkerSettingKeys = ByteBunkerSet
     @IsBoolean()
     public hidden!: boolean;
 
-    @ValidateNested({ each: true })
-    @IsOptional()
     @Type(() => SettingValueDto)
-    public settingValues?: DtoCollection<SettingValueDto>;
+    @IsObject()
+    @ValidateNested({ each: true })
+    public settingValues!: DtoCollection<SettingValueDto>;
 }

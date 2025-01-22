@@ -9,7 +9,7 @@ type SettingKeys = ByteBunkerSettingKeys;
 export type GetSettingsReturnType = {
     [P in SettingKeys]:
         | (SettingDto<P> & {
-              settingValue?: SettingValueDto<SettingConfig, GetSettingValueType<SettingConfig['settings'][P]['type']>>;
+              settingValue?: SettingValueDto<GetSettingValueType<SettingConfig['settings'][P]['type']>>;
           })
         | undefined;
 };

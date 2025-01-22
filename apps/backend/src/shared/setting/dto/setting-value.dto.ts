@@ -1,17 +1,14 @@
 import { Allow, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { SettingDto } from './setting.dto.js';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
-import type { SettingConfigType, SettingValueType } from '../type/setting-config.type.js';
+import type { SettingValueType } from '../type/setting-config.type.js';
 import type { DtoRef } from '../../../util/type/dto-ref.type.js';
 import { Type } from 'class-transformer';
 import { UserDto } from '../../../user/dto/user.dto.js';
+import { PrimaryKeyProp } from '@mikro-orm/core';
 
-export class SettingValueDto<
-    SettingConfig extends SettingConfigType = SettingConfigType,
-    ValueType extends SettingValueType = SettingValueType,
-> extends TimestampDto {
-    @IsString()
-    public settingKey!: keyof SettingConfig['settings'];
+export class SettingValueDto<ValueType extends SettingValueType = SettingValueType> extends TimestampDto {
+    [PrimaryKeyProp]?: ['setting', 'targetUser'];
 
     @ValidateNested()
     @IsOptional()

@@ -1,4 +1,14 @@
-import { Entity, Enum, ManyToOne, type Opt, PrimaryKey, Property, type Ref, types } from '@mikro-orm/core';
+import {
+    Entity,
+    Enum,
+    ManyToOne,
+    type Opt,
+    PrimaryKey,
+    PrimaryKeyProp,
+    Property,
+    type Ref,
+    types,
+} from '@mikro-orm/core';
 import { PipelineExecutionEntity } from './pipeline-execution.entity.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
@@ -7,6 +17,8 @@ import type { PipelineExecutionDataDto } from '../dto/pipeline-execution-data.dt
 
 @Entity()
 export class PipelineExecutionDataEntity extends TimestampEntity implements PipelineExecutionDataDto {
+    [PrimaryKeyProp]?: ['pipelineExecution', 'nodeId'];
+
     @ManyToOne(() => PipelineExecutionEntity, {
         primary: true,
         deleteRule: 'cascade',

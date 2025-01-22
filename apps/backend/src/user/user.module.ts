@@ -19,19 +19,21 @@ export class UserModule implements OnModuleInit {
 
     constructor(private readonly em: EntityManager) {}
 
-    public async onModuleInit(): Promise<void> {
-        const nullUser = await this.em.findOne(UserEntity, { username: 'null-user' });
+    public onModuleInit(): Promise<void> {
+        return this.em.transactional(async (em) => {
+            const nullUser = await em.findOne(UserEntity, { username: 'null-user' });
 
-        if (!nullUser) {
-            await this.em.persistAndFlush(
-                new UserEntity({
-                    username: 'null-user',
-                    password: '',
-                    deletedAt: DateTime.now(),
-                } as EntityProperties<UserEntity>),
-            );
+            if (!nullUser) {
+                await em.persistAndFlush(
+                    new UserEntity({
+                        username: 'null-user',
+                        password: '',
+                        deletedAt: DateTime.now(),
+                    } as EntityProperties<UserEntity>),
+                );
 
-            this.logger.log('Created new internal null user');
-        }
+                this.logger.log('Created new internal null user');
+            }
+        });
     }
 }

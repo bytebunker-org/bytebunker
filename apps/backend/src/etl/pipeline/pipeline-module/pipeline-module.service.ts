@@ -16,6 +16,7 @@ import { diffString } from 'json-diff';
 import { PipelineModuleTypeEnum } from './type/pipeline-module-type.enum.js';
 import type { PipelineModuleIdentifier } from './type/pipeline-module-identifier.type.js';
 import { buildModuleIdentifier, deconstructPipelineModuleIdentifier } from './pipeline-module-identifier.util.js';
+import { JsonSchemaEntity } from '../../../shared/json-schema/entity/json-schema.entity.js';
 
 @Injectable()
 export class PipelineModuleService {
@@ -123,8 +124,12 @@ export class PipelineModuleService {
                 jsonSchemas: [inputTypeSchema, outputTypeSchema].filter(Boolean),
             });
 
-            existingModule.inputTypeSchemaUri = inputTypeSchema?.$id;
-            existingModule.outputTypeSchemaUri = outputTypeSchema?.$id;
+            existingModule.inputTypeSchema = inputTypeSchema?.$id
+                ? em.getReference(JsonSchemaEntity, inputTypeSchema?.$id, { wrapped: true })
+                : undefined;
+            existingModule.outputTypeSchema = outputTypeSchema?.$id
+                ? em.getReference(JsonSchemaEntity, outputTypeSchema?.$id, { wrapped: true })
+                : undefined;
 
             em.persist(existingModule);
         } else {
@@ -135,13 +140,16 @@ export class PipelineModuleService {
 
             em.create(PipelineModuleEntity, {
                 extensionName: extension.name,
-                extensionId: extension.id,
                 extension: extension,
                 name: moduleName,
                 version: moduleVersion,
                 type: moduleType,
-                inputTypeSchemaUri: inputTypeSchema?.$id,
-                outputTypeSchemaUri: outputTypeSchema?.$id,
+                inputTypeSchema: inputTypeSchema?.$id
+                    ? em.getReference(JsonSchemaEntity, inputTypeSchema?.$id)
+                    : undefined,
+                outputTypeSchema: outputTypeSchema?.$id
+                    ? em.getReference(JsonSchemaEntity, outputTypeSchema?.$id)
+                    : undefined,
             });
         }
 

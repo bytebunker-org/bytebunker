@@ -1,15 +1,13 @@
-import { IsInt, Min, IsOptional, IsEnum, IsObject, ValidateNested } from 'class-validator';
+import { IsEnum, IsInt, IsObject, IsOptional, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 import { PipelineExecutionDto } from './pipeline-execution.dto.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
 import type { DtoRef } from '../../../util/type/dto-ref.type.js';
+import { PrimaryKeyProp } from '@mikro-orm/core';
 
 export class PipelineExecutionDataDto extends TimestampDto {
-    /** Identifier of the related pipeline execution */
-    @IsInt()
-    @Min(0)
-    public pipelineExecutionId!: number;
+    [PrimaryKeyProp]?: ['pipelineExecution', 'nodeId'];
 
     /** Related pipeline execution */
     @Type(() => PipelineExecutionDto)

@@ -8,16 +8,15 @@ import type { DtoRef } from '../../../util/type/dto-ref.type.js';
 import { PipelineExecutionLogDto } from './pipeline-execution-log.dto.js';
 import { PipelineExecutionDataDto } from './pipeline-execution-data.dto.js';
 import type { DtoCollection } from '../../../util/type/dto-collection.type.js';
+import { PrimaryKeyProp } from '@mikro-orm/core';
 
 export class PipelineExecutionDto extends TimestampDto {
+    [PrimaryKeyProp]?: 'id';
+
     /** Unique identifier for the pipeline execution */
     @IsInt()
     @Min(0)
     public id!: number;
-
-    /** Blueprint ID associated with the pipeline execution */
-    @IsInt()
-    public blueprintId!: number;
 
     /** Relation to the associated blueprint */
     @Type(() => PipelineBlueprintDto)

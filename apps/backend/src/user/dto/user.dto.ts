@@ -2,8 +2,11 @@ import { TimestampDto } from '../../database/util/timestamp.dto.js';
 import type { DateTime } from 'luxon';
 import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { IsDateTime } from '../../util/custom-validator.util.js';
+import { PrimaryKeyProp } from '@mikro-orm/core';
 
 export class UserDto extends TimestampDto {
+    [PrimaryKeyProp]?: 'id';
+
     @IsInt()
     public id!: number;
 

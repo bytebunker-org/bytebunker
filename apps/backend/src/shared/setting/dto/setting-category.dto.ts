@@ -4,16 +4,14 @@ import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 import { Type } from 'class-transformer';
 import type { DtoRef } from '../../../util/type/dto-ref.type.js';
 import type { DtoCollection } from '../../../util/type/dto-collection.type.js';
+import { PrimaryKeyProp } from '@mikro-orm/core';
 
 export class SettingCategoryDto extends TimestampDto {
+    [PrimaryKeyProp]?: 'key';
+
     @IsString()
     @MaxLength(64)
     public key!: string;
-
-    @IsString()
-    @IsOptional()
-    @MaxLength(64)
-    public parentCategoryKey?: string;
 
     @ValidateNested()
     @IsOptional()

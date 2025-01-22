@@ -6,6 +6,7 @@ import {
     OneToMany,
     type Opt,
     PrimaryKey,
+    PrimaryKeyProp,
     Property,
     type Ref,
     types,
@@ -21,6 +22,8 @@ import type { PipelineExecutionDto } from '../dto/pipeline-execution.dto.js';
 
 @Entity()
 export class PipelineExecutionEntity extends TimestampEntity implements PipelineExecutionDto {
+    [PrimaryKeyProp]?: 'id';
+
     @PrimaryKey()
     public id!: number;
 

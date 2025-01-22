@@ -1,11 +1,17 @@
-import { IsNotEmpty, IsObject, IsString, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsObject, IsString, IsUrl, ValidateNested } from 'class-validator';
 import type { JSONSchema7 } from 'json-schema';
 import { BYTEBUNKER_SCHEMA_HOST } from '../json-schema.constant.js';
 import { ApiProperty } from '@nestjs/swagger';
 import exampleJsonSchema from '../util/example.schema.json.js';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
+import type { DtoRef } from '../../../util/type/dto-ref.type.js';
+import { ExtensionDto } from '../../../extension/dto/extension.dto.js';
+import { Type } from 'class-transformer';
+import { type Opt, PrimaryKeyProp } from '@mikro-orm/core';
 
 export class JsonSchemaDto extends TimestampDto {
+    [PrimaryKeyProp]?: 'schemaUri';
+
     @IsUrl({
         protocols: ['https'],
         require_host: true,
@@ -25,7 +31,7 @@ export class JsonSchemaDto extends TimestampDto {
     public title!: string;
 
     @IsString()
-    public description!: string;
+    public description!: string & Opt;
 
     @IsObject()
     @ApiProperty({
@@ -35,4 +41,9 @@ export class JsonSchemaDto extends TimestampDto {
         externalDocs: { description: 'JSON Schema Homepage', url: 'https://json-schema.org/' },
     })
     public jsonSchema!: JSONSchema7;
+
+    @Type(() => ExtensionDto)
+    @IsObject()
+    @ValidateNested()
+    public extension!: DtoRef<ExtensionDto>;
 }

@@ -14,20 +14,22 @@ import {
     OneToMany,
     type Opt,
     PrimaryKey,
+    PrimaryKeyProp,
     Property,
     type Ref,
     t,
     types,
 } from '@mikro-orm/core';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
-import type { DtoToEntityType } from '../../../util/type/dto-to-entity.type.js';
 import { JsonSchemaEntity } from '../../json-schema/entity/json-schema.entity.js';
 
 @Entity()
 export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingKeys>
     extends TimestampEntity
-    implements DtoToEntityType<SettingDto<SK>, 'parentCategory' | 'settingValues'>
+    implements SettingDto<SK>
 {
+    [PrimaryKeyProp]?: 'key';
+
     @PrimaryKey({
         type: t.string,
         length: 128,
@@ -38,14 +40,9 @@ export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingK
     @Enum({ items: () => SettingTypeEnum, nativeEnumName: toDatabaseEnumName('SettingTypeEnum') })
     public type!: SettingTypeEnum;
 
-    @Property({
+    @ManyToOne(() => SettingCategoryEntity, {
         length: 64,
         index: true,
-    })
-    public parentCategoryKey!: string;
-
-    @ManyToOne(() => SettingCategoryEntity, {
-        joinColumn: 'parent_category_key',
     })
     public parentCategory!: Ref<SettingCategoryEntity>;
 
@@ -56,7 +53,7 @@ export class SettingEntity<SK extends ByteBunkerSettingKeys = ByteBunkerSettingK
     public targetType!: SettingTargetTypeEnum;
 
     @ManyToOne(() => JsonSchemaEntity)
-    public validationSchema?: Ref<JsonSchemaEntity>;
+    public validationSchema!: Ref<JsonSchemaEntity>;
 
     @Property({ type: types.json })
     public defaultValue?: NonNullable<JSONSchema7Type> | undefined;

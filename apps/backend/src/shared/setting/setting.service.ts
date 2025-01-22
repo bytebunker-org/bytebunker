@@ -1,7 +1,6 @@
 import { generateJsonSchema } from 'ts-decorator-json-schema-generator';
 import type { JSONSchema7 } from 'json-schema';
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
-import { SettingValueDto } from './dto/setting-value.dto.js';
 import { SettingEntity } from './entity/setting.entity.js';
 import { SettingTargetTypeEnum } from './type/setting-target-type.enum.js';
 import { SettingValueEntity } from './entity/setting-value.entity.js';
@@ -23,11 +22,15 @@ import type {
     ByteBunkerSettingConfig,
     ByteBunkerSettingKeys,
 } from '../../util/setting/setting.constant.js';
-import type { EntityManager } from '@mikro-orm/postgresql';
+import { type EntityManager, ref } from '@mikro-orm/postgresql';
 import { groupByKeySingle } from '../../util/util.js';
 import { type ObjectQuery } from '@mikro-orm/core';
 import { JsonSchemaService } from '../json-schema/json-schema.service.js';
 import { JsonSchemaValidationService } from '../json-schema-validation/json-schema-validation.service.js';
+import { StoreSettingValueDto } from './dto/store-setting-values.dto.js';
+import { UserEntity } from '../../user/entity/user.entity.js';
+import { JsonSchemaEntity } from '../json-schema/entity/json-schema.entity.js';
+import { ExtensionEntity } from '../../extension/entity/extension.entity.js';
 
 type SettingConfig = ByteBunkerSettingConfig;
 type CategoryKeys = ByteBunkerSettingCategoryKeys;
@@ -44,10 +47,14 @@ export class SettingService {
         private readonly userService: UserService,
     ) {}
 
-    public async applySettingConfig(em: EntityManager, settingConfig: SettingConfig): Promise<void> {
+    public async applySettingConfig(
+        em: EntityManager,
+        extensionId: string,
+        settingConfig: SettingConfig,
+    ): Promise<void> {
         await this.applySettingConfigCategories(em, settingConfig.categories);
 
-        await this.applySettingConfigFields(em, settingConfig.settings);
+        await this.applySettingConfigFields(em, extensionId, settingConfig.settings);
 
         this.logger.log(
             `Stored settings config, including ${Object.keys(settingConfig.categories).length} categories and ${
@@ -58,7 +65,7 @@ export class SettingService {
 
     public async storeSettings(
         em: EntityManager,
-        updatedSettingValues: Pick<SettingValueDto<SettingConfig>, 'settingKey' | 'value'>[],
+        updatedSettingValues: StoreSettingValueDto[],
         userId?: number,
     ): Promise<void> {
         const settingInfoList = await em.find(SettingEntity, {
@@ -66,11 +73,10 @@ export class SettingService {
                 $in: updatedSettingValues.map((entry) => entry.settingKey),
             },
         });
-        console.log('settingInfoList', settingInfoList);
         const settingInfo = groupByKeySingle(settingInfoList, 'key');
 
         const updateData: SettingValueEntity[] = [];
-        const nullUser = await this.userService.getNullUser(em);
+        // const nullUser = await this.userService.getNullUser(em);
 
         for (const { settingKey, value } of updatedSettingValues) {
             const setting = settingInfo[settingKey];
@@ -79,11 +85,16 @@ export class SettingService {
                 throw new BadRequestException(`Unknown setting key ${settingKey}`);
             }
 
-            if (!setting.validationSchemaUri) {
+            if (!setting.validationSchema.getProperty('schemaUri')) {
                 throw new Error(`Setting ${settingKey} has no validationSchemaUri`);
             }
 
-            await this.jsonSchemaValidationService.validateOrThrow(em, setting.validationSchemaUri, value, settingKey);
+            await this.jsonSchemaValidationService.validateOrThrow(
+                em,
+                setting.validationSchema.getProperty('schemaUri'),
+                value,
+                settingKey,
+            );
 
             const userRequired = setting.targetType === SettingTargetTypeEnum.USER;
 
@@ -92,11 +103,15 @@ export class SettingService {
             }
 
             updateData.push(
-                new SettingValueEntity({
-                    settingKey,
-                    targetUserId: userRequired ? userId! : nullUser.id,
-                    value,
-                }),
+                em.create(
+                    SettingValueEntity,
+                    {
+                        setting: em.getReference(SettingEntity, settingKey),
+                        targetUser: userRequired ? em.getReference(UserEntity, userId!) : undefined,
+                        value,
+                    },
+                    { persist: false },
+                ),
             );
         }
 
@@ -117,8 +132,8 @@ export class SettingService {
         // Clear cached setting values which are now dirty
         await Promise.all(
             updateData
-                .filter((setting) => !setting.targetUserId)
-                .map((setting) => this.cacheManager.del('setting-' + setting.settingKey)),
+                .filter((setting) => !setting.targetUser)
+                .map((setting) => this.cacheManager.del('setting-' + setting.setting.key)),
         );
 
         const includesGlobalSetting = settingInfoList.some((s) => s.targetType === SettingTargetTypeEnum.GLOBAL);
@@ -201,7 +216,7 @@ export class SettingService {
         try {
             await Promise.all(
                 settingCacheMisses.map((setting) =>
-                    this.cacheManager.set(this.buildCacheKey(setting.key, userId), setting),
+                    this.cacheManager.set(this.buildCacheKey(setting.key, userId), setting.toPOJO()),
                 ),
             );
         } catch (error) {
@@ -259,7 +274,7 @@ export class SettingService {
                           {
                               targetType: SettingTargetTypeEnum.USER,
                               settingValues: {
-                                  targetUserId: userId,
+                                  targetUser: ref(UserEntity, userId),
                               },
                           },
                       ]
@@ -272,12 +287,20 @@ export class SettingService {
         em: EntityManager,
         categories: Record<string, SettingCategoryConfig<CategoryKeys>>,
     ): Promise<void> {
-        const categoryValueList = Object.entries(categories).map(([categoryKey, categoryData]) => ({
-            key: categoryKey,
-            parentCategoryKey: categoryData.parentCategory,
-            icon: categoryData.icon,
-            hidden: categoryData.hidden ?? false,
-        }));
+        const categoryValueList = Object.entries(categories).map(([categoryKey, categoryData]) =>
+            em.create(
+                SettingCategoryEntity,
+                {
+                    key: categoryKey,
+                    parentCategory: categoryData.parentCategory
+                        ? em.getReference(SettingCategoryEntity, categoryData.parentCategory)
+                        : undefined,
+                    icon: categoryData.icon,
+                    hidden: categoryData.hidden,
+                },
+                { persist: false },
+            ),
+        );
 
         if (!categoryValueList.length) {
             return;
@@ -285,16 +308,19 @@ export class SettingService {
 
         await em.upsertMany(SettingCategoryEntity, categoryValueList, {
             onConflictAction: 'merge',
-            onConflictMergeFields: ['parentCategoryKey', 'icon', 'hidden'],
+            onConflictMergeFields: ['parentCategory', 'icon', 'hidden'],
         });
     }
 
     private async applySettingConfigFields(
         em: EntityManager,
+        extensionId: string,
         settingFields: Record<string, SettingFieldConfig<CategoryKeys>>,
     ): Promise<void> {
         const validationSchemas: JSONSchema7[] = [];
         const validationSchemaUriMap: Record<string, string> = {};
+
+        const extension = await em.findOneOrFail(ExtensionEntity, extensionId);
 
         for (const [settingKey, data] of Object.entries(settingFields)) {
             if (!data.validationSchema && !data.validationSchemaObject) {
@@ -306,24 +332,42 @@ export class SettingService {
                       includeSubschemas: ($id) => ($id ? 'reference' : 'anonymously'),
                   })
                 : data.validationSchema!;
-            validationSchema.$id = this.getValidationSchemaId(settingKey);
+            validationSchema.$id = this.jsonSchemaService.normalizeAndValidateInternalSchemaUri(
+                this.getValidationSchemaId(extension, settingKey),
+            );
             validationSchema.$schema = 'http://json-schema.org/draft-07/schema';
             validationSchema.title = `${toHeaderCase(settingKey)} Setting`;
             validationSchema.description ??= `The ${toTextCase(settingKey)} ${
                 data.targetType
-            } setting for the warehouse controller`;
+            } setting, originating from the "${extension.name}" extension`;
 
             validationSchemaUriMap[settingKey] = validationSchema.$id;
             validationSchemas.push(validationSchema);
         }
 
         await this.jsonSchemaService.storeMultiple(em, {
+            extensionId,
             jsonSchemas: validationSchemas,
         });
 
-        const settingFieldValues = Object.entries(settingFields).map(([settingKey, SettingDto]) =>
-            this.buildSetting(settingKey as SettingKeys, SettingDto, validationSchemaUriMap[settingKey]),
+        const settingFieldValues = Object.entries(settingFields).map(([settingKey, data]) =>
+            em.create(
+                SettingEntity,
+                {
+                    key: settingKey,
+                    type: data.type,
+                    parentCategory: em.getReference(SettingCategoryEntity, data.parentCategoryKey),
+                    targetType: data.targetType as SettingTargetTypeEnum,
+                    validationSchema: em.getReference(JsonSchemaEntity, validationSchemaUriMap[settingKey]),
+                    defaultValue: data.defaultValue,
+                    required: data.required,
+                    hidden: data.hidden,
+                },
+                { persist: false },
+            ),
         );
+
+        // this.buildSetting(settingKey as SettingKeys, SettingDto, validationSchemaUriMap[settingKey]),
 
         if (!settingFieldValues.length) {
             return;
@@ -333,9 +377,9 @@ export class SettingService {
             onConflictAction: 'merge',
             onConflictMergeFields: [
                 'type',
-                'parentCategoryKey',
+                'parentCategory',
                 'targetType',
-                'validationSchemaUri',
+                'validationSchema',
                 'defaultValue',
                 'required',
                 'hidden',
@@ -343,24 +387,7 @@ export class SettingService {
         });
     }
 
-    private getValidationSchemaId(settingKey: string): string {
-        return `/schema/setting/${toKebabCase(settingKey)}.schema.json`;
-    }
-
-    private buildSetting(
-        settingKey: SettingKeys,
-        data: SettingFieldConfig<CategoryKeys>,
-        validationSchemaUri: string,
-    ): SettingEntity {
-        return new SettingEntity({
-            key: settingKey,
-            type: data.type,
-            parentCategoryKey: data.parentCategoryKey,
-            targetType: data.targetType as SettingTargetTypeEnum,
-            validationSchemaUri,
-            defaultValue: data.defaultValue,
-            required: data.required,
-            hidden: data.hidden,
-        });
+    private getValidationSchemaId(extension: ExtensionEntity, settingKey: string): string {
+        return `/${extension.name}/setting/${toKebabCase(settingKey)}.schema.json`;
     }
 }

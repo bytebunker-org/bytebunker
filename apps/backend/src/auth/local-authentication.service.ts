@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type { SerializedUserDto } from './dto/serialized-user.dto.js';
 import { UserService } from '../user/user.service.js';
@@ -10,7 +9,6 @@ export class LocalAuthenticationService {
     private readonly logger = new Logger(LocalAuthenticationService.name);
 
     constructor(
-        private readonly httpService: HttpService,
         private readonly userService: UserService,
         private readonly bcryptService: BcryptService,
     ) {}

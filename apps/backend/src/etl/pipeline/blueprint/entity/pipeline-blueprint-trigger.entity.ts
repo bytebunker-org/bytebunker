@@ -1,8 +1,10 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, PrimaryKey, PrimaryKeyProp, Property } from '@mikro-orm/core';
 import { TimestampEntity } from '../../../../database/util/timestamp.entity.js';
 
 @Entity()
 export class PipelineBlueprintTriggerEntity extends TimestampEntity {
+    [PrimaryKeyProp]?: ['blueprintId', 'triggerNodeId'];
+
     @PrimaryKey()
     public blueprintId!: number;
 

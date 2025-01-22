@@ -2,9 +2,10 @@ import { Module, type OnApplicationBootstrap } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { PipelineModuleService } from './pipeline-module.service.js';
 import { DiscoveryModule } from '@golevelup/nestjs-discovery';
+import { JsonSchemaModule } from '../../../shared/json-schema/json-schema.module.js';
 
 @Module({
-    imports: [DiscoveryModule],
+    imports: [DiscoveryModule, JsonSchemaModule],
     providers: [PipelineModuleService],
     exports: [PipelineModuleService],
 })

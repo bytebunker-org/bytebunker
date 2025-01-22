@@ -3,7 +3,7 @@ import { Strategy } from 'passport-local';
 import { Injectable } from '@nestjs/common';
 import { LocalAuthenticationService } from './local-authentication.service.js';
 import type { SerializedUserDto } from './dto/serialized-user.dto.js';
-import type { EntityManager } from '@mikro-orm/postgresql';
+import { EntityManager } from '@mikro-orm/postgresql';
 
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy, 'yond-staff') {

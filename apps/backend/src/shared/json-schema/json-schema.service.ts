@@ -15,6 +15,7 @@ import { FindAllJsonSchemaResponseDto } from './dto/find-all-json-schema-respons
 import { StoreJsonSchemaRequestDto } from './dto/store-json-schema-request.dto.js';
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { BadRequestError } from '../../util/rest-error.js';
+import { ExtensionEntity } from '../../extension/entity/extension.entity.js';
 
 @Injectable()
 export class JsonSchemaService {
@@ -81,13 +82,17 @@ export class JsonSchemaService {
                 jsonSchema.$schema = jsonSchema.$schema.replace('https://', 'http://');
             }
 
-            return new JsonSchemaEntity({
-                schemaUri,
-                title: jsonSchema.title!,
-                description: jsonSchema.description,
-                jsonSchema,
-                extensionId: data.extensionId,
-            });
+            return em.create(
+                JsonSchemaEntity,
+                {
+                    schemaUri,
+                    title: jsonSchema.title!,
+                    description: jsonSchema.description,
+                    jsonSchema,
+                    extension: em.getReference(ExtensionEntity, data.extensionId),
+                },
+                { persist: false },
+            );
         });
 
         return em.upsertMany(JsonSchemaEntity, jsonSchemaValues, {
@@ -130,7 +135,7 @@ export class JsonSchemaService {
             schemaUri = BYTEBUNKER_SCHEMA_ORIGIN + '/' + schemaUri;
         }
 
-        schemaUri = schemaUri.replace(/\/{2,}/, '/').toLowerCase();
+        schemaUri = schemaUri.replaceAll(/\/{2,}/g, '/').toLowerCase();
 
         let parsedUri: URL;
 

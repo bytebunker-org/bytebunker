@@ -6,6 +6,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthSerializationProvider } from './auth-serialization.provider.js';
 import { LocalLoginGuard } from './local-login.guard.js';
 import { UserModule } from '../user/user.module.js';
+import { HashingModule } from '../shared/hashing/hashing.module.js';
 
 @Module({
     imports: [
@@ -13,6 +14,7 @@ import { UserModule } from '../user/user.module.js';
             session: true,
         }),
         UserModule,
+        HashingModule,
     ],
     controllers: [AuthController],
     providers: [LocalAuthenticationService, LocalStrategy, AuthSerializationProvider, LocalLoginGuard],

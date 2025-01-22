@@ -14,6 +14,7 @@ import type { ByteBunkerSettingKeys } from '../../util/setting/setting.constant.
 import { EntityManager } from '@mikro-orm/postgresql';
 import { CurrentUser } from '../../auth/decorator/user.decorator.js';
 import { SettingCategoryEntity } from './entity/setting-category.entity.js';
+import type { StoreSettingValuesDto } from './dto/store-setting-values.dto.js';
 
 @Controller('settings')
 @ApiTags('setting')
@@ -59,7 +60,7 @@ export class SettingController {
         return this.em.find(
             SettingCategoryEntity,
             {
-                parentCategoryKey: null,
+                parentCategory: null,
                 hidden: false,
             },
             {
@@ -78,10 +79,7 @@ export class SettingController {
 
     @Put('/')
     @HttpCode(204)
-    public store(
-        @CurrentUser() user: UserDto,
-        @Body() data: Pick<SettingValueDto, 'settingKey' | 'value'>[],
-    ): Promise<void> {
-        return this.em.transactional((em) => this.settingService.storeSettings(em, data, user.id));
+    public store(@CurrentUser() user: UserDto, @Body() data: StoreSettingValuesDto): Promise<void> {
+        return this.em.transactional((em) => this.settingService.storeSettings(em, data.values, user.id));
     }
 }
