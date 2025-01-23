@@ -1,16 +1,19 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EntityManager } from '@mikro-orm/core';
 import { PipelineBlueprintEntity } from './entity/pipeline-blueprint.entity.js';
 import { PipelineBlueprintDto } from './dto/pipeline-blueprint.dto.js';
 import type { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint.dto.js';
 import type { BlueprintDataDto } from './dto/blueprint-data.dto.js';
 import { UpdatePipelineBlueprintDto } from './dto/update-pipeline-blueprint.dto.js';
+import { FindRestApiService } from '../../../shared/find-rest-api/find-rest-api.service.js';
 
-@ApiTags('Blueprints')
 @Controller('pipelines/blueprints')
 export class PipelineBlueprintController {
-    constructor(private readonly em: EntityManager) {}
+    constructor(
+        private readonly em: EntityManager,
+        private readonly findRestApiService: FindRestApiService,
+    ) {}
 
     @Post()
     @ApiOperation({ summary: 'Create a new blueprint' })

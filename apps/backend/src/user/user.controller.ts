@@ -3,7 +3,6 @@ import { UserService } from './user.service.js';
 import { UserEntity } from './entity/user.entity.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UserDto } from './dto/user.dto.js';
-import { ApiTags } from '@nestjs/swagger';
 import type { UserSessionDto } from './dto/user-session.dto.js';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { CurrentUser } from '../auth/decorator/user.decorator.js';
@@ -11,7 +10,6 @@ import { FindRestApiService } from '../shared/find-rest-api/find-rest-api.servic
 import type { FindAllOptions } from '@mikro-orm/core';
 
 @Controller('users')
-@ApiTags('auth')
 export class UserController {
     constructor(
         private readonly userService: UserService,

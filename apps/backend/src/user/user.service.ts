@@ -15,6 +15,7 @@ export class UserService {
             UserEntity,
             {
                 username,
+                deletedAt: null,
             },
             {},
         );
@@ -36,13 +37,10 @@ export class UserService {
                 throw new BadRequestException('Username is already taken');
             }
 
-            userDto.password = await this.bcryptService.hash(userDto.password);
-
-            const newUser = new UserEntity(userDto);
-
-            em.persist(newUser);
-
-            return newUser;
+            return em.create(UserEntity, {
+                username: userDto.username,
+                password: await this.bcryptService.hash(userDto.password),
+            });
         } catch (error) {
             throw new BadRequestException(error);
         }

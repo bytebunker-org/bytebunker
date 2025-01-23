@@ -1,8 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Put, Query } from '@nestjs/common';
 import { SettingService } from './setting.service.js';
 import { SettingCategoryDto } from './dto/setting-category.dto.js';
-import { SettingValueDto } from './dto/setting-value.dto.js';
-import { ApiTags } from '@nestjs/swagger';
 import type {
     GetSettingsReturnType,
     GetSettingValuesReturnType,
@@ -17,7 +15,6 @@ import { SettingCategoryEntity } from './entity/setting-category.entity.js';
 import type { StoreSettingValuesDto } from './dto/store-setting-values.dto.js';
 
 @Controller('settings')
-@ApiTags('setting')
 export class SettingController {
     constructor(
         private readonly settingService: SettingService,

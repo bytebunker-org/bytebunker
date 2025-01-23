@@ -6,10 +6,9 @@ import { CurrentUser } from './decorator/user.decorator.js';
 import { LocalGuard } from './local.guard.js';
 import { LocalLoginGuard } from './local-login.guard.js';
 
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('auth')
-@ApiTags('auth')
 export class AuthController {
     private readonly logger = new Logger(AuthController.name);
 

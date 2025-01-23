@@ -6,7 +6,6 @@ import { UserController } from './user.controller.js';
 import { HashingModule } from '../shared/hashing/hashing.module.js';
 import { DateTime } from 'luxon';
 import { EntityManager } from '@mikro-orm/postgresql';
-import type { EntityProperties } from '../database/type/entity-properties.type.js';
 
 @Module({
     imports: [HashingModule],
@@ -25,11 +24,11 @@ export class UserModule implements OnModuleInit {
 
             if (!nullUser) {
                 await em.persistAndFlush(
-                    new UserEntity({
+                    em.create(UserEntity, {
                         username: 'null-user',
                         password: '',
                         deletedAt: DateTime.now(),
-                    } as EntityProperties<UserEntity>),
+                    }),
                 );
 
                 this.logger.log('Created new internal null user');

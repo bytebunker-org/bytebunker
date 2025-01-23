@@ -3,13 +3,12 @@ import type { JSONSchema7 } from 'json-schema';
 import { JsonSchemaService } from './json-schema.service.js';
 import { StoreJsonSchemaRequestDto } from './dto/store-json-schema-request.dto.js';
 import { FindAllJsonSchemaResponseDto } from './dto/find-all-json-schema-response.dto.js';
-import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiResponse } from '@nestjs/swagger';
 import exampleJsonSchema from './util/example.schema.json.js';
 import type { Request } from 'express';
 import { EntityManager } from '@mikro-orm/postgresql';
 import type { JsonSchemaDto } from './dto/json-schema.dto.js';
 
-@ApiTags('json-schema')
 @Controller('schema')
 export class JsonSchemaController {
     constructor(

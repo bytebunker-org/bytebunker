@@ -13,7 +13,6 @@ import { FindRestApiModule } from './shared/find-rest-api/find-rest-api.module.j
 import { JsonSchemaValidationModule } from './shared/json-schema-validation/json-schema-validation.module.js';
 import { JsonSchemaModule } from './shared/json-schema/json-schema.module.js';
 import { UserModule } from './user/user.module.js';
-import { PipelineBlueprintModule } from './etl/pipeline/blueprint/pipeline-blueprint.module.js';
 
 @Module({
     imports: [

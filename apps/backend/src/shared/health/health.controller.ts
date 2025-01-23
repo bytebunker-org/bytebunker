@@ -1,12 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import type { HealthIndicatorFunction } from '@nestjs/terminus';
 import { DiskHealthIndicator, HealthCheck, HealthCheckService, HttpHealthIndicator } from '@nestjs/terminus';
-import { ApiTags } from '@nestjs/swagger';
 import { HealthCheckResultDto } from './dto/health-check-result.dto.js';
 import { AppConfig } from '../../util/config/app.config.js';
 
 @Controller('health')
-@ApiTags('misc')
 export class HealthController {
     constructor(
         private config: AppConfig,

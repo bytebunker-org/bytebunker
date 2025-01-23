@@ -1,5 +1,6 @@
 temp
 temp-dirs
+src/metadata.ts
 
 # compiled output
 /dist

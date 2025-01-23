@@ -1,11 +1,10 @@
 import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import { ValidationResultDto } from './dto/validation-result.dto.js';
 import { JsonSchemaValidationService } from './json-schema-validation.service.js';
-import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { EntityManager } from '@mikro-orm/postgresql';
 
-@ApiTags('validation')
 @Controller()
 export class JsonSchemaValidationController {
     constructor(
