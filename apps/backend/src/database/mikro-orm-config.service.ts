@@ -5,6 +5,7 @@ import { NotFoundError } from '../util/rest-error.js';
 import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
 import { AppConfig, NodeEnvironment } from '../util/config/app.config.js';
 import { MikroOrmConfig } from '../util/config/mikro-orm.config.js';
+import { UnderscoreNamingStrategy } from '@mikro-orm/core';
 
 @Injectable()
 export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlDriver> {
@@ -31,6 +32,7 @@ export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlD
                     cacheDir: './temp/mikro-orm-cache',
                 },
             },
+            namingStrategy: UnderscoreNamingStrategy,
             autoLoadEntities: true,
             ignoreUndefinedInQuery: true,
             findOneOrFailHandler: (entityName: string) => new NotFoundError(`${entityName} not found!`),

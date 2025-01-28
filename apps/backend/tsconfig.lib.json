@@ -10,8 +10,16 @@
         "./src/**/*.enum.ts",
         "./src/**/*.interface.ts",
         "./src/**/*.type.ts",
-        "./src/util/generated-library-mapped-types/*.ts"
+        "./src/util/generated-library-imports/*.ts"
     ],
-    "exclude": ["lib", "*.entity.ts", "./src/shared/find-rest-api/find-rest-api.constant.ts"],
+    "exclude": [
+        "lib",
+        "*.entity.ts",
+        "./src/shared/find-rest-api/find-rest-api.constant.ts",
+        "./src/database/util/database.util.ts",
+        "./src/etl/pipeline/pipeline-module/type/pipeline-module.interface.ts",
+        "./src/util/type/dto-ref.type.ts",
+        "./src/util/type/dto-collection.type.ts"
+    ],
     "files": ["./src/util/rest-error.ts"]
 }

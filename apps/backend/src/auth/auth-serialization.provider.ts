@@ -19,12 +19,14 @@ export class AuthSerializationProvider extends PassportSerializer {
         payload: SerializedUserDto,
         done: (error: Error | null, user?: UserSessionDto) => void,
     ): Promise<void> {
-        try {
-            const user = await this.em.findOneOrFail(UserEntity, { id: payload.id });
+        return this.em.transactional(async (em) => {
+            try {
+                const user = await em.findOneOrFail(UserEntity, { id: payload.id });
 
-            done(null, user);
-        } catch (error) {
-            done(error as Error);
-        }
+                done(null, user);
+            } catch (error) {
+                done(error as Error);
+            }
+        });
     }
 }

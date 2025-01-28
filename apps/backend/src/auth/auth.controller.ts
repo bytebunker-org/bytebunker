@@ -1,28 +1,28 @@
 import { Body, Controller, Get, Logger, Post, Req, Session, UseGuards } from '@nestjs/common';
 import type { Request as RequestType } from 'express';
 import { LoginDto } from './dto/login.dto.js';
-import { SerializedUserDto } from './dto/serialized-user.dto.js';
 import { CurrentUser } from './decorator/user.decorator.js';
-import { LocalGuard } from './local.guard.js';
-import { LocalLoginGuard } from './local-login.guard.js';
+import { LocalUserLoginGuard } from './local-user-login.guard.js';
 
 import { ApiOperation } from '@nestjs/swagger';
+import { Public } from './decorator/public.decorator.js';
+import type { UserSessionDto } from '../user/dto/user-session.dto.js';
 
 @Controller('auth')
 export class AuthController {
     private readonly logger = new Logger(AuthController.name);
 
-    @UseGuards(LocalLoginGuard)
+    @Public()
+    @UseGuards(LocalUserLoginGuard)
     @Post('login')
     @ApiOperation({
         summary: 'Login',
         description: 'Logs in a user and returns the session',
     })
-    public login(@Body() _: LoginDto, @CurrentUser() user: SerializedUserDto): SerializedUserDto {
+    public login(@Body() _: LoginDto, @CurrentUser() user: UserSessionDto): UserSessionDto {
         return user;
     }
 
-    @UseGuards(LocalGuard)
     @Get('session')
     @ApiOperation({
         summary: 'Get session',
@@ -31,12 +31,11 @@ export class AuthController {
     public getSession(
         @Req() request: RequestType,
         @Session() session: Record<string, any>,
-        @CurrentUser() user: SerializedUserDto,
-    ): SerializedUserDto {
+        @CurrentUser() user: UserSessionDto,
+    ): UserSessionDto {
         return user;
     }
 
-    @UseGuards(LocalGuard)
     @Post('logout')
     @ApiOperation({
         summary: 'Logout',

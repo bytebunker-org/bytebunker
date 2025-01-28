@@ -3,8 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-export class LocalLoginGuard extends AuthGuard('local') implements CanActivate {
-    private readonly logger = new Logger(LocalLoginGuard.name);
+export class LocalUserLoginGuard extends AuthGuard('local-user') implements CanActivate {
+    private readonly logger = new Logger(LocalUserLoginGuard.name);
 
     override async canActivate(context: ExecutionContext): Promise<boolean> {
         try {

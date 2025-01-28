@@ -6,6 +6,7 @@ import { defineConfig } from '@mikro-orm/postgresql';
 import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
 import { NotFoundError } from './util/rest-error.js';
 import { MikroOrmConfig } from './util/config/mikro-orm.config.js';
+import { UnderscoreNamingStrategy } from '@mikro-orm/core';
 
 // TODO We use toml.
 if (!process.env['NODE_ENV']) {
@@ -40,6 +41,7 @@ export default defineConfig({
             cacheDir: './temp/mikro-orm-cache',
         },
     },
+    namingStrategy: UnderscoreNamingStrategy,
     ignoreUndefinedInQuery: true,
     findOneOrFailHandler: (entityName: string) => new NotFoundError(`${entityName} not found!`),
 });

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from './util/config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { MikroOrmConfigService } from './database/mikro-orm-config.service.js';
@@ -13,6 +13,11 @@ import { FindRestApiModule } from './shared/find-rest-api/find-rest-api.module.j
 import { JsonSchemaValidationModule } from './shared/json-schema-validation/json-schema-validation.module.js';
 import { JsonSchemaModule } from './shared/json-schema/json-schema.module.js';
 import { UserModule } from './user/user.module.js';
+import { APP_GUARD } from '@nestjs/core';
+import { LocalUserGuard } from './auth/local-user.guard.js';
+import session from 'express-session';
+import passport from 'passport';
+import { AppConfig } from './util/config/app.config.js';
 
 @Module({
     imports: [
@@ -34,5 +39,36 @@ import { UserModule } from './user/user.module.js';
         PipelineModule,
         UserModule,
     ],
+    providers: [
+        {
+            provide: APP_GUARD,
+            useClass: LocalUserGuard,
+        },
+    ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+    constructor(private config: AppConfig) {}
+
+    configure(consumer: MiddlewareConsumer): void {
+        consumer
+            .apply(
+                session({
+                    secret: this.config.session.secret,
+                    name: 'sid',
+                    resave: false,
+                    saveUninitialized: false,
+                    proxy: true,
+                    cookie: {
+                        domain: this.config.session.cookieDomain,
+                        maxAge: this.config.session.cookieMaxAge,
+                        httpOnly: true,
+                        sameSite: this.config.session.cookieSameSite,
+                        secure: this.config.nodeEnv !== 'development',
+                    },
+                }),
+                passport.initialize(),
+                passport.session(),
+            )
+            .forRoutes('*');
+    }
+}

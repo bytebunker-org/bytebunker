@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { UserEntity } from './entity/user.entity.js';
 import { BcryptService } from '../shared/hashing/bcrypt.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -6,21 +6,27 @@ import type { EntityManager } from '@mikro-orm/postgresql';
 
 @Injectable()
 export class UserService {
+    private readonly logger = new Logger(UserService.name);
+
     private nullUser: UserEntity | null = null;
 
     constructor(private readonly bcryptService: BcryptService) {}
 
-    public async findByUsernameForAuthentication(em: EntityManager, username: string): Promise<UserEntity> {
+    public async findByUsernameForAuthentication(em: EntityManager, username: string) {
         const user = await em.findOne(
             UserEntity,
             {
                 username,
                 deletedAt: null,
             },
-            {},
+            {
+                populate: ['password'],
+            },
         );
 
         if (!user) {
+            this.logger.warn(`User ${username} not found`);
+
             throw new NotFoundException(`User ${username} not found`);
         }
 

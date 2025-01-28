@@ -4,6 +4,7 @@ src/metadata.ts
 
 # compiled output
 /dist
+/lib
 /node_modules
 
 # Logs

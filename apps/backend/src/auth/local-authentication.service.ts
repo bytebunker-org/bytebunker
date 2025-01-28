@@ -17,12 +17,16 @@ export class LocalAuthenticationService {
         const user = await this.userService.findByUsernameForAuthentication(em, username);
 
         if (!user) {
+            this.logger.warn("User doesn't exist");
+
             throw new UnauthorizedException("User doesn't exist");
         }
 
         const isPasswordValid = await this.bcryptService.compare(password, user.password!);
 
         if (!isPasswordValid) {
+            this.logger.warn('Password not valid');
+
             throw new UnauthorizedException('Password not valid');
         }
 

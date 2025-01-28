@@ -1,4 +1,4 @@
-import type { ExportDeclarationStructure, OptionalKind } from 'ts-morph';
+import type { ExportDeclarationStructure, ImportDeclarationStructure, OptionalKind } from 'ts-morph';
 import { Project, StructureKind } from 'ts-morph';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,17 +8,36 @@ import { glob } from 'glob';
 const currentDirname = path.dirname(fileURLToPath(import.meta.url));
 const libraryDirectory = path.resolve(currentDirname, '../../lib');
 
-const mappedTypeClassNames = new Set(['PickType', 'OmitType', 'PartialType', 'IntersectionType']);
+const rewrittenImportModuleNames = new Set(['@nestjs/swagger', '@nestjs/mapped-types', '@mikro-orm/core']);
+const rewrittenImportNames = new Set([
+    'PickType',
+    'OmitType',
+    'PartialType',
+    'IntersectionType',
+    'PrimaryKeyProp',
+    'PopulatePath',
+    'AutoPath',
+    'FilterObject',
+    'FindOptions',
+    'ObjectQuery',
+    'OrderDefinition',
+    'Populate',
+    'PopulateHint',
+    'Opt',
+    'DtoRef',
+    'DtoCollection',
+]);
+const preventIndexImportRegexes: RegExp[] = [/dto-ref.type/, /dto-collection.type/];
 
-function rewriteDtoMappedTypes(project: Project) {
+function rewriteDtoImports(project: Project) {
     const dtoFiles = project.getSourceFiles('src/**/*.dto.ts');
 
     console.info(`Processing ${dtoFiles.length} dto files...`);
 
-    const mappedTypesIndexFile = project.getSourceFile('src/util/generated-library-mapped-types/index.ts');
+    const generatedLibraryIndexFile = project.getSourceFile('src/util/generated-library-imports/index.ts');
 
-    if (!mappedTypesIndexFile) {
-        throw new Error('Replacement mapped types index file not found');
+    if (!generatedLibraryIndexFile) {
+        throw new Error('Index file for rewritten library imports not found');
     }
 
     for (const dtoFile of dtoFiles) {
@@ -39,19 +58,23 @@ function rewriteDtoMappedTypes(project: Project) {
         const structure = dtoFile.getStructure();
 
         if (Array.isArray(structure.statements)) {
-            const mappedTypeImports: string[] = [];
-            const removedStatements: any[] = [];
+            const rewrittenLibraryImports: { name: string; isTypeOnly: boolean }[] = [];
+            const removedStatements: (ImportDeclarationStructure | unknown)[] = [];
 
             for (const statement of structure.statements) {
                 if (typeof statement === 'object' && statement.kind === StructureKind.ImportDeclaration) {
-                    const isMappedTypeImport =
-                        statement.moduleSpecifier === '@nestjs/swagger' ||
-                        statement.moduleSpecifier === '@nestjs/mapped-types';
+                    const moduleSpecifierMatches =
+                        rewrittenImportModuleNames.has(statement.moduleSpecifier) ||
+                        statement.moduleSpecifier.includes('dto-ref.type') ||
+                        statement.moduleSpecifier.includes('dto-collection.type');
 
-                    if (isMappedTypeImport && Array.isArray(statement.namedImports)) {
+                    if (moduleSpecifierMatches && Array.isArray(statement.namedImports)) {
                         statement.namedImports = statement.namedImports.filter((namedImport) => {
-                            if (typeof namedImport === 'object' && mappedTypeClassNames.has(namedImport.name)) {
-                                mappedTypeImports.push(namedImport.name);
+                            if (typeof namedImport === 'object' && rewrittenImportNames.has(namedImport.name)) {
+                                rewrittenLibraryImports.push({
+                                    name: namedImport.name,
+                                    isTypeOnly: (statement.isTypeOnly || namedImport.isTypeOnly) ?? false,
+                                });
 
                                 return false;
                             } else {
@@ -68,11 +91,23 @@ function rewriteDtoMappedTypes(project: Project) {
 
             structure.statements = structure.statements.filter((s) => !removedStatements.includes(s));
 
-            if (mappedTypeImports.length) {
+            const codeImports = rewrittenLibraryImports.filter((importDecl) => !importDecl.isTypeOnly);
+            const typeImports = rewrittenLibraryImports.filter((importDecl) => importDecl.isTypeOnly);
+
+            if (codeImports.length) {
                 structure.statements.unshift({
                     kind: StructureKind.ImportDeclaration,
-                    namedImports: mappedTypeImports,
-                    moduleSpecifier: dtoFile.getRelativePathAsModuleSpecifierTo(mappedTypesIndexFile) + '.js',
+                    namedImports: codeImports.map((importDecl) => importDecl.name),
+                    moduleSpecifier: dtoFile.getRelativePathAsModuleSpecifierTo(generatedLibraryIndexFile) + '.js',
+                });
+            }
+
+            if (typeImports.length) {
+                structure.statements.unshift({
+                    kind: StructureKind.ImportDeclaration,
+                    namedImports: typeImports.map((importDecl) => importDecl.name),
+                    moduleSpecifier: dtoFile.getRelativePathAsModuleSpecifierTo(generatedLibraryIndexFile) + '.js',
+                    isTypeOnly: true,
                 });
             }
         }
@@ -99,11 +134,23 @@ function convertClasses(project: Project) {
 }
 
 function generateIndexFiles(project: Project) {
-    const exportedFiles = project.getSourceFiles();
+    const indexFile = project.createSourceFile('src/index.ts');
+
+    const exportedFiles = project.getSourceFiles().filter((file) => {
+        const path = indexFile.getRelativePathAsModuleSpecifierTo(file) + '.js';
+
+        for (const regex of preventIndexImportRegexes) {
+            if (regex.test(path)) {
+                console.info(`Skipping index file export of ${path}...`);
+
+                return false;
+            }
+        }
+
+        return true;
+    });
 
     console.info(`Generating index file containing re-exports from ${exportedFiles.length} files...`);
-
-    const indexFile = project.createSourceFile('src/index.ts');
 
     indexFile.addExportDeclarations(
         exportedFiles.map((exportedFile) => {
@@ -155,7 +202,7 @@ async function main() {
     });
 
     project.forgetNodesCreatedInBlock(() => {
-        rewriteDtoMappedTypes(project);
+        rewriteDtoImports(project);
     });
 
     generateIndexFiles(project);

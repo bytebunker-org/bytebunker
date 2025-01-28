@@ -6,15 +6,15 @@ import type { SerializedUserDto } from './dto/serialized-user.dto.js';
 import { EntityManager } from '@mikro-orm/postgresql';
 
 @Injectable()
-export class LocalStrategy extends PassportStrategy(Strategy, 'yond-staff') {
+export class LocalUserStrategy extends PassportStrategy(Strategy, 'local-user') {
     constructor(
         private authenticationService: LocalAuthenticationService,
         private readonly em: EntityManager,
     ) {
-        super({ usernameField: 'email' });
+        super();
     }
 
-    public validate(email: string, password: string): Promise<SerializedUserDto> {
-        return this.em.transactional((em) => this.authenticationService.loginUser(em, email, password));
+    public validate(username: string, password: string): Promise<SerializedUserDto> {
+        return this.em.transactional((em) => this.authenticationService.loginUser(em, username, password));
     }
 }

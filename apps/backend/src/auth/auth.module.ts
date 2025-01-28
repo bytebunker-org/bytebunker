@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { LocalAuthenticationService } from './local-authentication.service.js';
 import { AuthController } from './auth.controller.js';
-import { LocalStrategy } from './local.strategy.js';
+import { LocalUserStrategy } from './local-user.strategy.js';
 import { PassportModule } from '@nestjs/passport';
 import { AuthSerializationProvider } from './auth-serialization.provider.js';
-import { LocalLoginGuard } from './local-login.guard.js';
+import { LocalUserLoginGuard } from './local-user-login.guard.js';
 import { UserModule } from '../user/user.module.js';
 import { HashingModule } from '../shared/hashing/hashing.module.js';
 
@@ -17,6 +17,6 @@ import { HashingModule } from '../shared/hashing/hashing.module.js';
         HashingModule,
     ],
     controllers: [AuthController],
-    providers: [LocalAuthenticationService, LocalStrategy, AuthSerializationProvider, LocalLoginGuard],
+    providers: [LocalAuthenticationService, LocalUserStrategy, AuthSerializationProvider, LocalUserLoginGuard],
 })
 export class AuthModule {}
