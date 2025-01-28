@@ -1,0 +1,54 @@
+{
+    "name": "@bytebunker/daisyui-components",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "dev": "vite dev",
+        "build:lib": "vite build && pnpm package",
+        "preview": "vite preview",
+        "package": "svelte-kit sync && svelte-package -o lib && publint",
+        "prepublishOnly": "pnpm run package",
+        "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+    },
+    "exports": {
+        ".": {
+            "types": "./lib/index.d.ts",
+            "svelte": "./lib/index.js"
+        }
+    },
+    "files": [
+        "lib",
+        "!lib/**/*.test.*",
+        "!lib/**/*.spec.*"
+    ],
+    "peerDependencies": {
+        "svelte": "^4.0.0"
+    },
+    "devDependencies": {
+        "@sveltejs/adapter-auto": "^3.0.0",
+        "@sveltejs/kit": "^2.0.0",
+        "@sveltejs/package": "^2.0.0",
+        "@sveltejs/vite-plugin-svelte": "^3.0.0",
+        "@types/qrcode": "^1.5.5",
+        "publint": "^0.2.0",
+        "svelte": "^4.2.7",
+        "svelte-advanced-datatable": "^0.6.3",
+        "svelte-check": "^4.0.0",
+        "typescript": "~5.6.2",
+        "vite": "^5.0.11"
+    },
+    "svelte": "./lib/index.js",
+    "types": "./lib/index.d.ts",
+    "type": "module",
+    "lint-staged": {
+        "*.{js,ts}": [
+            "eslint --fix",
+            "prettier --write"
+        ]
+    },
+    "dependencies": {
+        "qrcode": "^1.5.4",
+        "tailwind-merge": "^2.2.1"
+    }
+}
