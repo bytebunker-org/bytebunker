@@ -1,0 +1,7 @@
+.main-menu a {
+	@apply flex gap-3 text-lg font-medium text-neutral-200 uppercase;
+}
+
+.main-menu a.selected {
+	@apply text-primary text-lg font-medium uppercase;
+}
