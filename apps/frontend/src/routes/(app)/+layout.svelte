@@ -18,13 +18,11 @@
 	});
 </script>
 
-<div />
-
 <div class="hidden min-h-screen flex-row md:flex">
-	<aside class="fixed min-h-screen w-[25vw] lg:w-[20vw] xl:w-[17vw]">
+	<aside class="fixed min-h-screen w-64 2xl:w-80">
 		<MainMenu />
 	</aside>
-	<main class="ml-[25vw] w-full px-4 pt-12 lg:ml-[20vw] lg:px-8 xl:ml-[17vw]">
+	<main class="ml-64 w-full px-4 pt-12 2xl:ml-80">
 		{@render children()}
 	</main>
 </div>
