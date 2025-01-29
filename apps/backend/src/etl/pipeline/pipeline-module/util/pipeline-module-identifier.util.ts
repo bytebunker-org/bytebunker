@@ -1,8 +1,8 @@
-import { PIPELINE_MODULE_IDENTIFIER_REGEX } from './pipeline-module.constant.js';
+import { PIPELINE_MODULE_IDENTIFIER_REGEX } from '../pipeline-module.constant.js';
 import type {
     DeconstructedPipelineModuleIdentifier,
     PipelineModuleIdentifier,
-} from './type/pipeline-module-identifier.type.js';
+} from '../type/pipeline-module-identifier.type.js';
 
 export function buildModuleIdentifier(
     extensionName: string,

@@ -3,6 +3,7 @@ import { UserEntity } from './entity/user.entity.js';
 import { BcryptService } from '../shared/hashing/bcrypt.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import type { EntityManager } from '@mikro-orm/postgresql';
+import { cacheQuery } from '../database/util/query-cache.util.js';
 
 @Injectable()
 export class UserService {
@@ -21,6 +22,7 @@ export class UserService {
             },
             {
                 populate: ['password'],
+                cache: cacheQuery(UserEntity, [username, 'withPassword'], 1000 * 60),
             },
         );
 
@@ -48,12 +50,12 @@ export class UserService {
                 password: await this.bcryptService.hash(userDto.password),
             });
         } catch (error) {
-            throw new BadRequestException(error);
+            if (!(error instanceof BadRequestException)) {
+                throw new BadRequestException(error);
+            } else {
+                throw error;
+            }
         }
-    }
-
-    public deleteUser(em: EntityManager, id: number): void {
-        em.remove(em.getReference(UserEntity, id));
     }
 
     public async getNullUser(em: EntityManager): Promise<UserEntity> {

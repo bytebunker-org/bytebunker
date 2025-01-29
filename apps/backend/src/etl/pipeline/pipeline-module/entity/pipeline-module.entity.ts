@@ -5,7 +5,7 @@ import { PIPELINE_MODULE_IDENTIFIER_LENGTH } from '../pipeline-module.constant.j
 import { JsonSchemaEntity } from '../../../../shared/json-schema/entity/json-schema.entity.js';
 import { toDatabaseEnumName } from '../../../../database/util/database.util.js';
 import { PipelineModuleTypeEnum } from '../type/pipeline-module-type.enum.js';
-import { buildModuleIdentifier, deconstructPipelineModuleIdentifier } from '../pipeline-module-identifier.util.js';
+import { buildModuleIdentifier, deconstructPipelineModuleIdentifier } from '../util/pipeline-module-identifier.util.js';
 import type { PipelineModuleIdentifier } from '../type/pipeline-module-identifier.type.js';
 import type { PipelineModuleDto } from '../dto/pipeline-module.dto.js';
 

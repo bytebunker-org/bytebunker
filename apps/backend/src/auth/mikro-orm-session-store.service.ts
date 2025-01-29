@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { type SessionData, Store } from 'express-session';
+import session, { type SessionData, Store } from 'express-session';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { StoredUserSessionEntity } from './entity/stored-user-session.entity.js';
 import { DateTime } from 'luxon';
 import { SessionConfig } from '../util/config/session.config.js';
 import { UserEntity } from '../user/entity/user.entity.js';
-import { cacheQuery } from '../database/util/query-cache.util.js';
+import { buildQueryCacheKey, cacheQuery } from '../database/util/query-cache.util.js';
+import type { Request } from 'express';
 
 @Injectable()
 export class MikroOrmSessionStoreService extends Store {
@@ -14,6 +15,13 @@ export class MikroOrmSessionStoreService extends Store {
         private readonly sessionConfig: SessionConfig,
     ) {
         super();
+    }
+
+    public override createSession(req: Request, session: SessionData): session.Session & session.SessionData {
+        const newSession = super.createSession(req, session);
+
+        console.log('creating session', session, 'to ', newSession, 'req', req.ip);
+        return newSession;
     }
 
     public override async get(
@@ -40,7 +48,7 @@ export class MikroOrmSessionStoreService extends Store {
         session: SessionData,
         callback?: (error?: unknown) => void,
     ): Promise<void> {
-        console.log('set session', sessionId, session);
+        console.trace('set session', sessionId, session);
         try {
             const em = this.em.fork({ useContext: true, disableTransactions: true });
 
@@ -74,6 +82,7 @@ export class MikroOrmSessionStoreService extends Store {
                     },
                 ],
             });
+            await em.clearCache(buildQueryCacheKey(StoredUserSessionEntity, sessionId));
 
             callback?.(null);
         } catch (error) {

@@ -12,7 +12,7 @@ export class JsonSchemaValidationController {
         private readonly em: EntityManager,
     ) {}
 
-    @Post('/validate/*')
+    @Post('/validate/*schemaUri')
     @ApiResponse({
         status: 200,
         type: ValidationResultDto,

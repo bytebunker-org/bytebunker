@@ -15,7 +15,7 @@ import deepEqual from 'deep-equal';
 import { diffString } from 'json-diff';
 import { PipelineModuleTypeEnum } from './type/pipeline-module-type.enum.js';
 import type { PipelineModuleIdentifier } from './type/pipeline-module-identifier.type.js';
-import { buildModuleIdentifier, deconstructPipelineModuleIdentifier } from './pipeline-module-identifier.util.js';
+import { buildModuleIdentifier, deconstructPipelineModuleIdentifier } from './util/pipeline-module-identifier.util.js';
 import { JsonSchemaEntity } from '../../../shared/json-schema/entity/json-schema.entity.js';
 
 @Injectable()

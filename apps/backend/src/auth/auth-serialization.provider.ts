@@ -4,6 +4,7 @@ import type { SerializedUserDto } from './dto/serialized-user.dto.js';
 import type { UserSessionDto } from '../user/dto/user-session.dto.js';
 import { UserEntity } from '../user/entity/user.entity.js';
 import { EntityManager } from '@mikro-orm/postgresql';
+import { cacheQuery } from '../database/util/query-cache.util.js';
 
 @Injectable()
 export class AuthSerializationProvider extends PassportSerializer {
@@ -22,7 +23,13 @@ export class AuthSerializationProvider extends PassportSerializer {
         try {
             const em = this.em.fork({ useContext: true, disableTransactions: true });
 
-            const user = await em.findOneOrFail(UserEntity, { id: payload.id });
+            const user = await em.findOneOrFail(
+                UserEntity,
+                { id: payload.id },
+                {
+                    cache: cacheQuery(UserEntity, [payload.id], 1000 * 60),
+                },
+            );
 
             done(null, user);
         } catch (error) {

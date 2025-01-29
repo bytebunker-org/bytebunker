@@ -21,7 +21,7 @@ export class JsonSchemaController {
         return this.em.transactional((em) => this.jsonSchemaService.findAll(em));
     }
 
-    @Get('/*')
+    @Get('/*schemaUri')
     @Header('Cache-Control', 'public, max-age=604800')
     @Header('Content-Type', 'application/schema+json')
     @ApiResponse({
@@ -40,7 +40,7 @@ export class JsonSchemaController {
         return this.em.transactional((em) => this.jsonSchemaService.getSchema(em, schemaUri));
     }
 
-    @Get('/multiple/*')
+    @Get('/multiple/*schemaUriPrefix')
     @ApiResponse({
         status: 200,
         type: [Object],

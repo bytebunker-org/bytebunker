@@ -9,8 +9,11 @@ import {
     CORE_EXTENSION_NAME,
 } from './extension.constant.js';
 import { ExtensionService } from './extension.service.js';
+import { ExtensionController } from './extension.controller.js';
+import { ExtensionDeveloperController } from './extension-developer.controller.js';
 
 @Module({
+    controllers: [ExtensionController, ExtensionDeveloperController],
     providers: [ExtensionService],
     exports: [ExtensionService],
 })
