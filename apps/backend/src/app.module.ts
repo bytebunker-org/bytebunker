@@ -18,6 +18,7 @@ import { LocalUserGuard } from './auth/local-user.guard.js';
 import session from 'express-session';
 import passport from 'passport';
 import { AppConfig } from './util/config/app.config.js';
+import { MikroOrmSessionStoreService } from './auth/mikro-orm-session-store.service.js';
 
 @Module({
     imports: [
@@ -47,7 +48,10 @@ import { AppConfig } from './util/config/app.config.js';
     ],
 })
 export class AppModule implements NestModule {
-    constructor(private config: AppConfig) {}
+    constructor(
+        private readonly config: AppConfig,
+        private readonly mikroOrmSessionStoreService: MikroOrmSessionStoreService,
+    ) {}
 
     configure(consumer: MiddlewareConsumer): void {
         consumer
@@ -58,6 +62,7 @@ export class AppModule implements NestModule {
                     resave: false,
                     saveUninitialized: false,
                     proxy: true,
+                    store: this.mikroOrmSessionStoreService,
                     cookie: {
                         domain: this.config.session.cookieDomain,
                         maxAge: this.config.session.cookieMaxAge,

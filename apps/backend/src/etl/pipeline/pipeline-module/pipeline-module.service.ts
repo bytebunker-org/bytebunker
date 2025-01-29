@@ -193,7 +193,7 @@ export class PipelineModuleService {
         });
 
         jsonSchema.$id = this.jsonSchemaService.normalizeAndValidateInternalSchemaUri(
-            `https://schema.paralo.de/module/${extensionName}/${moduleName}-v${moduleVersion}-${schemaType}.schema.json`,
+            `https://schema.bytebunker.dev/module/${extensionName}/${moduleName}-v${moduleVersion}-${schemaType}.schema.json`,
         );
         jsonSchema.title =
             toHeaderCase(moduleName) + ' ' + (schemaType ? 'Pipeline Module Input' : 'Pipeline Module Output');

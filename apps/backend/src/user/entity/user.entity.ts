@@ -1,7 +1,17 @@
 import type { UserDto } from '../dto/user.dto.js';
 import { TimestampEntity } from '../../database/util/timestamp.entity.js';
 import type { DateTime } from 'luxon';
-import { Entity, type Hidden, PrimaryKey, PrimaryKeyProp, Property, types } from '@mikro-orm/core';
+import {
+    Collection,
+    Entity,
+    type Hidden,
+    OneToMany,
+    PrimaryKey,
+    PrimaryKeyProp,
+    Property,
+    types,
+} from '@mikro-orm/core';
+import { StoredUserSessionEntity } from '../../auth/entity/stored-user-session.entity.js';
 
 @Entity()
 export class UserEntity extends TimestampEntity implements UserDto {
@@ -23,4 +33,7 @@ export class UserEntity extends TimestampEntity implements UserDto {
         type: types.datetime,
     })
     public deletedAt?: DateTime;
+
+    @OneToMany(() => StoredUserSessionEntity, (storedUserSession) => storedUserSession.user)
+    public storedUserSessions = new Collection<StoredUserSessionEntity>(this);
 }

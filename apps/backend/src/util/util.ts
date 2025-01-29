@@ -59,3 +59,36 @@ export function groupByKeySingle<T extends object, KeyType extends string | numb
         return Object.assign(hash, { [object[key] as KeyType]: object });
     }, {}) as Record<KeyType, T>;
 }
+
+function hasObjectPrototype(o: any): boolean {
+    return Object.prototype.toString.call(o) === '[object Object]';
+}
+
+// Copied from: https://github.com/jonschlinkert/is-plain-object
+// eslint-disable-next-line @typescript-eslint/no-wrapper-object-types
+export function isPlainObject(o: any): o is Object {
+    if (!hasObjectPrototype(o)) {
+        return false;
+    }
+
+    // If it has a modified constructor
+    const ctor = o.constructor;
+    if (ctor === undefined) {
+        return true;
+    }
+
+    // If it has a modified prototype
+    const proto = ctor.prototype;
+    if (!hasObjectPrototype(proto)) {
+        return false;
+    }
+
+    // If constructor does not have an Object-specific method
+    // eslint-disable-next-line no-prototype-builtins
+    if (!proto.hasOwnProperty('isPrototypeOf')) {
+        return false;
+    }
+
+    // Most likely a plain Object
+    return true;
+}

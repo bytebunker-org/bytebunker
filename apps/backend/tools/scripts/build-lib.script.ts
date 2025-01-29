@@ -19,6 +19,7 @@ const rewrittenImportNames = new Set([
     'AutoPath',
     'FilterObject',
     'FindOptions',
+    'FindAllOptions',
     'ObjectQuery',
     'OrderDefinition',
     'Populate',
@@ -26,6 +27,8 @@ const rewrittenImportNames = new Set([
     'Opt',
     'DtoRef',
     'DtoCollection',
+    'FilterQuery',
+    'CountOptions',
 ]);
 const preventIndexImportRegexes: RegExp[] = [/dto-ref.type/, /dto-collection.type/];
 

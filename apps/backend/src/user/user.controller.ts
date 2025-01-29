@@ -24,7 +24,7 @@ export class UserController {
 
     @Get()
     public findAll(@Query() data: FindAllOptions<UserEntity>): Promise<UserDto[]> {
-        return this.findRestApiService.findMany(UserEntity, data);
+        return this.findRestApiService.findAll(UserEntity, data);
     }
 
     @Get('current')

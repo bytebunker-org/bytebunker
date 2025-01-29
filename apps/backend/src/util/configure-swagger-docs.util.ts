@@ -46,8 +46,8 @@ export async function configureSwaggerDocumentation(app: INestApplication) {
                 .setTitle('ByteBunker Backend')
                 .setVersion('1.0')
                 .addCookieAuth('sid')
-                .addTag('auth', 'User management and authentication via cookies')
-                .addTag('misc')
+                .addTag('Auth', 'User management and authentication via cookies')
+                .addTag('Health', 'Health checks of the backend, used by the Docker deployment')
                 .setContact('Moritz Hein', 'https://moritz.website', 'moritz.hein@live.de')
                 .build(),
         );

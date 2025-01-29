@@ -1,4 +1,5 @@
 import { UserDto } from '../../user/dto/user.dto.js';
+import type { SerializedUserDto } from '../../auth/dto/serialized-user.dto.js';
 
 declare global {
     namespace Express {
@@ -9,10 +10,6 @@ declare global {
 
 declare module 'express-session' {
     interface SessionData {
-        id: number;
-        username: string;
-        password: string;
-        createdAt: Date;
-        updatedAt: Date;
+        passport?: { user?: SerializedUserDto };
     }
 }

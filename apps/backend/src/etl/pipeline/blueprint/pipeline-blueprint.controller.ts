@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EntityManager } from '@mikro-orm/core';
 import { PipelineBlueprintEntity } from './entity/pipeline-blueprint.entity.js';
@@ -7,6 +7,15 @@ import type { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint
 import type { BlueprintDataDto } from './dto/blueprint-data.dto.js';
 import { UpdatePipelineBlueprintDto } from './dto/update-pipeline-blueprint.dto.js';
 import { FindRestApiService } from '../../../shared/find-rest-api/find-rest-api.service.js';
+import { FindAllDto } from '../../../shared/find-rest-api/dto/find-all.dto.js';
+import { FindOneDto } from '../../../shared/find-rest-api/dto/find-one.dto.js';
+import { FindRestApiCountResponseDto } from '../../../shared/find-rest-api/dto/find-rest-api-count-response.dto.js';
+import { FindRestApiCountDto } from '../../../shared/find-rest-api/dto/find-rest-api-count.dto.js';
+import {
+    ApiCountMethod,
+    ApiFindAllMethod,
+    ApiFindOneMethod,
+} from '../../../shared/find-rest-api/find-rest-api-swagger.decorator.js';
 
 @Controller('pipelines/blueprints')
 export class PipelineBlueprintController {
@@ -34,25 +43,32 @@ export class PipelineBlueprintController {
     }
 
     @Get()
-    @ApiOperation({ summary: 'Get all blueprints' })
-    @ApiResponse({ status: 200, type: [PipelineBlueprintDto] })
-    public findAll(): Promise<PipelineBlueprintDto[]> {
-        return this.em.findAll(PipelineBlueprintEntity);
+    @ApiFindAllMethod(PipelineBlueprintDto)
+    public findAll(@Query() query: FindAllDto<PipelineBlueprintEntity>): Promise<PipelineBlueprintDto[]> {
+        return this.findRestApiService.findAll(PipelineBlueprintEntity, query);
+    }
+
+    @Get('count')
+    @ApiCountMethod(PipelineBlueprintDto)
+    public count(@Query() query: FindRestApiCountDto<PipelineBlueprintEntity>): Promise<FindRestApiCountResponseDto> {
+        return this.findRestApiService.count(PipelineBlueprintEntity, query);
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get a blueprint by ID' })
-    @ApiResponse({ status: 200, type: PipelineBlueprintDto })
-    @ApiResponse({ status: 404, description: 'Blueprint not found' })
-    public findOne(@Param('id') id: number): Promise<PipelineBlueprintDto> {
-        return this.em.findOneOrFail(PipelineBlueprintEntity, { id });
+    @ApiFindOneMethod(PipelineBlueprintDto)
+    public findOne(
+        @Param('id', ParseIntPipe) id: number,
+        @Query() query: FindOneDto<PipelineBlueprintEntity>,
+    ): Promise<PipelineBlueprintDto> {
+        return this.findRestApiService.findOne(PipelineBlueprintEntity, { id }, query);
     }
 
     @Patch(':id')
     @ApiOperation({ summary: 'Update a blueprint by ID' })
     @ApiResponse({ status: 200, type: PipelineBlueprintDto })
     public async update(
-        @Param('id') id: number,
+        @Param('id', ParseIntPipe) id: number,
         @Body() data: UpdatePipelineBlueprintDto,
     ): Promise<PipelineBlueprintDto> {
         const blueprint = await this.em.findOneOrFail(PipelineBlueprintEntity, { id });
@@ -66,7 +82,7 @@ export class PipelineBlueprintController {
     @Delete(':id')
     @ApiOperation({ summary: 'Delete a blueprint by ID' })
     @ApiResponse({ status: 204, description: 'Blueprint deleted' })
-    public async remove(@Param('id') id: number): Promise<void> {
+    public async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
         await this.em.nativeDelete(PipelineBlueprintEntity, { id });
     }
 }

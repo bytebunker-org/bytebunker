@@ -11,6 +11,7 @@ import morgan from 'morgan';
 import { DateTimeResponseInterceptor } from './util/date-time-response.interceptor.js';
 import { parse } from '@bytebunker/qs-esm';
 import { ExtendedExceptionFilter } from './database/util/extended-exception.filter.js';
+import { MikroOrmSerializationResponseInterceptor } from './database/util/mikro-orm-serialization-response.interceptor.js';
 
 // Set default luxon DateTime timezone to UTC instead of using the system timezone
 Settings.defaultZone = 'utc';
@@ -42,7 +43,7 @@ async function bootstrap() {
         }),
     );
 
-    app.useGlobalInterceptors(new DateTimeResponseInterceptor());
+    // app.useGlobalInterceptors(new MikroOrmSerializationResponseInterceptor());
 
     app.use(helmet());
     app.enableCors({

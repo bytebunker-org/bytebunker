@@ -101,7 +101,7 @@ export class JsonSchemaService {
     }
 
     /**
-     * Check if a schema uri belongs to an internal schema (on the schema.paralo.de domain)
+     * Check if a schema uri belongs to an internal schema (on the schema.bytebunker.dev domain)
      *
      * @param schemaUri
      * @param throwOnMalformedUri if an exception should be thrown, when the uri is malformed or else return false

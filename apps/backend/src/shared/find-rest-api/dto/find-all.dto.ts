@@ -1,8 +1,9 @@
-import { Allow, IsBoolean, IsInt, IsObject, IsOptional, IsPositive, Min } from 'class-validator';
+import { Allow, IsArray, IsBoolean, IsInt, IsObject, IsOptional, IsPositive, IsString, Min } from 'class-validator';
 import type {
     AutoPath,
     FilterObject,
-    FindOptions,
+    FindAllOptions,
+    FilterQuery,
     ObjectQuery,
     OrderDefinition,
     Populate,
@@ -15,18 +16,25 @@ export class FindAllDto<
     Hint extends string = never,
     Fields extends string = PopulatePath.ALL,
     Excludes extends string = never,
-> implements FindOptions<Entity, Hint, Fields, Excludes>
+> implements FindAllOptions<Entity, Hint, Fields, Excludes>
 {
     @IsOptional()
-    @Allow()
+    @IsObject()
+    public where?: FilterQuery<Entity>;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
     public populate?: Populate<Entity, Hint>;
 
     @IsOptional()
-    @Allow()
+    @IsArray()
+    @IsString({ each: true })
     public fields?: readonly AutoPath<Entity, Fields, `${PopulatePath.ALL}`>[];
 
     @IsOptional()
-    @Allow()
+    @IsArray()
+    @IsString({ each: true })
     public exclude?: readonly AutoPath<Entity, Excludes>[];
 
     /**
@@ -50,12 +58,12 @@ export class FindAllDto<
 
     /** Used for ordering of the populate queries. If not specified, the value of `options.orderBy` is used. */
     @IsOptional()
-    @IsObject()
+    @Allow()
     public populateOrderBy?: OrderDefinition<Entity>;
 
     /** Ordering of the results.Can be an object or array of objects, keys are property names, values are ordering (asc/desc) */
     @IsOptional()
-    @IsObject()
+    @Allow()
     public orderBy?: OrderDefinition<Entity>;
 
     /** Control result caching for this query. Result cache is by default disabled, not to be confused with the identity map. */

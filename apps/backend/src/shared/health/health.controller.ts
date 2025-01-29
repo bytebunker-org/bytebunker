@@ -3,7 +3,9 @@ import type { HealthIndicatorFunction } from '@nestjs/terminus';
 import { DiskHealthIndicator, HealthCheck, HealthCheckService, HttpHealthIndicator } from '@nestjs/terminus';
 import { HealthCheckResultDto } from './dto/health-check-result.dto.js';
 import { AppConfig } from '../../util/config/app.config.js';
+import { Public } from '../../auth/decorator/public.decorator.js';
 
+@Public()
 @Controller('health')
 export class HealthController {
     constructor(

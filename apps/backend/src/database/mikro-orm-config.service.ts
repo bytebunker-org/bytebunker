@@ -32,6 +32,9 @@ export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlD
                     cacheDir: './temp/mikro-orm-cache',
                 },
             },
+            serialization: {
+                forceObject: true,
+            },
             namingStrategy: UnderscoreNamingStrategy,
             autoLoadEntities: true,
             ignoreUndefinedInQuery: true,

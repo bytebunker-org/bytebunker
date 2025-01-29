@@ -136,6 +136,16 @@ export type FilterObject<T> = {
  */
 export interface FindOptions {}
 
+/**
+ * @deprecated Don't use this in dto code! Always import from @mikro-orm/core. These classes are only used when exporting the browser compatible library
+ */
+export interface FindAllOptions {}
+
+/**
+ * @deprecated Don't use this in dto code! Always import from @mikro-orm/core. These classes are only used when exporting the browser compatible library
+ */
+export interface CountOptions {}
+
 type ExpandScalar<T> =
     | null
     | (T extends string
@@ -204,7 +214,7 @@ type EntityProps<T> = {
     -readonly [K in EntityKey<T>]?: T[K];
 };
 type FilterValue<T> = OperatorMap<FilterItemValue<T>> | FilterItemValue<T> | FilterItemValue<T>[] | null;
-type FilterQuery<T> =
+export type FilterQuery<T> =
     | ObjectQuery<T>
     | NonNullable<ExpandScalar<Primary<T>>>
     | NonNullable<EntityProps<T> & OperatorMap<T>>

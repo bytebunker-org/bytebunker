@@ -7,6 +7,7 @@ import { AuthSerializationProvider } from './auth-serialization.provider.js';
 import { LocalUserLoginGuard } from './local-user-login.guard.js';
 import { UserModule } from '../user/user.module.js';
 import { HashingModule } from '../shared/hashing/hashing.module.js';
+import { MikroOrmSessionStoreService } from './mikro-orm-session-store.service.js';
 
 @Module({
     imports: [
@@ -17,6 +18,13 @@ import { HashingModule } from '../shared/hashing/hashing.module.js';
         HashingModule,
     ],
     controllers: [AuthController],
-    providers: [LocalAuthenticationService, LocalUserStrategy, AuthSerializationProvider, LocalUserLoginGuard],
+    providers: [
+        LocalAuthenticationService,
+        LocalUserStrategy,
+        AuthSerializationProvider,
+        LocalUserLoginGuard,
+        MikroOrmSessionStoreService,
+    ],
+    exports: [MikroOrmSessionStoreService],
 })
 export class AuthModule {}

@@ -10,12 +10,14 @@ import type {
     NoInfer,
     PopulatePath,
 } from '@mikro-orm/core';
+import { FindRestApiCountResponseDto } from './dto/find-rest-api-count-response.dto.js';
+import type { FindRestApiCountDto } from './dto/find-rest-api-count.dto.js';
 
 @Injectable()
 export class FindRestApiService {
     constructor(private readonly em: EntityManager) {}
 
-    public findMany<
+    public findAll<
         Entity extends object,
         Hint extends string = never,
         Fields extends string = PopulatePath.ALL,
@@ -25,7 +27,7 @@ export class FindRestApiService {
         query: FindAllOptions<NoInfer<Entity>, Hint, Fields, Excludes>,
         additionalWhereQuery: FilterQuery<NoInfer<Entity>> = {},
     ): Promise<Loaded<Entity, Hint, Fields, Excludes>[]> {
-        return this.em.findAll(entityName, {
+        return this.em.fork().findAll(entityName, {
             ...query,
             where: { ...query.where, ...additionalWhereQuery },
         });
@@ -39,7 +41,7 @@ export class FindRestApiService {
     >(
         entityName: EntityName<Entity>,
         idQuery: FilterQuery<NoInfer<Entity>>,
-        query: FindOneOptions<Entity, Hint, Fields, Excludes> & { where: FilterQuery<NoInfer<Entity>> },
+        query: FindAllOptions<Entity, Hint, Fields, Excludes>,
     ): Promise<Loaded<Entity, Hint, Fields, Excludes>>;
     public findOne<
         Entity extends object,
@@ -49,7 +51,7 @@ export class FindRestApiService {
     >(
         entityName: EntityName<Entity>,
         idQuery: FilterQuery<NoInfer<Entity>>,
-        query: FindOneOptions<Entity, Hint, Fields, Excludes> & { where: FilterQuery<NoInfer<Entity>> },
+        query: FindAllOptions<Entity, Hint, Fields, Excludes>,
         failOnNotFound: false,
     ): Promise<Loaded<Entity, Hint, Fields, Excludes> | null>;
     public findOne<
@@ -60,23 +62,27 @@ export class FindRestApiService {
     >(
         entityName: EntityName<Entity>,
         idQuery: FilterQuery<NoInfer<Entity>>,
-        query: FindOneOptions<Entity, Hint, Fields, Excludes> & { where: FilterQuery<NoInfer<Entity>> },
+        query: FindAllOptions<Entity, Hint, Fields, Excludes>,
         failOnNotFound = true,
     ): Promise<Loaded<Entity, Hint, Fields, Excludes> | null> {
-        return this.em[failOnNotFound ? 'findOneOrFail' : 'findOne'](entityName, { ...query.where, ...idQuery }, query);
+        return this.em
+            .fork()
+            [failOnNotFound ? 'findOneOrFail' : 'findOne'](entityName, { ...query.where, ...idQuery }, query);
     }
 
-    public count<Entity extends object, Hint extends string = never>(
+    public async count<Entity extends object, Hint extends string = never>(
         entityName: EntityName<Entity>,
-        query: CountOptions<Entity, Hint> & { where: FilterQuery<NoInfer<Entity>> },
+        query: FindRestApiCountDto<Entity, Hint>,
         additionalWhereQuery: FilterQuery<NoInfer<Entity>> = {},
-    ): Promise<number> {
-        return this.em.count(
-            entityName,
-            { ...query.where, ...additionalWhereQuery },
-            {
-                ...query,
-            },
-        );
+    ): Promise<FindRestApiCountResponseDto> {
+        return {
+            count: await this.em.fork().count(
+                entityName,
+                { ...query.where, ...additionalWhereQuery },
+                {
+                    ...query,
+                },
+            ),
+        };
     }
 }

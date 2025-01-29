@@ -11,22 +11,22 @@ export class AuthSerializationProvider extends PassportSerializer {
         super();
     }
 
-    serializeUser(user: UserSessionDto, done: (error: Error | null, user?: SerializedUserDto) => void): void {
+    public serializeUser(user: UserSessionDto, done: (error: Error | null, user?: SerializedUserDto) => void): void {
         done(null, { id: user.id });
     }
 
-    async deserializeUser(
+    public async deserializeUser(
         payload: SerializedUserDto,
         done: (error: Error | null, user?: UserSessionDto) => void,
     ): Promise<void> {
-        return this.em.transactional(async (em) => {
-            try {
-                const user = await em.findOneOrFail(UserEntity, { id: payload.id });
+        try {
+            const em = this.em.fork({ useContext: true, disableTransactions: true });
 
-                done(null, user);
-            } catch (error) {
-                done(error as Error);
-            }
-        });
+            const user = await em.findOneOrFail(UserEntity, { id: payload.id });
+
+            done(null, user);
+        } catch (error) {
+            done(error as Error);
+        }
     }
 }
