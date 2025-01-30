@@ -6,6 +6,7 @@ import { PrimaryKeyProp } from '@mikro-orm/core';
 import { Type } from 'class-transformer';
 import type { DtoCollection } from '../../util/type/dto-collection.type.js';
 import { StoredUserSessionDto } from '../../auth/dto/stored-user-session.dto.js';
+import { ApiHideProperty } from '@nestjs/swagger';
 
 export class UserDto extends TimestampDto {
     [PrimaryKeyProp]?: 'id';
@@ -21,6 +22,7 @@ export class UserDto extends TimestampDto {
     @IsString()
     @IsNotEmpty()
     @MaxLength(60)
+    @ApiHideProperty()
     public password?: string;
 
     @IsOptional()

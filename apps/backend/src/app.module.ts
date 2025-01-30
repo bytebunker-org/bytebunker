@@ -19,6 +19,7 @@ import session from 'express-session';
 import passport from 'passport';
 import { AppConfig } from './util/config/app.config.js';
 import { MikroOrmSessionStoreService } from './auth/mikro-orm-session-store.service.js';
+import { DatatableModule } from './shared/datatable/datatable.module.js';
 
 @Module({
     imports: [
@@ -31,6 +32,7 @@ import { MikroOrmSessionStoreService } from './auth/mikro-orm-session-store.serv
             isGlobal: true,
         }),
         FindRestApiModule,
+        DatatableModule,
         HealthModule,
         AuthModule,
         JsonSchemaValidationModule,

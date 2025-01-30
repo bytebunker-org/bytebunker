@@ -13,6 +13,7 @@ generator.generate({
         new ReadonlyVisitor({
             introspectComments: true,
             pathToSource: sourceDirectory,
+            classValidatorShim: true,
         }),
     ],
     outputDir: sourceDirectory,

@@ -40,6 +40,7 @@ export async function configureSwaggerDocumentation(app: INestApplication) {
             }
         }
 
+        // TODO: Automatically add one tag per controller
         const document = SwaggerModule.createDocument(
             app,
             new DocumentBuilder()
@@ -48,10 +49,22 @@ export async function configureSwaggerDocumentation(app: INestApplication) {
                 .addCookieAuth('sid')
                 .addTag('Auth', 'User management and authentication via cookies')
                 .addTag('Health', 'Health checks of the backend, used by the Docker deployment')
+                .addTag('User', 'User management')
+                .addTag('JsonSchemaValidation')
+                .addTag('JsonSchema')
+                .addTag('Setting')
+                .addTag('Extension')
+                .addTag('ExtensionDeveloper')
+                .addTag('PipelineExecution')
+                .addTag('PipelineBlueprint')
                 .setContact('Moritz Hein', 'https://moritz.website', 'moritz.hein@live.de')
+                .addServer('http://127.0.0.1:3000', 'Localhost')
                 .build(),
         );
-        SwaggerModule.setup('/docs', app, document);
+        SwaggerModule.setup('/docs', app, document, {
+            jsonDocumentUrl: '/docs.json',
+            yamlDocumentUrl: '/docs.yaml',
+        });
 
         logger.log('Loaded swagger docs metadata');
     }

@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { EntityManager } from '@mikro-orm/core';
+import { EntityManager } from '@mikro-orm/postgresql';
 import { PipelineBlueprintEntity } from './entity/pipeline-blueprint.entity.js';
 import { PipelineBlueprintDto } from './dto/pipeline-blueprint.dto.js';
 import type { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint.dto.js';
@@ -16,12 +16,18 @@ import {
     ApiFindAllMethod,
     ApiFindOneMethod,
 } from '../../../shared/find-rest-api/find-rest-api-swagger.decorator.js';
+import { PaginatedListRequestDto } from '../../../shared/datatable/dto/paginated-list-request.dto.js';
+import { PaginatedListResponseDto } from '../../../shared/datatable/dto/paginated-list-response.dto.js';
+import { PipelineBlueprintDatatableDto } from './dto/pipeline-blueprint-datatable.dto.js';
+import { PipelineBlueprintService } from './pipeline-blueprint.service.js';
+import { ApiFindAllDatatableMethod } from '../../../shared/datatable/find-all-datatable-swagger.decorator.js';
 
 @Controller('pipelines/blueprints')
 export class PipelineBlueprintController {
     constructor(
         private readonly em: EntityManager,
         private readonly findRestApiService: FindRestApiService,
+        private readonly pipelineBlueprintService: PipelineBlueprintService,
     ) {}
 
     @Post()
@@ -40,6 +46,18 @@ export class PipelineBlueprintController {
         await this.em.flush();
 
         return blueprint;
+    }
+
+    @Get('datatable-entries')
+    @ApiFindAllDatatableMethod(PipelineBlueprintDatatableDto)
+    @ApiOperation({
+        summary: `Get blueprints for datatable`,
+        parameters: [{ in: 'query', name: 'test', schema: { type: 'string' }, required: true }],
+    })
+    public findAllDatatable(
+        @Query() data: PaginatedListRequestDto<PipelineBlueprintDatatableDto>,
+    ): Promise<PaginatedListResponseDto<PipelineBlueprintDatatableDto>> {
+        return this.em.transactional((em) => this.pipelineBlueprintService.findAllDatatable(em, data));
     }
 
     @Get()
