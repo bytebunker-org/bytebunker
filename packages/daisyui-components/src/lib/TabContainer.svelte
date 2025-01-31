@@ -7,12 +7,24 @@
 
     const dispatch = createEventDispatcher();
 
-    let className = '';
-    export { className as class };
-    export let bordered = false;
-    export let lifted = false;
-    export let boxed = false;
-    export let size: 'xs' | 'sm' | 'md' | 'lg' = 'md';
+    
+    interface Props {
+        class?: string;
+        bordered?: boolean;
+        lifted?: boolean;
+        boxed?: boolean;
+        size?: 'xs' | 'sm' | 'md' | 'lg';
+        children?: import('svelte').Snippet;
+    }
+
+    let {
+        class: className = '',
+        bordered = false,
+        lifted = false,
+        boxed = false,
+        size = 'md',
+        children
+    }: Props = $props();
 
     const activeTabId = writable<string | undefined>();
     setContext<TabContext>('tabs', {
@@ -31,14 +43,14 @@
         dispatch('tab', tabId);
     }
 
-    $: classes = classnames(className, {
+    let classes = $derived(classnames(className, {
         'tabs-boxed': boxed
-    });
+    }));
 </script>
 
 <div class={classes}>
     <TabHeader>
-        <slot />
+        {@render children?.()}
     </TabHeader>
-    <slot />
+    {@render children?.()}
 </div>

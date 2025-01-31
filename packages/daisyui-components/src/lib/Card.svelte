@@ -1,25 +1,41 @@
 <script lang="ts">
     import { classnames } from '$lib/util.js';
 
-    export let bordered = false;
-    export let imageFull = false;
-    export let normalPadding = false;
-    export let compact = false;
-    export let imageOnSide = false;
-    export let glass = false;
 
-    let className = '';
-    export { className as class };
-    $: classes = classnames(className, 'card', {
+    interface Props {
+        bordered?: boolean;
+        imageFull?: boolean;
+        normalPadding?: boolean;
+        compact?: boolean;
+        imageOnSide?: boolean;
+        glass?: boolean;
+        class?: string;
+        children?: import('svelte').Snippet;
+        [key: string]: any
+    }
+
+    let {
+        bordered = false,
+        imageFull = false,
+        normalPadding = false,
+        compact = false,
+        imageOnSide = false,
+        glass = false,
+        class: className = '',
+        children,
+        ...rest
+    }: Props = $props();
+    
+    let classes = $derived(classnames(className, 'card', {
         'card-bordered': bordered,
         'image-full': imageFull,
         'card-normal': normalPadding,
         'card-compact': compact,
         'card-side': imageOnSide,
         glass
-    });
+    }));
 </script>
 
-<div {...$$restProps} class={classes}>
-    <slot />
+<div {...rest} class={classes}>
+    {@render children?.()}
 </div>

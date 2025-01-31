@@ -2,17 +2,22 @@
     import { classnames } from '$lib/util.js';
     import { setJoinGroupContext } from '$lib/context.js';
 
-    let className = '';
-    export { className as class };
-    export let vertical = false;
+    
+    interface Props {
+        class?: string;
+        vertical?: boolean;
+        children?: import('svelte').Snippet;
+    }
 
-    $: classes = classnames('join', className, {
+    let { class: className = '', vertical = false, children }: Props = $props();
+
+    let classes = $derived(classnames('join', className, {
         'join-vertical': vertical
-    });
+    }));
 
     setJoinGroupContext(true);
 </script>
 
 <div class={classes}>
-    <slot />
+    {@render children?.()}
 </div>

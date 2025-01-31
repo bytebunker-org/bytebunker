@@ -1,20 +1,41 @@
 <script lang="ts">
+    import { createBubbler } from 'svelte/legacy';
+
+    const bubble = createBubbler();
     import type { ThemeColor, ThemeSize } from '$lib/type/Theme.js';
     import { classnames } from '$lib/util.js';
 
-    let className = '';
-    export { className as class };
+    
 
-    export let element: HTMLInputElement | undefined = undefined;
-    export let checked = false;
-    export let disabled = false;
-    export let id: string | undefined = undefined;
-    export let label = '';
-    export let name = '';
-    export let size: ThemeSize = 'md';
-    export let color: ThemeColor | '' = '';
-    export let type = 'checkbox' as const;
-    export let value = undefined;
+    interface Props {
+        class?: string;
+        element?: HTMLInputElement | undefined;
+        checked?: boolean;
+        disabled?: boolean;
+        id?: string | undefined;
+        label?: string;
+        name?: string;
+        size?: ThemeSize;
+        color?: ThemeColor | '';
+        type?: any;
+        value?: any;
+        [key: string]: any
+    }
+
+    let {
+        class: className = '',
+        element = $bindable(undefined),
+        checked = $bindable(false),
+        disabled = false,
+        id = undefined,
+        label = '',
+        name = '',
+        size = 'md',
+        color = '',
+        type = 'checkbox' as const,
+        value = undefined,
+        ...rest
+    }: Props = $props();
 
     /*export let group = undefined;
     export let id = undefined;
@@ -29,7 +50,7 @@
     export let valid = false;
     export let value = undefined;*/
 
-    $: classes = classnames(className, type, {
+    let classes = $derived(classnames(className, type, {
         'checkbox-primary': type === 'checkbox' && color === 'primary',
         'checkbox-secondary': type === 'checkbox' && color === 'secondary',
         'checkbox-accent': type === 'checkbox' && color === 'accent',
@@ -41,8 +62,8 @@
         'checkbox-sm': type === 'checkbox' && size === 'sm',
         'checkbox-md': type === 'checkbox' && size === 'md',
         'checkbox-lg': type === 'checkbox' && size === 'lg'
-    });
-    $: idFor = id || label;
+    }));
+    let idFor = $derived(id || label);
 </script>
 
 <!--{#if type === 'radio'}
@@ -82,14 +103,14 @@
     <label class="label cursor-pointer">
         <span class="label-text">{label}</span>
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             id={idFor}
             type="checkbox"
-            on:blur
-            on:change
-            on:focus
-            on:input
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
             bind:checked
             bind:this={element}
             disabled={disabled ? true : undefined}
@@ -99,14 +120,14 @@
     </label>
 {:else}
     <input
-        {...$$restProps}
+        {...rest}
         class={classes}
         id={idFor}
         type="checkbox"
-        on:blur
-        on:change
-        on:focus
-        on:input
+        onblur={bubble('blur')}
+        onchange={bubble('change')}
+        onfocus={bubble('focus')}
+        oninput={bubble('input')}
         bind:checked
         bind:this={element}
         disabled={disabled ? true : undefined}

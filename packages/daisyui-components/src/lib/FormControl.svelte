@@ -1,28 +1,41 @@
 <script lang="ts">
     import { classnames } from '$lib/util.js';
 
-    export let label = '';
-    export let labelInline = false;
-    let forId: string | undefined = undefined;
-    export { forId as for };
+    
 
-    let className = '';
-    export { className as class };
-    $: classes = classnames(className, 'form-control', {
+    interface Props {
+        label?: string;
+        labelInline?: boolean;
+        for?: string | undefined;
+        class?: string;
+        children?: import('svelte').Snippet;
+        [key: string]: any
+    }
+
+    let {
+        label = '',
+        labelInline = false,
+        for: forId = undefined,
+        class: className = '',
+        children,
+        ...rest
+    }: Props = $props();
+    
+    let classes = $derived(classnames(className, 'form-control', {
         'flex flex-row items-center': labelInline
-    });
-    $: labelClasses = classnames('label', {
+    }));
+    let labelClasses = $derived(classnames('label', {
         'cursor-pointer': !!forId
-    });
+    }));
 </script>
 
-<div {...$$restProps} class={classes}>
+<div {...rest} class={classes}>
     {#if label && !labelInline}
         <label class={labelClasses} for={forId}>
             <span class="label-text">{label}</span>
         </label>
     {/if}
-    <slot />
+    {@render children?.()}
     {#if label && labelInline}
         <label class={labelClasses} for={forId}>
             <span class="label-text">{label}</span>

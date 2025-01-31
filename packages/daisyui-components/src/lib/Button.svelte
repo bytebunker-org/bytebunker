@@ -1,3 +1,4 @@
+<!-- @migration-task Error while migrating Svelte code: $$props is used together with named props in a way that cannot be automatically migrated. -->
 <script lang="ts">
     import type { ThemeButtonStyle, ThemeColor, ThemeSize } from '$lib/type/Theme.js';
     import { classnames } from '$lib/util.js';

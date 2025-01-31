@@ -1,20 +1,34 @@
 <script lang="ts">
+    import { createBubbler } from 'svelte/legacy';
+
+    const bubble = createBubbler();
     import { classnames } from './util.js';
 
-    export let value = '';
-    export let placeholder = '';
-    export let rows = 3;
-    export let class_ = '';
-    export let disabled = false;
-    export let required = false;
+    interface Props {
+        value?: string;
+        placeholder?: string;
+        rows?: number;
+        class_?: string;
+        disabled?: boolean;
+        required?: boolean;
+    }
 
-    $: classes = classnames(
+    let {
+        value = $bindable(''),
+        placeholder = '',
+        rows = 3,
+        class_ = '',
+        disabled = false,
+        required = false
+    }: Props = $props();
+
+    let classes = $derived(classnames(
         'textarea textarea-bordered w-full',
         {
             'textarea-disabled': disabled
         },
         class_
-    );
+    ));
 </script>
 
 <textarea
@@ -24,8 +38,8 @@
     {disabled}
     {required}
     class={classes}
-    on:input
-    on:change
-    on:focus
-    on:blur
-/> 
+    oninput={bubble('input')}
+    onchange={bubble('change')}
+    onfocus={bubble('focus')}
+    onblur={bubble('blur')}
+></textarea> 

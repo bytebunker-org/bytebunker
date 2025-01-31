@@ -1,34 +1,66 @@
 <script lang="ts">
+    import { run, createBubbler } from 'svelte/legacy';
+
+    const bubble = createBubbler();
     import FormCheck from './FormCheck.svelte';
     import { classnames } from '$lib/util.js';
     import type { InputType, ThemeColor, ThemeInputStyle, ThemeSize } from '$lib/type/Theme.js';
 
-    let className = '';
-    export { className as class };
+    
 
-    export let inputSize: ThemeSize = 'md';
-    export let inputStyle: ThemeInputStyle | undefined = undefined;
-    export let checked = false;
-    export let color: ThemeColor | undefined = undefined;
-    export let disabled = undefined;
-    export let files = undefined;
-    export let group = undefined;
-    export let inner = undefined;
-    export let invalid = false;
-    export let label = undefined;
-    export let multiple = undefined;
-    export let name = '';
-    export let placeholder = '';
-    export let plaintext = false;
-    export let readonly = undefined;
-    export let size = undefined;
-    export let type: InputType = 'text';
-    export let valid = false;
-    export let value = '';
+    interface Props {
+        class?: string;
+        inputSize?: ThemeSize;
+        inputStyle?: ThemeInputStyle | undefined;
+        checked?: boolean;
+        color?: ThemeColor | undefined;
+        disabled?: any;
+        files?: any;
+        group?: any;
+        inner?: any;
+        invalid?: boolean;
+        label?: any;
+        multiple?: any;
+        name?: string;
+        placeholder?: string;
+        plaintext?: boolean;
+        readonly?: any;
+        size?: any;
+        type?: InputType;
+        valid?: boolean;
+        value?: string;
+        children?: import('svelte').Snippet;
+        [key: string]: any
+    }
 
-    let classes;
-    let tag;
-    $: {
+    let {
+        class: className = '',
+        inputSize = $bindable('md'),
+        inputStyle = undefined,
+        checked = $bindable(false),
+        color = undefined,
+        disabled = undefined,
+        files = $bindable(undefined),
+        group = $bindable(undefined),
+        inner = $bindable(undefined),
+        invalid = false,
+        label = undefined,
+        multiple = undefined,
+        name = '',
+        placeholder = '',
+        plaintext = false,
+        readonly = undefined,
+        size = $bindable(undefined),
+        type = 'text',
+        valid = false,
+        value = $bindable(''),
+        children,
+        ...rest
+    }: Props = $props();
+
+    let classes = $state();
+    let tag = $state();
+    run(() => {
         const isNotaNumber = new RegExp('\\D', 'g');
 
         let isBtn = false;
@@ -81,7 +113,7 @@
                 'input-lg': inputSize === 'lg'
             });
         }
-    }
+    });
 
     const handleInput = (event) => {
         value = event.target.value;
@@ -91,16 +123,16 @@
 {#if tag === 'input'}
     {#if type === 'text'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="text"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -111,16 +143,16 @@
         />
     {:else if type === 'password'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="password"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -131,16 +163,16 @@
         />
     {:else if type === 'color'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="color"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -150,16 +182,16 @@
         />
     {:else if type === 'email'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="email"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -171,16 +203,16 @@
         />
     {:else if type === 'file'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="file"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:files
             bind:value
             bind:this={inner}
@@ -194,7 +226,7 @@
         />
     {:else if type === 'checkbox' || type === 'radio' || type === 'switch'}
         <FormCheck
-            {...$$restProps}
+            {...rest}
             class={className}
             size={inputSize}
             {color}
@@ -219,16 +251,16 @@
         />
     {:else if type === 'url'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="url"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -239,16 +271,16 @@
         />
     {:else if type === 'number'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="number"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             {readonly}
@@ -258,16 +290,16 @@
         />
     {:else if type === 'date'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="date"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -277,16 +309,16 @@
         />
     {:else if type === 'time'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="time"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -296,15 +328,15 @@
         />
     {:else if type === 'datetime'}
         <input
-            {...$$restProps}
+            {...rest}
             type="datetime"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             {readonly}
@@ -315,16 +347,16 @@
         />
     {:else if type === 'datetime-local'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="datetime-local"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -334,16 +366,16 @@
         />
     {:else if type === 'month'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="month"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -353,15 +385,15 @@
         />
     {:else if type === 'color'}
         <input
-            {...$$restProps}
+            {...rest}
             type="color"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             {readonly}
@@ -372,15 +404,15 @@
         />
     {:else if type === 'range'}
         <input
-            {...$$restProps}
+            {...rest}
             type="range"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             {readonly}
@@ -391,16 +423,16 @@
         />
     {:else if type === 'search'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="search"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -411,16 +443,16 @@
         />
     {:else if type === 'tel'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="tel"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -431,16 +463,16 @@
         />
     {:else if type === 'week'}
         <input
-            {...$$restProps}
+            {...rest}
             class={classes}
             type="week"
-            on:blur
-            on:change
-            on:focus
-            on:input
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={bubble('change')}
+            onfocus={bubble('focus')}
+            oninput={bubble('input')}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             bind:value
             bind:this={inner}
             disabled={disabled ? true : undefined}
@@ -450,15 +482,15 @@
         />
     {:else}
         <input
-            {...$$restProps}
+            {...rest}
             {type}
-            on:blur
-            on:change={handleInput}
-            on:focus
-            on:input={handleInput}
-            on:keydown
-            on:keypress
-            on:keyup
+            onblur={bubble('blur')}
+            onchange={handleInput}
+            onfocus={bubble('focus')}
+            oninput={handleInput}
+            onkeydown={bubble('keydown')}
+            onkeypress={bubble('keypress')}
+            onkeyup={bubble('keyup')}
             {readonly}
             class={classes}
             {name}
@@ -469,37 +501,37 @@
     {/if}
 {:else if tag === 'textarea'}
     <textarea
-        {...$$restProps}
+        {...rest}
         class={classes}
-        on:blur
-        on:change
-        on:focus
-        on:input
-        on:keydown
-        on:keypress
-        on:keyup
+        onblur={bubble('blur')}
+        onchange={bubble('change')}
+        onfocus={bubble('focus')}
+        oninput={bubble('input')}
+        onkeydown={bubble('keydown')}
+        onkeypress={bubble('keypress')}
+        onkeyup={bubble('keyup')}
         bind:value
         bind:this={inner}
         disabled={disabled ? true : undefined}
         {name}
         {placeholder}
         {readonly}
-    />
+></textarea>
 {:else if tag === 'select' && !multiple}
     <select
-        {...$$restProps}
+        {...rest}
         class={classes}
-        on:blur
-        on:change
-        on:focus
-        on:input
+        onblur={bubble('blur')}
+        onchange={bubble('change')}
+        onfocus={bubble('focus')}
+        oninput={bubble('input')}
         bind:value
         bind:this={inner}
         {name}
         disabled={disabled ? true : undefined}
         {readonly}
     >
-        <slot />
+        {@render children?.()}
     </select>
 
     <!-- {:else if tag === 'select' && multiple}

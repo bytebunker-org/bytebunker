@@ -1,4 +1,3 @@
-export { DataTable } from './dataTable/index.js';
 export { default as Breadcrumb } from './Breadcrumb.svelte';
 export { default as BreadcrumbItem } from './BreadcrumbItem.svelte';
 export { default as Button } from './Button.svelte';

@@ -1,11 +1,24 @@
 <script lang="ts">
-    let className = '';
-    export { className as class };
-    export let color: 'info' | 'success' | 'warning' | 'error' = 'info';
+    import type { Snippet } from 'svelte/src';
+    import type { ClassValue } from 'svelte/elements';
+
+    interface Props {
+        class?: ClassValue;
+        color?: 'info' | 'success' | 'warning' | 'error';
+        children: Snippet;
+    }
+
+    let { class: className = '', color = 'info', children }: Props = $props();
+
+    /*
+    {color === 'info' ? 'alert-info' : ''} {color === 'success' ? 'alert-success' : ''} {color === 'warning' ? 'alert-warning' : ''} {color === 'error' ? 'alert-error' : ''} {className}
+     */
 </script>
 
 <div
-    class="alert {color === 'info' ? 'alert-info' : ''} {color === 'success' ? 'alert-success' : ''} {color === 'warning' ? 'alert-warning' : ''} {color === 'error' ? 'alert-error' : ''} {className}"
+    class={['alert', {
+        "alert-info": color==="info",
+    }, className]}
 >
-    <slot />
+    {@render children?.()}
 </div> 

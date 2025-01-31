@@ -1,11 +1,17 @@
 <script lang="ts">
     import { classnames } from '$lib/util.js';
 
-    let className = '';
-    export { className as class };
-    $: classes = classnames(className, 'card-body');
+    interface Props {
+        class?: string;
+        children?: import('svelte').Snippet;
+        [key: string]: any
+    }
+
+    let { class: className = '', children, ...rest }: Props = $props();
+    
+    let classes = $derived(classnames(className, 'card-body'));
 </script>
 
-<div {...$$restProps} class={classes}>
-    <slot />
+<div {...rest} class={classes}>
+    {@render children?.()}
 </div>

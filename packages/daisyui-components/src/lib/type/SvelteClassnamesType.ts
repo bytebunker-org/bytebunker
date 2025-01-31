@@ -1,0 +1,1 @@
+export type SvelteClassnamesType = string | Record<string, boolean> | Array<string | Record<string, boolean>>;

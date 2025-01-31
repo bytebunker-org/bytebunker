@@ -3,19 +3,29 @@
     import { classnames } from '$lib/util.js';
     import type { TabsContext } from '$lib/tabs/types.js';
 
-    export let value: string;
-    export let tabHeaderClass = '';
-    let className = '';
-    export { className as class };
+    interface Props {
+        value: string;
+        tabHeaderClass?: string;
+        class?: string;
+        children?: import('svelte').Snippet;
+    }
+
+    let {
+        value,
+        tabHeaderClass = '',
+        class: className = '',
+        children
+    }: Props = $props();
+    
 
     const isTabHeader = getContext('tabHeader');
     const { selectedTab, tabStyle } = getContext<TabsContext>('tabs');
 
-    $: tabHeaderClasses = classnames('tab', tabHeaderClass, {
+    let tabHeaderClasses = $derived(classnames('tab', tabHeaderClass, {
         'tab-active': $selectedTab === value,
         'tab-bordered': tabStyle?.bordered,
         'tab-lifted': tabStyle?.lifted
-    });
+    }));
 </script>
 
 {#if isTabHeader}
@@ -23,14 +33,14 @@
         class={tabHeaderClasses} 
         role="tab"
         aria-selected={$selectedTab === value}
-        on:click={() => selectedTab.set(value)}
+        onclick={() => selectedTab.set(value)}
     >
         <div class="">
-            <slot />
+            {@render children?.()}
         </div>
     </button>
 {:else}
     <div class={className}>
-        <slot />
+        {@render children?.()}
     </div>
 {/if}
