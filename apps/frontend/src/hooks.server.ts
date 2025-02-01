@@ -2,7 +2,8 @@ import { locale } from 'svelte-i18n';
 import { pick } from '@escapace/accept-language-parser';
 import type { Handle, HandleFetch } from '@sveltejs/kit';
 import { defaultLocale, supportedLocales } from '@bytebunker/backend';
-import { ApiError, AuthApi } from '$lib/api/index.js';
+import { AuthApi } from '$lib/api/AuthApi.js';
+import { ApiError } from '$lib/api/ApiError.js';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const acceptLanguageHeader = event.request.headers.get('accept-language');

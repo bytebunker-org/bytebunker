@@ -23,10 +23,10 @@
 </div>
 
 <div role="tablist" class="tabs tabs-lift translate-y-[1px]">
-	<a role="tab" class="tab tab-active" href="/pipelines">Pipelines</a>
-	<a role="tab" class="tab" href="/pipelines/blueprints">Blueprints</a>
+	<a role="tab" class="tab" href="/pipelines">Pipelines</a>
+	<a role="tab" class="tab tab-active" href="/pipelines/blueprints">Blueprints</a>
 </div>
 
-<Card class="bg-base-100 border-base-300 rounded-tl-none border shadow-sm">
+<Card class="bg-base-100 border-base-300 rounded-tl-none border shadow-sm ">
 	<CardBody class="overflow-hidden"></CardBody>
 </Card>

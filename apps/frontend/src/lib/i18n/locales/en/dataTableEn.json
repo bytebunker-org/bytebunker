@@ -1,0 +1,26 @@
+{
+	"pagination": {
+		"previous": "Previous",
+		"next": "Next",
+		"first": "First",
+		"last": "Last",
+		"currentlyShowing": "{firstIndex} - {lastIndex} of {itemAmount}"
+	},
+	"search": {
+		"placeholder": "Search",
+		"ariaLabel": "Search"
+	},
+	"dataTable": {
+		"pipeline-blueprint": {
+			"title": {
+				"label": "Title"
+			},
+			"description": {
+				"label": "Description"
+			},
+			"createdAt": {
+				"label": "Created at"
+			}
+		}
+	}
+}

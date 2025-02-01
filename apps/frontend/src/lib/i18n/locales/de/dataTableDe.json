@@ -1,0 +1,26 @@
+{
+	"pagination": {
+		"previous": "Vorherige",
+		"next": "Nächste",
+		"first": "Erste",
+		"last": "Letzte",
+		"currentlyShowing": "{firstIndex} - {lastIndex} von {itemAmount}"
+	},
+	"search": {
+		"placeholder": "Suche",
+		"ariaLabel": "Suche"
+	},
+	"dataTable": {
+		"pipeline-blueprint": {
+			"title": {
+				"label": "Titel"
+			},
+			"description": {
+				"label": "Beschreibung"
+			},
+			"createdAt": {
+				"label": "Erstellt am"
+			}
+		}
+	}
+}

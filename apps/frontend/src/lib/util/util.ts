@@ -40,10 +40,21 @@ export function exclude<T, K extends keyof T>(obj: T, ...keys: K[]): Omit<T, K> 
 	return newObj as Omit<T, K>;
 }
 
-export function range(start: number, stop: number, step = 1): number[] {
-	return Array(Math.ceil((stop - start) / step))
-		.fill(start)
-		.map((x, y) => x + y * step);
+export function range(stop: number): number[];
+export function range(start: number, stop: number): number[];
+export function range(start: number, stop: number, step: number): number[];
+export function range(start: number, stop?: number, step = 1): number[] {
+	if (stop === undefined) {
+		stop = start;
+		start = 0;
+	}
+
+	if (step === 0) {
+		throw new Error('range() step argument must not be zero');
+	}
+
+	const length = Math.max(0, Math.ceil((stop - start) / step));
+	return Array.from({ length }, (_, i) => start + i * step);
 }
 
 /**

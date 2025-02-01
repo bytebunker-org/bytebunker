@@ -3,7 +3,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { valibot } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { ApiError, AuthApi } from '$lib/api/index.js';
+import { AuthApi } from '$lib/api/AuthApi.js';
+import { ApiError } from '$lib/api/ApiError.js';
 
 export const load = (async () => {
 	const form = await superValidate(valibot(loginFormSchema));

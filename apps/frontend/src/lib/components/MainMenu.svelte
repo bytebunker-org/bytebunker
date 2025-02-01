@@ -10,19 +10,19 @@
 	import LucideWorkflow from '~icons/lucide/workflow';
 	import LucideSettings from '~icons/lucide/settings';
 	import { toastManager } from '$lib/util/toastManager.svelte.js';
-	import { AuthApi } from '$lib/api/index.js';
+	import { AuthApi } from '$lib/api/AuthApi.js';
 
 	const user = getUserContext();
 
-	const logoutMutation = createMutation({
+	const logoutMutation = createMutation(() => ({
 		mutationFn: () => AuthApi.logout()
-	});
+	}));
 
 	async function logout() {
 		try {
 			toastManager.showInfo('Logging out...');
 
-			await $logoutMutation.mutateAsync();
+			await logoutMutation.mutateAsync();
 			location.href = '/';
 		} catch (error) {
 			console.error(error);
@@ -33,40 +33,89 @@
 	let avatarLoadingStatus: Avatar.Props['loadingStatus'] = undefined;
 </script>
 
-<div class="bg-base-200 relative min-h-screen px-6 md:block">
-	<div class="mb-4 border-b border-neutral-700 py-6">
-		<!--<Img
-			src={logoImg}
-			alt="ByteBunker"
-			class="aspect-square max-w-24 rounded-lg border border-neutral-700 object-contain p-1 shadow-md shadow-black/80"
-		/>-->
-		<h1 class="text-lg font-bold">ByteBunker</h1>
+<div class="bg-base-200 relative flex min-h-screen flex-col justify-between">
+	<div class="px-6">
+		<div class="mb-4 border-b border-neutral-200 py-6 dark:border-neutral-700">
+			<!--<Img
+                src={logoImg}
+                alt="ByteBunker"
+                class="aspect-square max-w-24 rounded-lg border border-neutral-700 object-contain p-1 shadow-md shadow-black/80"
+            />-->
+			<h1 class="text-lg font-bold">ByteBunker</h1>
+		</div>
+		<ul class="menu flex w-full">
+			<li>
+				<a href="/" class:menu-active={page.route.id === '/(app)'}>
+					<LucideHouse />
+					Dashboard</a
+				>
+			</li>
+			<li>
+				<a href="/pipelines" class:menu-active={page.route.id?.startsWith('/(app)/pipelines')}>
+					<LucideWorkflow />
+					Pipelines</a
+				>
+			</li>
+			<li>
+				<a href="/settings" class:menu-active={page.route.id === '/(app)/settings'}>
+					<LucideSettings />
+					Settings</a
+				>
+			</li>
+		</ul>
 	</div>
-	<ul class="main-menu menu rounded-box flex w-full flex-col gap-y-2 overflow-hidden p-0">
-		<li>
-			<a href="/" class:selected={page.route.id === '/(app)'}>
-				<LucideHouse />
-				Dashboard</a
+	<div class=" w-full p-2">
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="btn bg-base-100 btn-xl flex w-full cursor-pointer gap-2.5 px-4 py-6"
 			>
-		</li>
-		<li>
-			<a href="/pipelines" class:selected={page.route.id === '/(app)/pipelines'}>
-				<LucideWorkflow />
-				Pipelines</a
+				<Avatar.Root
+					bind:loadingStatus={avatarLoadingStatus}
+					class="avatar placeholder {avatarLoadingStatus === 'loaded'
+						? 'border-neutral-700'
+						: 'border-transparent'} pointer-events-none uppercase"
+				>
+					<div
+						class="bg-neutral text-neutral-content !flex w-10 items-center justify-center rounded-full"
+					>
+						<Avatar.Image src="" alt="@{user.username}" />
+						<Avatar.Fallback class="text-xl">{user.username?.slice(0, 1)}</Avatar.Fallback>
+					</div>
+				</Avatar.Root>
+
+				<button
+					class="pointer-events-none flex w-full items-center justify-between gap-2 text-[15px] font-bold text-neutral-700 lg:gap-4 dark:text-neutral-200"
+				>
+					<span>{user.username}</span>
+					<LucideEllipsisVertical />
+				</button>
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content
+				class=" bg-base-100 rounded-box z-1 shadow-sm"
+				transition={flyAndScale}
+				transitionConfig={{ y: 8 }}
+				sideOffset={8}
+				sameWidth
 			>
-		</li>
-		<li>
-			<a href="/settings" class:selected={page.route.id === '/(app)/settings'}>
-				<LucideSettings />
-				Settings</a
-			>
-		</li>
-	</ul>
-	<div class="absolute bottom-0 left-0 mb-2 w-full px-2">
-		<ul class="menu bg-base-100 w-full p-0">
-			<li class="w-full rounded-xl border border-neutral-700">
+				<ul class="menu w-full">
+					<DropdownMenu.Item>
+						<li class="flex w-full items-center gap-2">
+							<button class="w-full" on:click={logout}>
+								<LucideLock />
+								Logout
+							</button>
+						</li>
+					</DropdownMenu.Item>
+				</ul>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+	</div>
+	<!--<div class="">
+
+		<ul class="menu bg-base-100 w-full overflow-hidden rounded-xl p-0">
+			<li class="rounded-box w-full border border-neutral-700">
 				<DropdownMenu.Root>
-					<DropdownMenu.Trigger class="flex w-full gap-2.5">
+					<DropdownMenu.Trigger class="btn btn-xl flex w-full gap-2.5">
 						<Avatar.Root
 							bind:loadingStatus={avatarLoadingStatus}
 							class="avatar placeholder {avatarLoadingStatus === 'loaded'
@@ -82,7 +131,7 @@
 						</Avatar.Root>
 
 						<button
-							class="flex w-full items-center justify-between gap-2 text-[15px] font-bold text-neutral-200 lg:gap-4"
+							class="flex w-full items-center justify-between gap-2 text-[15px] font-bold text-neutral-700 lg:gap-4 dark:text-neutral-200"
 						>
 							<span>{user.username}</span>
 							<LucideEllipsisVertical />
@@ -109,5 +158,5 @@
 				</DropdownMenu.Root>
 			</li>
 		</ul>
-	</div>
+	</div>-->
 </div>
