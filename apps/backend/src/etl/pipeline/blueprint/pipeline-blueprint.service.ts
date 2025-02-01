@@ -32,9 +32,7 @@ export class PipelineBlueprintService {
                 applySearchText: (searchText, queryBuilder) => {
                     queryBuilder.andWhere({
                         title: {
-                            $ilike: sql`%
-                            ${searchText}
-                            %`,
+                            $ilike: `%${searchText}%`,
                         },
                     });
                 },
