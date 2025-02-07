@@ -8,6 +8,7 @@ export const settingsConfig = {
     },
     settings: {
         localTimezone: {
+            parentCategoryKey: 'general',
             type: SettingTypeEnum.STRING,
             targetType: 'global',
             validationSchema: {
@@ -16,7 +17,50 @@ export const settingsConfig = {
             validationSchemaObject: undefined,
             defaultValue: 'Europe/Berlin',
             required: true,
-            parentCategoryKey: 'general',
+        },
+        enableLocalFileTrigger: {
+            parentCategoryKey: 'etl',
+            type: SettingTypeEnum.BOOLEAN,
+            targetType: 'global',
+            validationSchema: {
+                type: 'boolean',
+            },
+            validationSchemaObject: undefined,
+            defaultValue: true,
+            required: true,
+        },
+        localFileTriggerImportFolder: {
+            parentCategoryKey: 'etl',
+            type: SettingTypeEnum.STRING,
+            targetType: 'global',
+            validationSchema: {
+                type: 'string',
+            },
+            validationSchemaObject: undefined,
+            defaultValue: './data/import',
+            required: true,
+        },
+        localFileTriggerImportFinishedFolder: {
+            parentCategoryKey: 'etl',
+            type: SettingTypeEnum.STRING,
+            targetType: 'global',
+            validationSchema: {
+                type: 'string',
+            },
+            validationSchemaObject: undefined,
+            defaultValue: './data/import-finished',
+            required: true,
+        },
+        localFileTriggerImportFailedFolder: {
+            parentCategoryKey: 'etl',
+            type: SettingTypeEnum.STRING,
+            targetType: 'global',
+            validationSchema: {
+                type: 'string',
+            },
+            validationSchemaObject: undefined,
+            defaultValue: './data/import-failed',
+            required: true,
         },
     },
 } satisfies SettingConfigType<ByteBunkerSettingCategoryKeys>;

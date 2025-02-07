@@ -24,8 +24,8 @@ export class PipelineExecutionService {
         em: EntityManager,
         blueprintId: number,
         triggerNodeId: number,
-        triggerNodeOutputData: Record<string, unknown>,
-    ) {
+        triggerNodeOutputData: unknown,
+    ): Promise<PipelineExecutionEntity> {
         const blueprintEntity = await em.findOneOrFail(PipelineBlueprintEntity, { id: blueprintId });
         const blueprint = new Blueprint(blueprintEntity.data);
 
@@ -52,6 +52,8 @@ export class PipelineExecutionService {
         await em.flush();
 
         this.logger.debug(`Executing pipeline ${pipelineExecution.id} from trigger node ${triggerNodeId}`);
+
+        return pipelineExecution;
     }
 
     public async continuePipelineExecution(
@@ -142,7 +144,7 @@ export class PipelineExecutionService {
         em: EntityManager,
         pipelineExecution: PipelineExecutionEntity,
         nodeId: number,
-        outputData: Record<string, unknown> | undefined,
+        outputData: unknown | undefined,
         executionStatus = PipelineExecutionStatusEnum.SUCCESS,
     ): void {
         const executionData = em.create(PipelineExecutionDataEntity, {

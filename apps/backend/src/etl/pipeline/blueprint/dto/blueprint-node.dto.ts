@@ -5,7 +5,7 @@ import type { PipelineModuleIdentifier } from '../../pipeline-module/type/pipeli
 import { PIPELINE_MODULE_IDENTIFIER_REGEX } from '../../pipeline-module/pipeline-module.constant.js';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class BlueprintNodeDto {
+export class BlueprintNodeDto<Input = Record<string, unknown>> {
     @IsInt()
     @Min(0)
     public id!: number;
@@ -19,7 +19,7 @@ export class BlueprintNodeDto {
 
     @IsOptional()
     @IsObject()
-    public constantInputData?: Record<string, unknown>;
+    public constantInputData?: Input;
 
     @Type(() => XyPositionDto)
     @IsObject()

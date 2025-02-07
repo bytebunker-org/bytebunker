@@ -3,6 +3,7 @@ import { BlueprintNodeDto } from '../dto/blueprint-node.dto.js';
 import { BlueprintEdgeDto } from '../dto/blueprint-edge.dto.js';
 import { groupByKeySingle } from '../../../../util/util.js';
 import type { PipelineModuleIdentifier } from '../../pipeline-module/type/pipeline-module-identifier.type.js';
+import type { Input } from '@nestjs/cli/commands';
 
 export class Blueprint {
     private nodeIdCounter: number;
@@ -66,15 +67,19 @@ export class Blueprint {
         return Object.values(this.edges);
     }
 
-    public getNode(moduleIdentifier: PipelineModuleIdentifier): BlueprintNodeDto | undefined;
-    public getNode(nodeId: number): BlueprintNodeDto | undefined;
-    public getNode(nodeIdOrModuleIdentifier: number | PipelineModuleIdentifier): BlueprintNodeDto | undefined {
+    public getNode<Input = Record<string, unknown>>(
+        moduleIdentifier: PipelineModuleIdentifier,
+    ): BlueprintNodeDto<Input> | undefined;
+    public getNode<Input = Record<string, unknown>>(nodeId: number): BlueprintNodeDto<Input> | undefined;
+    public getNode<Input = Record<string, unknown>>(
+        nodeIdOrModuleIdentifier: number | PipelineModuleIdentifier,
+    ): BlueprintNodeDto<Input> | undefined {
         if (typeof nodeIdOrModuleIdentifier === 'number') {
-            return this.nodes[nodeIdOrModuleIdentifier];
+            return this.nodes[nodeIdOrModuleIdentifier] as BlueprintNodeDto<Input> | undefined;
         } else {
             const nodeList = Object.values(this.nodes);
 
-            return nodeList.find((n) => n.moduleId === nodeIdOrModuleIdentifier);
+            return nodeList.find((n) => n.moduleId === nodeIdOrModuleIdentifier) as BlueprintNodeDto<Input> | undefined;
         }
     }
 

@@ -3,10 +3,11 @@ import { ArrayNotEmpty, IsArray, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import exampleJsonSchema from '../util/example.schema.json.js';
+import type { LocalExtensionId } from '../../../extension/extensions/local-extension.constant.js';
 
 export class StoreJsonSchemaRequestDto {
     @IsUUID()
-    public extensionId!: string;
+    public extensionId!: LocalExtensionId;
 
     @IsArray()
     @ArrayNotEmpty()

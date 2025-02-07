@@ -31,6 +31,7 @@ import { StoreSettingValueDto } from './dto/store-setting-values.dto.js';
 import { UserEntity } from '../../user/entity/user.entity.js';
 import { JsonSchemaEntity } from '../json-schema/entity/json-schema.entity.js';
 import { ExtensionEntity } from '../../extension/entity/extension.entity.js';
+import type { LocalExtensionId } from '../../extension/extensions/local-extension.constant.js';
 
 type SettingConfig = ByteBunkerSettingConfig;
 type CategoryKeys = ByteBunkerSettingCategoryKeys;
@@ -49,7 +50,7 @@ export class SettingService {
 
     public async applySettingConfig(
         em: EntityManager,
-        extensionId: string,
+        extensionId: LocalExtensionId,
         settingConfig: SettingConfig,
     ): Promise<void> {
         await this.applySettingConfigCategories(em, settingConfig.categories);
@@ -314,7 +315,7 @@ export class SettingService {
 
     private async applySettingConfigFields(
         em: EntityManager,
-        extensionId: string,
+        extensionId: LocalExtensionId,
         settingFields: Record<string, SettingFieldConfig<CategoryKeys>>,
     ): Promise<void> {
         const validationSchemas: JSONSchema7[] = [];

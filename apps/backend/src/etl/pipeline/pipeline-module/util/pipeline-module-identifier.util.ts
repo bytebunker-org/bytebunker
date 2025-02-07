@@ -9,7 +9,7 @@ export function buildModuleIdentifier(
     moduleName: string,
     moduleVersion: number,
 ): PipelineModuleIdentifier {
-    return `${extensionName.toLowerCase()}:${moduleName.toLowerCase()}@${moduleVersion}`;
+    return `${extensionName.toLowerCase()}:${moduleName}@${moduleVersion}`;
 }
 
 export function validatePipelineModuleIdentifier(identifier: string): identifier is PipelineModuleIdentifier {
@@ -21,7 +21,7 @@ export function deconstructPipelineModuleIdentifier(
 ): DeconstructedPipelineModuleIdentifier {
     const match = PIPELINE_MODULE_IDENTIFIER_REGEX.exec(identifier);
     if (!match) {
-        throw new Error('Invalid module identifier');
+        throw new Error(`Invalid module identifier ${identifier}`);
     }
 
     return {

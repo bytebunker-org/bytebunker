@@ -14,13 +14,14 @@ import { PipelineModuleEntity } from '../../etl/pipeline/pipeline-module/entity/
 import { EXTENSION_NAME_LENGTH } from '../extension.constant.js';
 import { ExtensionDeveloperEntity } from './extension-developer.entity.js';
 import type { ExtensionDto } from '../dto/extension.dto.js';
+import type { LocalExtensionId } from '../extensions/local-extension.constant.js';
 
 @Entity()
 export class ExtensionEntity extends TimestampEntity implements ExtensionDto {
     [PrimaryKeyProp]?: 'id';
 
     @PrimaryKey({ type: types.uuid })
-    public id!: string;
+    public id!: LocalExtensionId;
 
     @ManyToOne(() => ExtensionDeveloperEntity, {
         updateRule: 'cascade',

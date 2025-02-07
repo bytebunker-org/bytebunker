@@ -92,3 +92,11 @@ export function isPlainObject(o: any): o is Object {
     // Most likely a plain Object
     return true;
 }
+
+export function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O): K[] {
+    return Object.keys(obj).filter((k) => Number.isNaN(+k)) as K[];
+}
+
+export function enumValues<O extends object>(obj: O): O[keyof O][] {
+    return enumKeys(obj).map((key) => obj[key]);
+}

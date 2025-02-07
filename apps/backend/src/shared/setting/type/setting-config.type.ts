@@ -45,30 +45,30 @@ export type GetSettingValueType<
 > = T extends SettingTypeEnum.STRING
     ? string
     : T extends SettingTypeEnum.TEXTBLOCK
-    ? string
-    : T extends SettingTypeEnum.NUMBER
-    ? number
-    : T extends SettingTypeEnum.BOOLEAN
-    ? boolean
-    : T extends SettingTypeEnum.DATE
-    ? DateTime
-    : T extends SettingTypeEnum.DATE_RANGE
-    ? [DateTime, DateTime]
-    : T extends SettingTypeEnum.EMAIL
-    ? string
-    : T extends SettingTypeEnum.FILE
-    ? string
-    : T extends SettingTypeEnum.TIME
-    ? DateTime
-    : T extends SettingTypeEnum.COLOR
-    ? string
-    : T extends SettingTypeEnum.STRING
-    ? string[]
-    : T extends SettingTypeEnum.NUMBER_ARRAY
-    ? number[]
-    : T extends SettingTypeEnum.CUSTOM
-    ? CustomType extends undefined
-        ? Record<string, unknown>
-        : // @ts-ignore
-          CustomType['prototype']
-    : unknown;
+      ? string
+      : T extends SettingTypeEnum.NUMBER
+        ? number
+        : T extends SettingTypeEnum.BOOLEAN
+          ? boolean
+          : T extends SettingTypeEnum.DATE
+            ? DateTime
+            : T extends SettingTypeEnum.DATE_RANGE
+              ? [DateTime, DateTime]
+              : T extends SettingTypeEnum.EMAIL
+                ? string
+                : T extends SettingTypeEnum.FILE
+                  ? string
+                  : T extends SettingTypeEnum.TIME
+                    ? DateTime
+                    : T extends SettingTypeEnum.COLOR
+                      ? string
+                      : T extends SettingTypeEnum.STRING
+                        ? string[]
+                        : T extends SettingTypeEnum.NUMBER_ARRAY
+                          ? number[]
+                          : T extends SettingTypeEnum.CUSTOM
+                            ? CustomType extends undefined
+                                ? Record<string, unknown>
+                                : // @ts-ignore
+                                  CustomType['prototype']
+                            : unknown;

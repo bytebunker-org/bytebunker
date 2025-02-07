@@ -7,7 +7,11 @@
  * }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/ban-types
 export interface Constructable<T = any> extends Function {
     new (...args: any[]): T;
 }
+
+/**
+ * Generic types for abstract class definitions.
+ */
+export type AbstractConstructable<T = any> = abstract new (...args: any[]) => T;

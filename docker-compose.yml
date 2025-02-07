@@ -7,8 +7,21 @@ services:
       POSTGRES_PASSWORD: "bytebunker"
       POSTGRES_DB: "bytebunker"
     ports:
-      - '4100:5432'
+      - '5432:5432'
     volumes:
       - bytebunker-backend-postgres:/var/lib/postgresql/data
+  bytebunker-backend-minio:
+    image: 'minio/minio:latest'
+    restart: always
+    command: server /data --console-address ":9001"
+    volumes:
+      - bytebunker-backend-minio:/data
+    environment:
+      MINIO_ROOT_USER: "bytebunker"
+      MINIO_ROOT_PASSWORD: "bytebunker"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
 volumes:
   bytebunker-backend-postgres:
+  bytebunker-backend-minio:

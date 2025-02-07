@@ -4,6 +4,8 @@ import { SwaggerConfig } from './swagger.config.js';
 import { Type } from 'class-transformer';
 import { SessionConfig } from './session.config.js';
 import { IsEnum, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { AssetConfig } from './asset.config.js';
+import { ServiceAlternativesConfig } from '../../shared/service-alternatives/service-alternatives.config.js';
 
 export enum NodeEnvironment {
     DEVELOPMENT = 'development',
@@ -39,10 +41,19 @@ export class AppConfig {
     @ValidateNested()
     public readonly mikroOrm!: MikroOrmConfig;
 
+    @Type(() => AssetConfig)
+    @IsObject()
+    @ValidateNested()
+    public readonly minio!: AssetConfig;
+
     @Type(() => SessionConfig)
     @IsObject()
     @ValidateNested()
     public readonly session!: SessionConfig;
+
+    @Type(() => ServiceAlternativesConfig)
+    @IsObject()
+    public readonly serviceAlternatives!: ServiceAlternativesConfig;
 
     @Type(() => SwaggerConfig)
     @IsOptional()

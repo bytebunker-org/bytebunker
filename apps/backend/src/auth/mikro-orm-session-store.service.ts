@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import session, { type SessionData, Store } from 'express-session';
+import { type SessionData, Store } from 'express-session';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { StoredUserSessionEntity } from './entity/stored-user-session.entity.js';
 import { DateTime } from 'luxon';
 import { SessionConfig } from '../util/config/session.config.js';
 import { UserEntity } from '../user/entity/user.entity.js';
 import { buildQueryCacheKey, cacheQuery } from '../database/util/query-cache.util.js';
-import type { Request } from 'express';
 
 @Injectable()
 export class MikroOrmSessionStoreService extends Store {
@@ -15,13 +14,6 @@ export class MikroOrmSessionStoreService extends Store {
         private readonly sessionConfig: SessionConfig,
     ) {
         super();
-    }
-
-    public override createSession(req: Request, session: SessionData): session.Session & session.SessionData {
-        const newSession = super.createSession(req, session);
-
-        console.log('creating session', session, 'to ', newSession, 'req', req.ip);
-        return newSession;
     }
 
     public override async get(

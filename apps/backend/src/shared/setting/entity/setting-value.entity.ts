@@ -19,11 +19,10 @@ export class SettingValueEntity extends TimestampEntity implements SettingValueD
 
     @ManyToOne(() => UserEntity, {
         primary: true,
-        nullable: true,
         updateRule: 'cascade',
         deleteRule: 'cascade',
     })
-    public targetUser?: Ref<UserEntity>;
+    public targetUser!: Ref<UserEntity>;
 
     @Property({ type: 'json' })
     public value!: SettingValueType;

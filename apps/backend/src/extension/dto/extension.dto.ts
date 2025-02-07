@@ -6,13 +6,14 @@ import type { DtoCollection } from '../../util/type/dto-collection.type.js';
 import { ExtensionDeveloperDto } from './extension-developer.dto.js';
 import type { DtoRef } from '../../util/type/dto-ref.type.js';
 import { PrimaryKeyProp } from '@mikro-orm/core';
+import type { LocalExtensionId } from '../extensions/local-extension.constant.js';
 
 export class ExtensionDto extends TimestampDto {
     [PrimaryKeyProp]?: 'id';
 
     /** Unique identifier for the extension */
     @IsUUID()
-    public id!: string;
+    public id!: LocalExtensionId;
 
     @Type(() => ExtensionDeveloperDto)
     @IsObject()

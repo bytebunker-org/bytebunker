@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsOptional, IsString, Matches, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsObject, IsOptional, IsString, Matches, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PipelineModuleTypeEnum } from '../type/pipeline-module-type.enum.js';
 import { JsonSchemaDto } from '../../../../shared/json-schema/dto/json-schema.dto.js';
@@ -8,6 +8,8 @@ import type { DtoRef } from '../../../../util/type/dto-ref.type.js';
 import { ExtensionDto } from '../../../../extension/dto/extension.dto.js';
 import type { PipelineModuleIdentifier } from '../type/pipeline-module-identifier.type.js';
 import { PrimaryKeyProp } from '@mikro-orm/core';
+import type { DtoCollection } from '../../../../util/type/dto-collection.type.js';
+import { PipelineBlueprintDto } from '../../blueprint/dto/pipeline-blueprint.dto.js';
 
 export class PipelineModuleDto extends TimestampDto {
     [PrimaryKeyProp]?: 'id';
@@ -47,4 +49,10 @@ export class PipelineModuleDto extends TimestampDto {
     @IsOptional()
     @ValidateNested()
     public outputTypeSchema?: DtoRef<JsonSchemaDto>;
+
+    @Type(() => PipelineBlueprintDto)
+    @IsArray()
+    @IsObject({ each: true })
+    @ValidateNested({ each: true })
+    public containingBlueprints!: DtoCollection<PipelineBlueprintDto>;
 }

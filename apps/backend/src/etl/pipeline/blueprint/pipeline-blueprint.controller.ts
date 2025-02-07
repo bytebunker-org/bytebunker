@@ -4,7 +4,6 @@ import { EntityManager } from '@mikro-orm/postgresql';
 import { PipelineBlueprintEntity } from './entity/pipeline-blueprint.entity.js';
 import { PipelineBlueprintDto } from './dto/pipeline-blueprint.dto.js';
 import type { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint.dto.js';
-import type { BlueprintDataDto } from './dto/blueprint-data.dto.js';
 import { UpdatePipelineBlueprintDto } from './dto/update-pipeline-blueprint.dto.js';
 import { FindRestApiService } from '../../../shared/find-rest-api/find-rest-api.service.js';
 import { FindAllDto } from '../../../shared/find-rest-api/dto/find-all.dto.js';
@@ -33,19 +32,8 @@ export class PipelineBlueprintController {
     @Post()
     @ApiOperation({ summary: 'Create a new blueprint' })
     @ApiResponse({ status: 201, type: PipelineBlueprintDto })
-    public async create(@Body() data: CreatePipelineBlueprintDto): Promise<PipelineBlueprintDto> {
-        const blueprint = this.em.create(PipelineBlueprintEntity, {
-            ...data,
-            data:
-                data.data ??
-                ({
-                    nodes: [],
-                    edges: [],
-                } satisfies BlueprintDataDto),
-        });
-        await this.em.flush();
-
-        return blueprint;
+    public create(@Body() data: CreatePipelineBlueprintDto): Promise<PipelineBlueprintDto> {
+        return this.em.transactional((em) => this.pipelineBlueprintService.createBlueprint(em, data));
     }
 
     @Get('datatable-entries')
@@ -85,16 +73,11 @@ export class PipelineBlueprintController {
     @Patch(':id')
     @ApiOperation({ summary: 'Update a blueprint by ID' })
     @ApiResponse({ status: 200, type: PipelineBlueprintDto })
-    public async update(
+    public update(
         @Param('id', ParseIntPipe) id: number,
         @Body() data: UpdatePipelineBlueprintDto,
     ): Promise<PipelineBlueprintDto> {
-        const blueprint = await this.em.findOneOrFail(PipelineBlueprintEntity, { id });
-
-        this.em.assign(blueprint, data);
-        await this.em.flush();
-
-        return blueprint;
+        return this.em.transactional((em) => this.pipelineBlueprintService.updateBlueprint(em, id, data));
     }
 
     @Delete(':id')

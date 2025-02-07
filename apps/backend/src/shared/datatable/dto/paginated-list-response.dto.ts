@@ -14,7 +14,7 @@ export class PaginatedListResponseDto<Data> {
 
 export const paginatedListResponseDtoSchema = {
     $id: 'https://schema.bytebunker.dev/core/api/paginated-list-response.schema.json',
-    $schema: 'https://json-schema.org/draft-07/schema',
+    $schema: 'http://json-schema.org/draft-07/schema',
     type: 'object',
     title: 'PaginatedListResponseDto',
     properties: {

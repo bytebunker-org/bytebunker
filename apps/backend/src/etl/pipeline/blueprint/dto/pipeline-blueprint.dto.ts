@@ -5,6 +5,7 @@ import { PipelineExecutionDto } from '../../dto/pipeline-execution.dto.js';
 import { TimestampDto } from '../../../../database/util/timestamp.dto.js';
 import type { DtoCollection } from '../../../../util/type/dto-collection.type.js';
 import { PrimaryKeyProp } from '@mikro-orm/core';
+import { PipelineModuleDto } from '../../pipeline-module/dto/pipeline-module.dto.js';
 
 export class PipelineBlueprintDto extends TimestampDto {
     [PrimaryKeyProp]?: 'id';
@@ -27,6 +28,12 @@ export class PipelineBlueprintDto extends TimestampDto {
     @IsObject()
     @ValidateNested()
     public data!: BlueprintDataDto;
+
+    @Type(() => PipelineModuleDto)
+    @IsArray()
+    @IsObject({ each: true })
+    @ValidateNested({ each: true })
+    public usedModules!: DtoCollection<PipelineModuleDto>;
 
     /** The executions related to this pipeline blueprint */
     @Type(() => PipelineExecutionDto)

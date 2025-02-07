@@ -1,0 +1,142 @@
+{
+    "$schema": "http://json-schema.org/draft/2020-12/schema",
+    "title": "Blueprint Data Schema",
+    "description": "Schema for representing blueprint data including nodes and edges.",
+    "definitions": {
+        "XyPositionDto": {
+            "title": "XY Position",
+            "description": "Represents a 2D position with integer coordinates.",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "integer",
+                    "description": "X-coordinate of the position."
+                },
+                "y": {
+                    "type": "integer",
+                    "description": "Y-coordinate of the position."
+                }
+            },
+            "required": ["x", "y"]
+        },
+        "PipelineModuleIdentifier": {
+            "title": "Pipeline Module Identifier",
+            "description": "A structured string representing a pipeline module, including extension name, module name, and version.",
+            "type": "string",
+            "pattern": "^[^:@]{1,64}:[^:@]{1,64}@[0-9]{1,5}$",
+            "examples": ["my-extension:my-module@1"],
+            "maxLength": 135
+        },
+        "DeconstructedPipelineModuleIdentifier": {
+            "title": "Deconstructed Pipeline Module Identifier",
+            "description": "Represents the decomposed parts of a pipeline module identifier.",
+            "type": "object",
+            "properties": {
+                "extensionName": {
+                    "type": "string",
+                    "description": "The name of the extension.",
+                    "maxLength": 64
+                },
+                "moduleName": {
+                    "type": "string",
+                    "description": "The name of the module.",
+                    "maxLength": 64
+                },
+                "moduleVersion": {
+                    "type": "integer",
+                    "description": "The version of the module (max: 65535).",
+                    "minimum": 0,
+                    "maximum": 65535
+                }
+            },
+            "required": ["extensionName", "moduleName", "moduleVersion"]
+        },
+        "BlueprintEdgeDto": {
+            "title": "Blueprint Edge",
+            "description": "Represents an edge in the blueprint, connecting nodes.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Unique ID of an edge.",
+                    "minimum": 0
+                },
+                "source": {
+                    "type": "integer",
+                    "description": "ID of the source node.",
+                    "minimum": 0
+                },
+                "target": {
+                    "type": "integer",
+                    "description": "ID of the target node.",
+                    "minimum": 0
+                },
+                "sourceHandle": {
+                    "type": "string",
+                    "description": "Handle identifier at the source node.",
+                    "minLength": 1
+                },
+                "targetHandle": {
+                    "type": "string",
+                    "description": "Handle identifier at the target node.",
+                    "minLength": 1
+                },
+                "data": {
+                    "type": "object",
+                    "description": "Optional additional data associated with the edge.",
+                    "additionalProperties": true
+                }
+            },
+            "required": ["id", "source", "target", "sourceHandle", "targetHandle"]
+        },
+        "BlueprintNodeDto": {
+            "title": "Blueprint Node",
+            "description": "Represents a node in the blueprint.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Unique ID of the node.",
+                    "minimum": 0
+                },
+                "moduleId": {
+                    "$ref": "#/definitions/PipelineModuleIdentifier",
+                    "description": "Identifier of the module, following a specific format."
+                },
+                "constantInputData": {
+                    "type": "object",
+                    "description": "Optional constant input data for the node.",
+                    "additionalProperties": true
+                },
+                "position": {
+                    "$ref": "#/definitions/XyPositionDto",
+                    "description": "Position of the node in a 2D coordinate system."
+                },
+                "parentId": {
+                    "type": "integer",
+                    "description": "Optional parent node ID.",
+                    "minimum": 0
+                }
+            },
+            "required": ["id", "moduleId", "position"]
+        }
+    },
+    "type": "object",
+    "properties": {
+        "nodes": {
+            "type": "array",
+            "description": "List of nodes in the blueprint.",
+            "items": {
+                "$ref": "#/definitions/BlueprintNodeDto"
+            }
+        },
+        "edges": {
+            "type": "array",
+            "description": "List of edges connecting nodes.",
+            "items": {
+                "$ref": "#/definitions/BlueprintEdgeDto"
+            }
+        }
+    },
+    "required": ["nodes", "edges"]
+}

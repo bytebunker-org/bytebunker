@@ -10,22 +10,20 @@ import type { JSONSchema7 } from 'json-schema';
 import { generateJsonSchema } from 'ts-decorator-json-schema-generator';
 import { JsonSchemaService } from '../../../shared/json-schema/json-schema.service.js';
 import type { IPipelineModule } from './type/pipeline-module.interface.js';
-import { toHeaderCase } from 'js-convert-case';
+import { toHeaderCase, toKebabCase, toSnakeCase } from 'js-convert-case';
 import deepEqual from 'deep-equal';
 import { diffString } from 'json-diff';
 import { PipelineModuleTypeEnum } from './type/pipeline-module-type.enum.js';
 import type { PipelineModuleIdentifier } from './type/pipeline-module-identifier.type.js';
 import { buildModuleIdentifier, deconstructPipelineModuleIdentifier } from './util/pipeline-module-identifier.util.js';
 import { JsonSchemaEntity } from '../../../shared/json-schema/entity/json-schema.entity.js';
+import { AbstractTriggerPipelineModule } from './abstract-trigger-pipeline.module.js';
 
 @Injectable()
 export class PipelineModuleService {
     private readonly logger = new Logger(PipelineModuleService.name);
 
-    private readonly pipelineModuleRegistry = new Map<
-        string,
-        IPipelineModule<Record<string, unknown>, Record<string, unknown>>
-    >();
+    private readonly pipelineModuleRegistry = new Map<string, IPipelineModule<unknown, unknown>>();
 
     constructor(
         private readonly discoveryService: DiscoveryService,
@@ -43,9 +41,7 @@ export class PipelineModuleService {
         }
     }
 
-    public getPipelineModule(
-        identifier: PipelineModuleIdentifier,
-    ): IPipelineModule<Record<string, unknown>, Record<string, unknown>> | undefined {
+    public getPipelineModule(identifier: PipelineModuleIdentifier): IPipelineModule<unknown, unknown> | undefined {
         return this.pipelineModuleRegistry.get(identifier);
     }
 
@@ -53,30 +49,89 @@ export class PipelineModuleService {
         return [...this.pipelineModuleRegistry.keys()];
     }
 
-    private async registerPipelineModule(
-        em: EntityManager,
-        discoveredClass: DiscoveredClass,
-        moduleOptions: PipelineModuleOptions<unknown, unknown>,
-    ): Promise<void> {
-        const extension = await em.findOneOrFail(ExtensionEntity, { name: moduleOptions.extensionName });
-
+    public extractModuleDetails<Input = unknown, Output = unknown>(
+        moduleClass: Pick<Constructable<IPipelineModule<Input, Output>>, 'name'>,
+        moduleInstance: IPipelineModule<Input, Output>,
+        moduleOptions: PipelineModuleOptions<Input, Output>,
+    ): {
+        moduleIdentifier: PipelineModuleIdentifier;
+        moduleType: PipelineModuleTypeEnum;
+        moduleExtension: string;
+        moduleName: string;
+        moduleVersion: number;
+    } {
         const { moduleName, moduleVersion: classNameModuleVersion } = this.extractModuleDetailsFromClassName(
-            discoveredClass.name,
+            moduleClass.name,
         );
         const moduleVersion = moduleOptions.version ?? 1;
         const moduleType = moduleOptions.type ?? PipelineModuleTypeEnum.NORMAL;
 
         if (moduleVersion !== classNameModuleVersion) {
             throw new Error(
-                `Module version ${moduleVersion} does not match class name version ${classNameModuleVersion} (extracted from "${discoveredClass.name}")`,
+                `Module version ${moduleVersion} does not match class name version ${classNameModuleVersion} (extracted from "${moduleClass.name}")`,
             );
         }
 
-        if (moduleType === PipelineModuleTypeEnum.TRIGGER && !moduleName.endsWith('trigger')) {
-            throw new Error(`Trigger modules must end with "Trigger", found module class "${discoveredClass.name}"`);
+        const isTriggerModuleType = moduleType === PipelineModuleTypeEnum.TRIGGER;
+        const isTriggerModuleClassName = moduleName.endsWith('-trigger');
+        const isTriggerModuleClass = AbstractTriggerPipelineModule.isTriggerPipelineModule(moduleInstance);
+        const couldBeTriggerModule = isTriggerModuleType || isTriggerModuleClassName || isTriggerModuleClass;
+        const couldBeNormalModule = !isTriggerModuleType || !isTriggerModuleClassName || !isTriggerModuleClass;
+
+        if (couldBeNormalModule && couldBeTriggerModule) {
+            if (!isTriggerModuleClassName) {
+                throw new Error(
+                    `Can't determine module type, trigger modules class names must end with "Trigger", found module class name "${moduleClass.name}"`,
+                );
+            } else if (!isTriggerModuleClass) {
+                throw new Error(
+                    `Can't determine module type, trigger modules extend the AbstractTriggerPipelineModule class`,
+                );
+            } else if (!isTriggerModuleType) {
+                throw new Error(
+                    `Can't determine module type, trigger modules have their type set to "PipelineModuleTypeEnum.TRIGGER" in the decorator`,
+                );
+            }
         }
 
-        const moduleIdentifier = buildModuleIdentifier(extension.name, moduleName, moduleVersion);
+        const moduleIdentifier = buildModuleIdentifier(moduleOptions.extensionName, moduleName, moduleVersion);
+
+        return {
+            moduleIdentifier,
+            moduleType,
+            moduleExtension: moduleOptions.extensionName,
+            moduleName,
+            moduleVersion,
+        };
+    }
+
+    public extractModuleDetailsFromClassName(className: string): { moduleName: string; moduleVersion: number } {
+        const match = className.match(PIPELINE_MODULE_CLASS_NAME_REGEX);
+
+        if (!match) {
+            throw new Error(
+                'Invalid pipeline module class name, should be in the format: "SomeFunctionPipelineModuleV1" (version is optional)',
+            );
+        }
+
+        return {
+            moduleName: toKebabCase(match[1]),
+            moduleVersion: match[2] ? Number.parseInt(match[2].slice(1)) : 1,
+        };
+    }
+
+    private async registerPipelineModule<Input = unknown, Output = unknown>(
+        em: EntityManager,
+        discoveredClass: DiscoveredClass,
+        moduleOptions: PipelineModuleOptions<Input, Output>,
+    ): Promise<void> {
+        const extension = await em.findOneOrFail(ExtensionEntity, { name: moduleOptions.extensionName });
+
+        const { moduleIdentifier, moduleName, moduleVersion, moduleType } = this.extractModuleDetails(
+            discoveredClass,
+            discoveredClass.instance as IPipelineModule<Input, Output>,
+            moduleOptions,
+        );
 
         const existingModule = await em.findOne(PipelineModuleEntity, {
             id: moduleIdentifier,
@@ -139,6 +194,7 @@ export class PipelineModuleService {
             });
 
             em.create(PipelineModuleEntity, {
+                id: moduleIdentifier,
                 extensionName: extension.name,
                 extension: extension,
                 name: moduleName,
@@ -153,27 +209,9 @@ export class PipelineModuleService {
             });
         }
 
-        this.pipelineModuleRegistry.set(
-            moduleIdentifier,
-            discoveredClass.instance as IPipelineModule<Record<string, unknown>, Record<string, unknown>>,
-        );
+        this.pipelineModuleRegistry.set(moduleIdentifier, discoveredClass.instance as IPipelineModule<Input, Output>);
 
         this.logger.log(`Registered module ${moduleIdentifier}`);
-    }
-
-    private extractModuleDetailsFromClassName(className: string): { moduleName: string; moduleVersion: number } {
-        const match = className.match(PIPELINE_MODULE_CLASS_NAME_REGEX);
-
-        if (!match) {
-            throw new Error(
-                'Invalid pipeline module class name, should be in the format: "SomeFunctionPipelineModuleV1" (version is optional)',
-            );
-        }
-
-        return {
-            moduleName: match[1],
-            moduleVersion: match[2] ? Number.parseInt(match[2].slice(1)) : 1,
-        };
     }
 
     private generateModuleJsonSchema(
@@ -212,6 +250,10 @@ export class PipelineModuleService {
             jsonSchema.properties['success'] = {
                 type: 'null',
             };
+        }
+
+        if (jsonSchema.$schema?.startsWith('https://')) {
+            jsonSchema.$schema = jsonSchema.$schema.replace('https://', 'http://');
         }
 
         return jsonSchema;

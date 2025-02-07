@@ -15,6 +15,7 @@ import { FindRestApiCountDto } from '../shared/find-rest-api/dto/find-rest-api-c
 import { FindOneDto } from '../shared/find-rest-api/dto/find-one.dto.js';
 import { ExtensionDeveloperEntity } from './entity/extension-developer.entity.js';
 import { FindAllDto } from '../shared/find-rest-api/dto/find-all.dto.js';
+import type { LocalExtensionId } from './extensions/local-extension.constant.js';
 
 @Controller('extensions')
 export class ExtensionController {
@@ -53,7 +54,7 @@ export class ExtensionController {
     @ApiOperation({ summary: 'Get an extension by ID' })
     @ApiFindOneMethod(ExtensionDto)
     public findOne(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', ParseUUIDPipe) id: LocalExtensionId,
         @Query() query: FindOneDto<ExtensionEntity>,
     ): Promise<ExtensionDto> {
         return this.findRestApiService.findOne(ExtensionEntity, { id }, query);
@@ -62,7 +63,7 @@ export class ExtensionController {
     @Delete(':id')
     @ApiOperation({ summary: 'Delete an extension' })
     @ApiResponse({ status: 204, description: 'Extension deleted' })
-    public async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    public async remove(@Param('id', ParseUUIDPipe) id: LocalExtensionId): Promise<void> {
         await this.em.nativeDelete(ExtensionEntity, { id });
     }
 }
