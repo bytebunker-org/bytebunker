@@ -1,11 +1,5 @@
 <script lang="ts">
-	import {
-		Card,
-		CardBody,
-		Breadcrumb,
-		BreadcrumbItem,
-		Button
-	} from '@bytebunker/daisyui-components';
+	import { Card, CardBody } from '@bytebunker/daisyui-components';
 	import type { DataTableConfig } from 'svelte-advanced-datatable';
 	import { ComponentType } from 'svelte-advanced-datatable';
 	import { DataTable } from 'svelte-advanced-datatable/daisyUi';
@@ -17,8 +11,11 @@
 	import { PipelineBlueprintApi } from '$lib/api/PipelineBlueprintApi.js';
 	import { FilterQueryUtil } from '$lib/util/filterQueryUtil.svelte.js';
 	import { pipelineBlueprintFilterDefinition } from './pipelineBlueprintFilterDefinition.js';
-	import { writable } from 'svelte/store';
 	import { format } from 'svelte-i18n';
+	import MainLayout from '$lib/components/MainLayout.svelte';
+	import ToolbarButton from '$lib/components/ToolbarButton.svelte';
+	import LucideCircuitBoard from '~icons/lucide/circuit-board';
+	import LucidePlus from '~icons/lucide/plus';
 
 	type ListEntry = PipelineBlueprintDatatableDto;
 
@@ -67,27 +64,17 @@
 	} satisfies DataTableConfig<PipelineBlueprintDatatableDto>;
 </script>
 
-<svelte:head>
-	<title>Blueprints</title>
-</svelte:head>
-
-<Breadcrumb class="pt-0 pb-2">
-	<BreadcrumbItem href="/">Pipelines</BreadcrumbItem>
-	<BreadcrumbItem>Blueprints</BreadcrumbItem>
-</Breadcrumb>
-
-<div class="mb-8 flex items-center justify-between">
-	<h1 class="font-stratos mb-1 text-3xl font-bold uppercase">Pipeline Blueprints</h1>
-	<Button color="primary" href="/pipelines/blueprints">Blueprint erstellen</Button>
-</div>
-
-<div role="tablist" class="tabs tabs-lift translate-y-[1px]">
-	<a role="tab" class="tab" href="/pipelines">Pipelines</a>
-	<a role="tab" class="tab tab-active" href="/pipelines/blueprints">Blueprints</a>
-</div>
-
-<Card class="bg-base-100 border-base-300 rounded-tl-none border shadow-sm ">
-	<CardBody class="overflow-hidden">
-		<DataTable {config} {dataSource} striped hoverable />
-	</CardBody>
-</Card>
+<MainLayout
+	icon={LucideCircuitBoard}
+	title="Blueprints"
+	breadcrumbs={[['Pipelines', '/pipelines']]}
+>
+	{#snippet toolbar()}
+		<ToolbarButton icon={LucidePlus} tooltip="Blueprint erstellen" class="btn-success" />
+	{/snippet}
+	<Card class="bg-base-100 border-base-300 rounded-box border shadow">
+		<CardBody class="overflow-hidden p-4 pb-8">
+			<DataTable {config} {dataSource} striped hoverable />
+		</CardBody>
+	</Card>
+</MainLayout>

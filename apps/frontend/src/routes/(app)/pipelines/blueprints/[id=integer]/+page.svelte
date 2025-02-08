@@ -1,32 +1,50 @@
 <script lang="ts">
-	import {
-		Breadcrumb,
-		BreadcrumbItem,
-		Button,
-		Card,
-		CardBody
-	} from '@bytebunker/daisyui-components';
+	import { Card, CardBody } from '@bytebunker/daisyui-components';
+	import BlueprintNodeView from '$lib/components/pipeline/BlueprintNodeView.svelte';
+	import { createQuery } from '@tanstack/svelte-query';
+	import { page } from '$app/state';
+	import { PipelineBlueprintApi } from '$lib/api/PipelineBlueprintApi.js';
+	import MainLayout from '$lib/components/MainLayout.svelte';
+	import LucideCircuitBoard from '~icons/lucide/circuit-board';
+	import ToolbarButton from '$lib/components/ToolbarButton.svelte';
+	import type { FindOneDto, PipelineBlueprintDto } from '@bytebunker/backend';
+	import { Blueprint } from '@bytebunker/backend';
+
+	const blueprintQuery = createQuery(() => ({
+		queryKey: [
+			'pipeline-blueprint',
+			Number(page.params.id),
+			{} satisfies FindOneDto<PipelineBlueprintDto>
+		],
+		queryFn: ({ queryKey }) => PipelineBlueprintApi.findOne(Number(queryKey[1]), queryKey[2])
+	}));
+
+	let blueprint = $derived(
+		blueprintQuery.data ? new Blueprint(blueprintQuery.data.data) : undefined
+	);
 </script>
 
 <svelte:head>
 	<title>Blueprints</title>
 </svelte:head>
 
-<Breadcrumb class="pt-0 pb-2">
-	<BreadcrumbItem href="/">Pipelines</BreadcrumbItem>
-	<BreadcrumbItem>Blueprints</BreadcrumbItem>
-</Breadcrumb>
+<MainLayout
+	icon={LucideCircuitBoard}
+	title="{blueprintQuery.data?.title} Blueprint"
+	breadcrumbs={[
+		['Pipelines', '/pipelines'],
+		['Blueprints', '/pipelines/blueprints']
+	]}
+>
+	{#snippet toolbar()}
+		<ToolbarButton icon={LucideCircuitBoard} tooltip="Blueprint bearbeiten"></ToolbarButton>
+	{/snippet}
 
-<div class="mb-8 flex items-center justify-between">
-	<h1 class="font-stratos mb-1 text-3xl font-bold uppercase">Pipeline Blueprints</h1>
-	<Button color="primary" href="/pipelines/blueprints">Blueprint erstellen</Button>
-</div>
-
-<div role="tablist" class="tabs tabs-lift translate-y-[1px]">
-	<a role="tab" class="tab" href="/pipelines">Pipelines</a>
-	<a role="tab" class="tab tab-active" href="/pipelines/blueprints">Blueprints</a>
-</div>
-
-<Card class="bg-base-100 border-base-300 rounded-tl-none border shadow-sm ">
-	<CardBody class="overflow-hidden"></CardBody>
-</Card>
+	<Card class="bg-base-100 border-base-300 rounded-box border shadow">
+		<CardBody class="overflow-hidden p-0">
+			{#if blueprint}
+				<BlueprintNodeView {blueprint} />
+			{/if}
+		</CardBody>
+	</Card>
+</MainLayout>

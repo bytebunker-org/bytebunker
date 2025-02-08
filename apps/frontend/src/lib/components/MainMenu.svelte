@@ -4,10 +4,13 @@
 	import { flyAndScale } from '$lib/util/flyAndScaleTransition.js';
 	import { createMutation } from '@tanstack/svelte-query';
 	import { Avatar, DropdownMenu } from 'bits-ui';
+	import LucideList from '~icons/lucide/list';
 	import LucideLock from '~icons/lucide/lock';
 	import LucideHouse from '~icons/lucide/house';
 	import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical';
+	import LucideTelescope from '~icons/lucide/telescope';
 	import LucideWorkflow from '~icons/lucide/workflow';
+	import LucideCircuitBoard from '~icons/lucide/circuit-board';
 	import LucideSettings from '~icons/lucide/settings';
 	import { toastManager } from '$lib/util/toastManager.svelte.js';
 	import { AuthApi } from '$lib/api/AuthApi.js';
@@ -47,20 +50,39 @@
 			<li>
 				<a href="/" class:menu-active={page.route.id === '/(app)'}>
 					<LucideHouse />
-					Dashboard</a
-				>
+					Home
+				</a>
 			</li>
 			<li>
-				<a href="/pipelines" class:menu-active={page.route.id?.startsWith('/(app)/pipelines')}>
-					<LucideWorkflow />
-					Pipelines</a
-				>
+				<details open>
+					<summary>
+						<LucideWorkflow />
+						Pipelines
+					</summary>
+					<ul>
+						<li>
+							<a href="/pipelines" class:menu-active={page.route.id === '/(app)/pipelines'}>
+								<LucideList />
+								Overview
+							</a>
+						</li>
+						<li>
+							<a
+								href="/pipelines/blueprints"
+								class:menu-active={page.route.id?.startsWith('/(app)/pipelines/blueprints')}
+							>
+								<LucideCircuitBoard />
+								Blueprints
+							</a>
+						</li>
+					</ul>
+				</details>
 			</li>
 			<li>
 				<a href="/settings" class:menu-active={page.route.id === '/(app)/settings'}>
 					<LucideSettings />
-					Settings</a
-				>
+					Settings
+				</a>
 			</li>
 		</ul>
 	</div>
@@ -112,51 +134,51 @@
 	</div>
 	<!--<div class="">
 
-		<ul class="menu bg-base-100 w-full overflow-hidden rounded-xl p-0">
-			<li class="rounded-box w-full border border-neutral-700">
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger class="btn btn-xl flex w-full gap-2.5">
-						<Avatar.Root
-							bind:loadingStatus={avatarLoadingStatus}
-							class="avatar placeholder {avatarLoadingStatus === 'loaded'
-								? 'border-neutral-700'
-								: 'border-transparent'} uppercase"
-						>
-							<div
-								class="bg-neutral text-neutral-content !flex w-10 items-center justify-center rounded-full"
-							>
-								<Avatar.Image src="" alt="@{user.username}" />
-								<Avatar.Fallback class="text-xl">{user.username?.slice(0, 1)}</Avatar.Fallback>
-							</div>
-						</Avatar.Root>
+        <ul class="menu bg-base-100 w-full overflow-hidden rounded-xl p-0">
+            <li class="rounded-box w-full border border-neutral-700">
+                <DropdownMenu.Root>
+                    <DropdownMenu.Trigger class="btn btn-xl flex w-full gap-2.5">
+                        <Avatar.Root
+                            bind:loadingStatus={avatarLoadingStatus}
+                            class="avatar placeholder {avatarLoadingStatus === 'loaded'
+                                ? 'border-neutral-700'
+                                : 'border-transparent'} uppercase"
+                        >
+                            <div
+                                class="bg-neutral text-neutral-content !flex w-10 items-center justify-center rounded-full"
+                            >
+                                <Avatar.Image src="" alt="@{user.username}" />
+                                <Avatar.Fallback class="text-xl">{user.username?.slice(0, 1)}</Avatar.Fallback>
+                            </div>
+                        </Avatar.Root>
 
-						<button
-							class="flex w-full items-center justify-between gap-2 text-[15px] font-bold text-neutral-700 lg:gap-4 dark:text-neutral-200"
-						>
-							<span>{user.username}</span>
-							<LucideEllipsisVertical />
-						</button>
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content
-						class="bg-base-100 w-full rounded-xl border border-neutral-700 px-1 py-1.5 shadow-md"
-						transition={flyAndScale}
-						transitionConfig={{ y: 8 }}
-						sideOffset={8}
-						sameWidth
-					>
-						<DropdownMenu.Item
-							on:click={logout}
-							class="flex h-10 w-full cursor-pointer items-center rounded-md py-3 pr-1.5 pl-3 text-sm
+                        <button
+                            class="flex w-full items-center justify-between gap-2 text-[15px] font-bold text-neutral-700 lg:gap-4 dark:text-neutral-200"
+                        >
+                            <span>{user.username}</span>
+                            <LucideEllipsisVertical />
+                        </button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content
+                        class="bg-base-100 w-full rounded-xl border border-neutral-700 px-1 py-1.5 shadow-md"
+                        transition={flyAndScale}
+                        transitionConfig={{ y: 8 }}
+                        sideOffset={8}
+                        sameWidth
+                    >
+                        <DropdownMenu.Item
+                            on:click={logout}
+                            class="flex h-10 w-full cursor-pointer items-center rounded-md py-3 pr-1.5 pl-3 text-sm
                             font-medium !ring-0 !ring-transparent select-none data-[highlighted]:bg-neutral-700"
-						>
-							<div class="flex items-center gap-2">
-								<LucideLock />
-								Logout
-							</div>
-						</DropdownMenu.Item>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			</li>
-		</ul>
-	</div>-->
+                        >
+                            <div class="flex items-center gap-2">
+                                <LucideLock />
+                                Logout
+                            </div>
+                        </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                </DropdownMenu.Root>
+            </li>
+        </ul>
+    </div>-->
 </div>

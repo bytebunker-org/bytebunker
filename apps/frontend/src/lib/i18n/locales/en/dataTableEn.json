@@ -21,6 +21,29 @@
 			"createdAt": {
 				"label": "Created at"
 			}
+		},
+		"pipeline-execution": {
+			"id": {
+				"label": "ID"
+			},
+			"executionStatus": {
+				"label": "Status",
+				"enumValue": {
+					"waiting": "Waiting",
+					"success": "Success",
+					"aborted": "Aborted",
+					"failed": "Failed"
+				}
+			},
+			"blueprintName": {
+				"label": "Blueprint"
+			},
+			"createdAt": {
+				"label": "Created"
+			},
+			"updatedAt": {
+				"label": "Updated"
+			}
 		}
 	}
 }

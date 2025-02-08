@@ -1,12 +1,8 @@
 import type { Load, LoadEvent } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
 import type { FetchQueryOptions, QueryClient } from '@tanstack/svelte-query';
-import type {
-	ApiFunction,
-	PaginatedListRequest,
-	PaginatedListResponse
-} from 'svelte-advanced-datatable';
 import { hasOwnProperty } from '$lib/util/util.js';
+import type { PaginatedListRequestDto, PaginatedListResponseDto } from '@bytebunker/backend';
 
 export function prefetchQueries<
 	Params extends Partial<Record<string, string>> = Partial<Record<string, string>>,
@@ -65,6 +61,10 @@ export function prefetchQueries<
 	};
 }
 
+export type DataTableApiFunction<Data> = (
+	request: PaginatedListRequestDto<Data>
+) => Promise<PaginatedListResponseDto<Data>>;
+
 export function buildDataTableQueryOptions<Data = unknown>({
 	dataTableType,
 	apiFunction,
@@ -72,19 +72,19 @@ export function buildDataTableQueryOptions<Data = unknown>({
 	initialRequestData
 }: {
 	dataTableType: string;
-	apiFunction: ApiFunction<Data>;
+	apiFunction: DataTableApiFunction<Data>;
 	queryOptions?: FetchQueryOptions<
-		PaginatedListResponse<Data>,
+		PaginatedListResponseDto<Data>,
 		unknown,
-		PaginatedListResponse<Data>,
-		[string, PaginatedListRequest<Data>]
+		PaginatedListResponseDto<Data>,
+		[string, PaginatedListRequestDto<Data>]
 	>;
-	initialRequestData?: Partial<PaginatedListRequest<Data>>;
+	initialRequestData?: Partial<PaginatedListRequestDto<Data>>;
 }): FetchQueryOptions<
-	PaginatedListResponse<Data>,
+	PaginatedListResponseDto<Data>,
 	unknown,
-	PaginatedListResponse<Data>,
-	[string, PaginatedListRequest<Data>]
+	PaginatedListResponseDto<Data>,
+	[string, PaginatedListRequestDto<Data>]
 > {
 	initialRequestData ??= {};
 
@@ -98,8 +98,8 @@ export function buildDataTableQueryOptions<Data = unknown>({
 }
 
 function normalizeDataTableRequestData<Data>(
-	data: Partial<PaginatedListRequest<Data>>
-): PaginatedListRequest<Data> {
+	data: Partial<PaginatedListRequestDto<Data>>
+): PaginatedListRequestDto<Data> {
 	return {
 		start: data.start ?? 0,
 		amount: data.amount ?? 50,

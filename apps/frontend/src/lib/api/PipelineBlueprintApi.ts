@@ -7,7 +7,8 @@ import type {
 	PaginatedListResponseDto,
 	PipelineBlueprintDatatableDto,
 	PipelineBlueprintDto,
-	UpdatePipelineBlueprintDto
+	UpdatePipelineBlueprintDto,
+	FindOneDto
 } from '@bytebunker/backend';
 
 export class PipelineBlueprintApi extends ApiBase {
@@ -37,6 +38,14 @@ export class PipelineBlueprintApi extends ApiBase {
 		fetchImpl?: typeof fetch
 	): Promise<PipelineBlueprintDto[]> {
 		return ApiBase.get(fetchImpl, '/pipelines/blueprints/count', { params });
+	}
+
+	public static findOne(
+		id: number,
+		params: FindOneDto<PipelineBlueprintDto>,
+		fetchImpl?: typeof fetch
+	): Promise<PipelineBlueprintDto> {
+		return ApiBase.get(fetchImpl, `/pipelines/blueprints/${id}`, { params });
 	}
 
 	public static update(
