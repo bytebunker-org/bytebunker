@@ -5,7 +5,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Constructable } from '../../util/type/constructable.interface.js';
 import type { SelectQueryBuilder } from '@mikro-orm/postgresql';
 import type { PaginatedListResponseDto } from './dto/paginated-list-response.dto.js';
-import type { PipelineBlueprintDto } from '../../etl/pipeline/blueprint/dto/pipeline-blueprint.dto.js';
 import { serialize } from '@mikro-orm/core';
 
 @Injectable()
@@ -19,13 +18,19 @@ export class DatatableService {
         {
             listRequest,
             queryBuilder,
+            orderColumnNameMap,
             searchFilters,
             applySearchText,
+            useExtraFields = false,
+            mapResults = true,
         }: {
             listRequest: PaginatedListRequestDto<EntityDto> | undefined;
             queryBuilder: SelectQueryBuilder<Entity>;
+            orderColumnNameMap?: OrderColumnNameMap<EntityDto>;
             searchFilters?: Record<string, (queryBuilder: SelectQueryBuilder<Entity>, value: string) => void>;
             applySearchText?: (searchText: string, queryBuilder: SelectQueryBuilder<Entity>) => void;
+            useExtraFields?: boolean;
+            mapResults?: boolean;
         },
     ): Promise<PaginatedListResponseDto<EntityDto>> {
         if (listRequest) {
@@ -52,19 +57,40 @@ export class DatatableService {
             }
 
             if (listRequest.orderBy && listRequest.orderBy.order) {
-                queryBuilder.orderBy({
-                    [listRequest.orderBy.column]: listRequest.orderBy.order.toUpperCase() as 'ASC' | 'DESC',
-                });
+                if (orderColumnNameMap && orderColumnNameMap[listRequest.orderBy.column]) {
+                    const columnName = orderColumnNameMap[listRequest.orderBy.column] as string;
+
+                    queryBuilder.orderBy({
+                        [columnName]: listRequest.orderBy.order.toUpperCase() as 'ASC' | 'DESC',
+                    });
+                } else {
+                    queryBuilder.orderBy({
+                        [listRequest.orderBy.column]: listRequest.orderBy.order.toUpperCase() as 'ASC' | 'DESC',
+                    });
+                }
             }
         }
 
         queryBuilder.offset(listRequest?.start ?? 0).limit(listRequest?.amount ?? 50);
 
-        const [items, totalCount] = await queryBuilder.getResultAndCount();
+        if (useExtraFields) {
+            const [items, totalCount] = await Promise.all([
+                queryBuilder.execute('all', mapResults),
+                queryBuilder.getCount(),
+            ]);
+            // TODO: Cache count results
 
-        return {
-            totalCount,
-            items: serialize(items, { forceObject: true, groups: ['datatable'] }) as unknown as EntityDto[],
-        };
+            return {
+                totalCount,
+                items: items as unknown as EntityDto[],
+            };
+        } else {
+            const [items, totalCount] = await queryBuilder.getResultAndCount();
+
+            return {
+                totalCount,
+                items: serialize(items, { forceObject: true, groups: ['datatable'] }) as unknown as EntityDto[],
+            };
+        }
     }
 }

@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
-import { PipelineTriggerService } from '../../../etl/pipeline/pipeline-trigger.service.js';
+import { PipelineTriggerService } from '../../../etl/pipeline/execution/pipeline-trigger.service.js';
 import { EntityManager } from '@mikro-orm/postgresql';
 import {
     LocalFileTriggerInput,

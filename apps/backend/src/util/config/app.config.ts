@@ -6,6 +6,8 @@ import { SessionConfig } from './session.config.js';
 import { IsEnum, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 import { AssetConfig } from './asset.config.js';
 import { ServiceAlternativesConfig } from '../../shared/service-alternatives/service-alternatives.config.js';
+import { Neo4jConfig } from './neo4j.config.js';
+import { RedisConfig } from '../../shared/redis/redis.config.js';
 
 export enum NodeEnvironment {
     DEVELOPMENT = 'development',
@@ -40,6 +42,16 @@ export class AppConfig {
     @IsObject()
     @ValidateNested()
     public readonly mikroOrm!: MikroOrmConfig;
+
+    @Type(() => Neo4jConfig)
+    @IsObject()
+    @ValidateNested()
+    public readonly neo4j!: Neo4jConfig;
+
+    @IsObject()
+    @Type(() => RedisConfig)
+    @ValidateNested()
+    public readonly redis!: RedisConfig;
 
     @Type(() => AssetConfig)
     @IsObject()

@@ -1,15 +1,14 @@
 import { Module } from '@nestjs/common';
 import { PipelineService } from './pipeline.service.js';
-import { PipelineExecutionService } from './pipeline-execution.service.js';
 import { PipelineBlueprintModule } from './blueprint/pipeline-blueprint.module.js';
 import { PipelineModuleModule } from './pipeline-module/pipeline-module.module.js';
-import { PipelineExecutionController } from './pipeline-execution.controller.js';
-import { PipelineTriggerService } from './pipeline-trigger.service.js';
+import { PipelineController } from './pipeline.controller.js';
+import { PipelineExecutionModule } from './execution/pipeline-execution.module.js';
 
 @Module({
-    imports: [PipelineBlueprintModule, PipelineModuleModule],
-    controllers: [PipelineExecutionController],
-    providers: [PipelineService, PipelineExecutionService, PipelineTriggerService],
-    exports: [PipelineService, PipelineExecutionService, PipelineTriggerService],
+    imports: [PipelineBlueprintModule, PipelineModuleModule, PipelineExecutionModule],
+    controllers: [PipelineController],
+    providers: [PipelineService],
+    exports: [PipelineService],
 })
 export class PipelineModule {}

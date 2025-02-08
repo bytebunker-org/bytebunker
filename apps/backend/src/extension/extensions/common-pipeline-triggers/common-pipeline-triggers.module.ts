@@ -3,9 +3,10 @@ import { LocalFileTriggerPipelineModule } from './pipeline-module/local-file-tri
 import { LocalFileTriggerService } from './local-file-trigger.service.js';
 import { PipelineModule } from '../../../etl/pipeline/pipeline.module.js';
 import { AssetModule } from '../../../etl/asset/asset.module.js';
+import { PipelineExecutionModule } from '../../../etl/pipeline/execution/pipeline-execution.module.js';
 
 @Module({
-    imports: [PipelineModule, AssetModule],
+    imports: [PipelineModule, PipelineExecutionModule, AssetModule],
     providers: [LocalFileTriggerService, LocalFileTriggerPipelineModule],
 })
 export class CommonPipelineTriggersModule {}

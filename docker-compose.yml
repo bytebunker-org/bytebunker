@@ -22,6 +22,27 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+  bytebunker-backend-neo4j:
+    image: neo4j:latest
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/testtest
+    volumes:
+      - bytebunker-backend-neo4j-data:/data
+      - bytebunker-backend-neo4j-logs:/logs
+  bytebunker-backend-keydb:
+    image: eqalpha/keydb:latest
+    entrypoint: [ "keydb-server" ]
+    command: [ "--appendonly", "yes" ]
+    ports:
+      - "6379:6379"
+    volumes:
+      - bytebunker-backend-keydb-data:/data
 volumes:
   bytebunker-backend-postgres:
   bytebunker-backend-minio:
+  bytebunker-backend-neo4j-data:
+  bytebunker-backend-neo4j-logs:
+  bytebunker-backend-keydb-data:

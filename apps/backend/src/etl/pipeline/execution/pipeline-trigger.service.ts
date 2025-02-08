@@ -1,18 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { EntityManager } from '@mikro-orm/postgresql';
-import type { Constructable } from '../../util/type/constructable.interface.js';
-import type { BlueprintNodeDto } from './blueprint/dto/blueprint-node.dto.js';
-import type { AbstractTriggerPipelineModule } from './pipeline-module/abstract-trigger-pipeline.module.js';
+import type { Constructable } from '../../../util/type/constructable.interface.js';
+import type { BlueprintNodeDto } from '../blueprint/dto/blueprint-node.dto.js';
+import type { AbstractTriggerPipelineModule } from '../pipeline-module/abstract-trigger-pipeline.module.js';
 import { Reflector } from '@nestjs/core';
-import { PipelineBlueprintEntity } from './blueprint/entity/pipeline-blueprint.entity.js';
+import { PipelineBlueprintEntity } from '../blueprint/entity/pipeline-blueprint.entity.js';
 import {
     PIPELINE_MODULE_METADATA,
     type PipelineModuleOptions,
-} from './pipeline-module/decorator/pipeline-module.decorator.js';
-import { PipelineModuleService } from './pipeline-module/pipeline-module.service.js';
-import { Blueprint } from './blueprint/util/blueprint.class.js';
+} from '../pipeline-module/decorator/pipeline-module.decorator.js';
+import { PipelineModuleService } from '../pipeline-module/pipeline-module.service.js';
+import { Blueprint } from '../blueprint/util/blueprint.class.js';
 import { PipelineExecutionService } from './pipeline-execution.service.js';
-import type { PipelineExecutionEntity } from './entity/pipeline-execution.entity.js';
+import type { PipelineExecutionEntity } from '../entity/pipeline-execution.entity.js';
 
 type PipelineTriggerContext<Input> = {
     blueprintEntity: PipelineBlueprintEntity;

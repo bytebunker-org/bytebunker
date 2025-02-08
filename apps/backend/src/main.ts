@@ -43,9 +43,15 @@ async function bootstrap() {
         }),
     );
 
+    // TODO: Enable the mikro-orm serialization interceptor?
     // app.useGlobalInterceptors(new MikroOrmSerializationResponseInterceptor());
 
-    app.use(helmet());
+    app.use(
+        helmet({
+            // TODO: Re-enable! But this should support the bullmq /queues dashboard
+            contentSecurityPolicy: false,
+        }),
+    );
     app.enableCors({
         origin: config.cors.endpoint,
         methods: 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD',

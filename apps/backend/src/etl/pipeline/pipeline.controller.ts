@@ -1,25 +1,37 @@
-import { Controller, Delete, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { EntityManager } from '@mikro-orm/core';
+import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { ApiOperation } from '@nestjs/swagger';
+import { EntityManager } from '@mikro-orm/postgresql';
+import { FindRestApiService } from '../../shared/find-rest-api/find-rest-api.service.js';
+import { PipelineExecutionService } from './execution/pipeline-execution.service.js';
 import { PipelineExecutionEntity } from './entity/pipeline-execution.entity.js';
 import { PipelineExecutionDto } from './dto/pipeline-execution.dto.js';
-import { FindRestApiService } from '../../shared/find-rest-api/find-rest-api.service.js';
+import { PaginatedListRequestDto } from '../../shared/datatable/dto/paginated-list-request.dto.js';
+import { FindAllDto } from '../../shared/find-rest-api/dto/find-all.dto.js';
+import { FindRestApiCountDto } from '../../shared/find-rest-api/dto/find-rest-api-count.dto.js';
+import { FindOneDto } from '../../shared/find-rest-api/dto/find-one.dto.js';
+import { ApiFindAllDatatableMethod } from '../../shared/datatable/find-all-datatable-swagger.decorator.js';
 import {
     ApiCountMethod,
     ApiFindAllMethod,
     ApiFindOneMethod,
 } from '../../shared/find-rest-api/find-rest-api-swagger.decorator.js';
-import { FindRestApiCountDto } from '../../shared/find-rest-api/dto/find-rest-api-count.dto.js';
-import { FindAllDto } from '../../shared/find-rest-api/dto/find-all.dto.js';
 import { FindRestApiCountResponseDto } from '../../shared/find-rest-api/dto/find-rest-api-count-response.dto.js';
-import { FindOneDto } from '../../shared/find-rest-api/dto/find-one.dto.js';
+import { PipelineExecutionDatatableDto } from './dto/pipeline-execution-datatable.dto.js';
+import { PipelineService } from './pipeline.service.js';
 
-@Controller('pipelines/executions')
-export class PipelineExecutionController {
+@Controller('pipelines')
+export class PipelineController {
     constructor(
         private readonly em: EntityManager,
         private readonly findRestApiService: FindRestApiService,
+        private readonly pipelineService: PipelineService,
     ) {}
+
+    @Get('datatable-entries')
+    @ApiFindAllDatatableMethod(PipelineExecutionDatatableDto)
+    public findAllDatatable(@Query() data: PaginatedListRequestDto<PipelineExecutionDatatableDto>) {
+        return this.em.transactional((em) => this.pipelineService.findAllDatatable(em, data));
+    }
 
     @Get()
     @ApiFindAllMethod(PipelineExecutionDto)
@@ -41,12 +53,5 @@ export class PipelineExecutionController {
         @Query() query: FindOneDto<PipelineExecutionEntity>,
     ): Promise<PipelineExecutionDto> {
         return this.findRestApiService.findOne(PipelineExecutionEntity, { id }, query);
-    }
-
-    @Delete(':id')
-    @ApiOperation({ summary: 'Delete a pipeline execution' })
-    @ApiResponse({ status: 204, description: 'Execution deleted' })
-    public async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-        await this.em.nativeDelete(PipelineExecutionEntity, { id });
     }
 }

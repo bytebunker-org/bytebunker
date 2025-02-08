@@ -1,24 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PipelineBlueprintEntity } from './blueprint/entity/pipeline-blueprint.entity.js';
+import { PipelineBlueprintEntity } from '../blueprint/entity/pipeline-blueprint.entity.js';
 import { type EntityManager } from '@mikro-orm/postgresql';
-import { Blueprint } from './blueprint/util/blueprint.class.js';
-import { PipelineExecutionEntity } from './entity/pipeline-execution.entity.js';
-import { PipelineExecutionDataEntity } from './entity/pipeline-execution-data.entity.js';
-import { PipelineExecutionStatusEnum } from './type/pipeline-execution-status.enum.js';
-import type { BlueprintNodeDto } from './blueprint/dto/blueprint-node.dto.js';
-import { groupByKeySingle, hasOwn } from '../../util/util.js';
+import { Blueprint } from '../blueprint/util/blueprint.class.js';
+import { PipelineExecutionEntity } from '../entity/pipeline-execution.entity.js';
+import { PipelineExecutionDataEntity } from '../entity/pipeline-execution-data.entity.js';
+import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
+import type { BlueprintNodeDto } from '../blueprint/dto/blueprint-node.dto.js';
+import { groupByKeySingle, hasOwn } from '../../../util/util.js';
 import type { Collection, Loaded } from '@mikro-orm/core';
-import { PipelineModuleService } from './pipeline-module/pipeline-module.service.js';
-import { CreateHoldExecutionDto } from './dto/create-hold-execution.dto.js';
-import { PipelineExecutionLogEntity } from './entity/pipeline-execution-log.entity.js';
+import { PipelineModuleService } from '../pipeline-module/pipeline-module.service.js';
+import { CreateHoldExecutionDto } from '../dto/create-hold-execution.dto.js';
+import { PipelineExecutionLogEntity } from '../entity/pipeline-execution-log.entity.js';
+import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq';
+import { QueueFlowNameEnum } from '../../../queue/queue-flow-name.enum.js';
+import { FlowProducer, Queue } from 'bullmq';
+import { QueueNameEnum } from '../../../queue/queue-name.enum.js';
+import type { JobDataType } from '../../../queue/queue-data.type.js';
 
 @Injectable()
 export class PipelineExecutionService {
     private readonly logger = new Logger(PipelineExecutionService.name);
 
-    private readonly currentlyExecutingPipelineIds = new Set<number>();
-
-    constructor(private readonly moduleService: PipelineModuleService) {}
+    constructor(
+        private readonly moduleService: PipelineModuleService,
+        @InjectFlowProducer(QueueFlowNameEnum.PIPELINE_EXECUTION_FLOW)
+        private readonly pipelineExecutionFlowProducer: FlowProducer,
+        @InjectQueue(QueueNameEnum.PIPELINE_EXECUTION)
+        private readonly pipelineExecutionQueue: Queue,
+    ) {}
 
     public async executeBlueprintFromTrigger(
         em: EntityManager,
@@ -44,6 +53,7 @@ export class PipelineExecutionService {
         pipelineExecution.executionData.add(
             em.create(PipelineExecutionDataEntity, {
                 pipelineExecution: pipelineExecution,
+                executionStatus: PipelineExecutionStatusEnum.SUCCESS,
                 nodeId: initialTriggerNode.id,
                 data: triggerNodeOutputData,
             }),
@@ -53,90 +63,115 @@ export class PipelineExecutionService {
 
         this.logger.debug(`Executing pipeline ${pipelineExecution.id} from trigger node ${triggerNodeId}`);
 
+        await this.schedulePipelineExecution(pipelineExecution.id);
+
         return pipelineExecution;
+    }
+
+    public async schedulePipelineExecution(pipelineId: number): Promise<void> {
+        await this.pipelineExecutionQueue.add(
+            QueueNameEnum.PIPELINE_EXECUTION,
+            {
+                pipelineId,
+            } satisfies JobDataType<QueueNameEnum.PIPELINE_EXECUTION>,
+            {
+                deduplication: {
+                    id: String(pipelineId),
+                },
+            },
+        );
     }
 
     public async continuePipelineExecution(
         em: EntityManager,
-        pipelineExecution: Loaded<PipelineExecutionEntity, 'blueprint' | 'executionData'>,
+        pipelineId: number,
         ignoreStatusNodeIdList: number[] = [],
         executeNodeSubtreeId: number | undefined = undefined,
     ): Promise<void> {
-        try {
-            if (em.isInTransaction()) {
-                throw new Error('Cannot continue pipeline execution with an EntityManager in a transaction');
+        const pipelineExecution = await em.findOneOrFail(
+            PipelineExecutionEntity,
+            {
+                id: pipelineId,
+            },
+            {
+                populate: ['blueprint', 'executionData.nodeId', 'executionData.executionStatus'],
+            },
+        );
+
+        if (
+            pipelineExecution.executionStatus === PipelineExecutionStatusEnum.SUCCESS ||
+            pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED
+        ) {
+            return;
+        }
+
+        this.logger.debug(
+            `Continuing pipeline execution ${pipelineExecution.id}, status ${pipelineExecution.executionStatus}`,
+        );
+
+        const findNextExecutableModules = (): BlueprintNodeDto[] => {
+            if (executeNodeSubtreeId === undefined) {
+                return this.findExecutableModules(blueprint, pipelineExecution.executionData, ignoreStatusNodeIdList);
+            } else {
+                return this.findExecutableModulesSubtree(
+                    blueprint,
+                    pipelineExecution.executionData,
+                    executeNodeSubtreeId,
+                    ignoreStatusNodeIdList,
+                );
             }
+        };
 
-            this.currentlyExecutingPipelineIds.add(pipelineExecution.id);
+        const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
+        const executableModuleNodes = findNextExecutableModules();
 
-            if (
-                pipelineExecution.executionStatus === PipelineExecutionStatusEnum.SUCCESS ||
-                pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED
-            ) {
-                return;
-            }
+        if (executableModuleNodes.length) {
+            this.logger.debug(`Executing nodes ${executableModuleNodes.map((n) => n.moduleId).join(', ')}`);
 
-            this.logger.debug(
-                `Continuing pipeline execution ${pipelineExecution.id}, status ${pipelineExecution.executionStatus}`,
+            await this.pipelineExecutionFlowProducer.add({
+                name: QueueFlowNameEnum.PIPELINE_EXECUTION_FLOW,
+                queueName: QueueNameEnum.PIPELINE_EXECUTION,
+                data: {
+                    pipelineId,
+                } satisfies JobDataType<QueueNameEnum.PIPELINE_EXECUTION>,
+                opts: {
+                    deduplication: {
+                        id: String(pipelineId),
+                    },
+                },
+                children: executableModuleNodes.map((node) => ({
+                    queueName: QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION,
+                    name: QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION,
+                    data: {
+                        pipelineId,
+                        nodeId: node.id,
+                    } satisfies JobDataType<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>,
+                })),
+            });
+        } else {
+            const executionDataList = await em.find(
+                PipelineExecutionDataEntity,
+                {
+                    pipelineExecution,
+                },
+                { fields: ['executionStatus'] },
             );
 
-            const findNextExecutableModules = (): BlueprintNodeDto[] => {
-                if (executeNodeSubtreeId === undefined) {
-                    return this.findExecutableModules(
-                        blueprint,
-                        pipelineExecution.executionData,
-                        ignoreStatusNodeIdList,
-                    );
-                } else {
-                    return this.findExecutableModulesSubtree(
-                        blueprint,
-                        pipelineExecution.executionData,
-                        executeNodeSubtreeId,
-                        ignoreStatusNodeIdList,
-                    );
-                }
-            };
+            const hasOnlySuccessfulExecutions = !executionDataList.some(
+                (d) =>
+                    !(
+                        d.executionStatus === PipelineExecutionStatusEnum.SUCCESS ||
+                        d.executionStatus === PipelineExecutionStatusEnum.BRANCH_IGNORED
+                    ),
+            );
 
-            const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
-            let executableModuleNodes = findNextExecutableModules();
+            if (executionDataList.length === blueprint.getNodes().length && hasOnlySuccessfulExecutions) {
+                pipelineExecution.executionStatus = PipelineExecutionStatusEnum.SUCCESS;
 
-            while (executableModuleNodes.length) {
-                this.logger.debug(`Executing nodes ${executableModuleNodes.map((n) => n.moduleId).join(', ')}`);
+                em.persist(pipelineExecution);
 
-                for (const node of executableModuleNodes) {
-                    await this.executeModule(em, pipelineExecution, blueprint, node);
-                }
-
-                executableModuleNodes = findNextExecutableModules();
+                this.logger.debug(`Finished pipeline execution ${pipelineExecution.id}!`);
             }
-
-            if (!executableModuleNodes.length) {
-                const executionDataList = await em.find(
-                    PipelineExecutionDataEntity,
-                    {
-                        pipelineExecution,
-                    },
-                    { fields: ['executionStatus'] },
-                );
-
-                const hasOnlySuccessfulExecutions = !executionDataList.some(
-                    (d) =>
-                        !(
-                            d.executionStatus === PipelineExecutionStatusEnum.SUCCESS ||
-                            d.executionStatus === PipelineExecutionStatusEnum.BRANCH_IGNORED
-                        ),
-                );
-
-                if (executionDataList.length === blueprint.getNodes().length && hasOnlySuccessfulExecutions) {
-                    pipelineExecution.executionStatus = PipelineExecutionStatusEnum.SUCCESS;
-
-                    em.persist(pipelineExecution);
-
-                    this.logger.debug(`Finished pipeline execution ${pipelineExecution.id}!`);
-                }
-            }
-        } finally {
-            this.currentlyExecutingPipelineIds.delete(pipelineExecution.id);
         }
     }
 
@@ -177,12 +212,24 @@ export class PipelineExecutionService {
         }
     }
 
-    private async executeModule(
-        em: EntityManager,
-        pipelineExecution: Loaded<PipelineExecutionEntity, 'blueprint' | 'executionData'>,
-        blueprint: Blueprint,
-        node: BlueprintNodeDto,
-    ): Promise<void> {
+    public async executeModule(em: EntityManager, pipelineId: number, nodeId: number): Promise<void> {
+        // TODO: Optimize to only load necessary execution data
+        const pipelineExecution = await em.findOneOrFail(
+            PipelineExecutionEntity,
+            {
+                id: pipelineId,
+            },
+            {
+                populate: ['blueprint', 'executionData'],
+            },
+        );
+        const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
+        const node = blueprint.getNode(nodeId);
+
+        if (!node) {
+            throw new Error(`Pipeline execution ${pipelineExecution.id} node ${nodeId} not found`);
+        }
+
         const inputData = this.buildNodeInputData(pipelineExecution, node);
 
         try {
@@ -208,7 +255,7 @@ export class PipelineExecutionService {
                 if (outputDataOrHoldExecution instanceof CreateHoldExecutionDto) {
                     this.holdModuleExecution(em, pipelineExecution, node, outputDataOrHoldExecution);
                 } else {
-                    await this.createExecutionData(em, pipelineExecution, node.id, outputDataOrHoldExecution);
+                    this.createExecutionData(em, pipelineExecution, node.id, outputDataOrHoldExecution);
                 }
 
                 await em.flush();
