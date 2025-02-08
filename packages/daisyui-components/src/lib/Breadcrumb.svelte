@@ -1,15 +1,18 @@
 <script lang="ts">
+    import type { Snippet } from 'svelte';
+
     interface Props {
         class: string;
-        children?: import('svelte').Snippet;
+
+        children: Snippet;
     }
 
     let { class: className, children }: Props = $props();
-    
+
 </script>
 
-<div class="text-sm breadcrumbs {className}">
+<div class="breadcrumbs {className}">
     <ul>
-        {@render children?.()}
+        {@render children()}
     </ul>
 </div>

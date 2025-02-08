@@ -1,18 +1,26 @@
 <script lang="ts">
+    import type { Snippet } from 'svelte';
+    import type { ClassValue } from 'svelte/elements';
+
     interface Props {
-        href?: string | undefined;
-        children?: import('svelte').Snippet;
+        href?: string;
+
+        class?: ClassValue;
+
+        linkClass?: ClassValue;
+
+        children: Snippet;
     }
 
-    let { href = undefined, children }: Props = $props();
+    let { href, class: className, linkClass, children }: Props = $props();
 </script>
 
-<li>
+<li class={className}>
     {#if href}
-        <a {href} class="hover:!no-underline">
-            {@render children?.()}
+        <a {href} class={linkClass}>
+            {@render children()}
         </a>
     {:else}
-        {@render children?.()}
+        {@render children()}
     {/if}
 </li>
