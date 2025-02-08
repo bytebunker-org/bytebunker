@@ -10,10 +10,10 @@
         "allowSyntheticDefaultImports": true,
         "forceConsistentCasingInFileNames": true,
         "verbatimModuleSyntax": true,
-        "lib": ["es2023"],
+        "lib": ["es2022"],
         "moduleResolution": "NodeNext",
         "module": "NodeNext",
-        "target": "ESNext",
+        "target": "ES2022",
         "sourceMap": true,
         "incremental": false,
         "skipLibCheck": true,
@@ -27,6 +27,8 @@
         "noPropertyAccessFromIndexSignature": true,
         "resolveJsonModule": true,
         "composite": false,
-        "isolatedModules": true
+        "isolatedModules": true,
+        "allowImportingTsExtensions": true,
+        "rewriteRelativeImportExtensions": true
     }
 }

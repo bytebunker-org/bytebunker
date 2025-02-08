@@ -41,6 +41,7 @@ export default tseslint.config(
             'unicorn/better-regex': 'warn',
             'n/no-missing-import': 'off',
             'n/no-unpublished-import': 'off',
+            'unicorn/expiring-todo-comments': 'off',
             'unicorn/no-array-method-this-argument': 'off',
             'unicorn/prefer-top-level-await': 'off',
             'unicorn/no-null': 'off',
