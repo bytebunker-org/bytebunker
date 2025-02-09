@@ -1,30 +1,50 @@
-<!-- @migration-task Error while migrating Svelte code: $$props is used together with named props in a way that cannot be automatically migrated. -->
 <script lang="ts">
     import type { ThemeButtonStyle, ThemeColor, ThemeSize } from '$lib/type/Theme.js';
     import { classnames } from '$lib/util.js';
     import { getJoinGroupContext } from '$lib/context.js';
+    import type { ClassValue, HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
+    import type { Snippet } from 'svelte';
 
-    let className = '';
-    export { className as class };
-    export let active = false;
-    export let btnStyle: ThemeButtonStyle | undefined = undefined;
-    export let size: ThemeSize | undefined = undefined;
-    export let block = false;
-    export let wide = false;
-    export let loading = false;
-    export let hideContentWhileLoading = false;
-    export let color: ThemeColor = 'secondary';
-    export let submit = false;
-    export let disabled = false;
-    export let href = '';
-    export let element = undefined;
+
+    interface Props extends HTMLButtonAttributes, HTMLAnchorAttributes {
+        class?: ClassValue;
+        active?: boolean;
+        btnStyle?: ThemeButtonStyle | undefined;
+        size?: ThemeSize | undefined;
+        block?: boolean;
+        wide?: boolean;
+        loading?: boolean;
+        hideContentWhileLoading?: boolean;
+        color?: ThemeColor;
+        submit?: boolean;
+        disabled?: boolean;
+        href?: string;
+        element?: HTMLButtonElement | HTMLAnchorElement;
+        children: Snippet;
+    }
+
+    let {
+        class: className = '',
+        active = false,
+        btnStyle = undefined,
+        size = undefined,
+        block = false,
+        wide = false,
+        loading = false,
+        hideContentWhileLoading = false,
+        color = 'secondary',
+        submit = false,
+        disabled = false,
+        href = '',
+        element = $bindable(undefined),
+        children,
+        ...restProps
+    }: Props = $props();
 
     const isJoinGroup = getJoinGroupContext();
 
-    $: ariaLabel = $$props['aria-label'];
-
-    $: ignoreColors = btnStyle === 'link';
-    $: classes = classnames(className, 'btn', {
+    let ignoreColors = $derived(btnStyle === 'link');
+    let classes = $derived(classnames(className, 'btn', {
         'btn-active': active,
         // Styles
         'btn-ghost': btnStyle === 'ghost',
@@ -47,43 +67,37 @@
         'btn-wide': wide,
         'btn-block': block,
         'join-item': isJoinGroup
-    });
+    }));
 </script>
 
 {#if href}
     <a
-        {...$$restProps}
         class={classes}
         disabled={disabled || loading ? true : undefined}
         bind:this={element}
-        on:click
-        on:mousedown
         {href}
-        aria-label={ariaLabel}
+        {...restProps}
     >
         {#if loading}
             <span class="loading loading-spinner"></span>
         {/if}
         {#if !(loading && hideContentWhileLoading)}
-            <slot />
+            {@render children()}
         {/if}
     </a>
 {:else}
     <button
-        {...$$restProps}
         type={submit ? 'submit' : 'button'}
         class={classes}
         disabled={disabled || loading ? true : undefined}
         bind:this={element}
-        on:click
-        on:mousedown
-        aria-label={ariaLabel}
+        {...restProps}
     >
         {#if loading}
             <span class="loading loading-spinner"></span>
         {/if}
         {#if !(loading && hideContentWhileLoading)}
-            <slot />
+            {@render children()}
         {/if}
     </button>
 {/if}

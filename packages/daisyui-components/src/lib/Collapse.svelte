@@ -1,46 +1,78 @@
-<!-- @migration-task Error while migrating Svelte code: This migration would change the name of a slot making the component unusable -->
 <script lang="ts">
-    import { classnames } from '$lib/util.js';
-    import type { ThemeColor } from '$lib/type/Theme.js';
+    import type { ThemeColor } from '$lib/daisyUiComponents/type/Theme';
+    import type { Snippet } from 'svelte';
 
-    export let title = '';
-    let className = '';
-    export { className as class };
-    export let color: ThemeColor | '' = 'primary';
-    export let titleClass = '';
-    export let titleOpenClass = '';
-    export let contentClass = '';
-    export let contentOpenClass = '';
-    export let openClasses = '';
-    let isOpen = false;
-    $: classes = classnames('collapse collapse-arrow border rounded', className, {
-        ['collapse-open ' + openClasses]: isOpen,
-        'collapse-close': !isOpen,
-        'bg-primary text-primary-content border-primary': color === 'primary',
-        'bg-secondary text-secondary-content border-secondary': color === 'secondary',
-        'bg-accent text-accent-content border-accent': color === 'accent',
-        'bg-info text-info-content border-info': color === 'info',
-        'bg-success text-success-content border-success': color === 'success',
-        'bg-warning text-warning-content border-warning': color === 'warning',
-        'bg-error text-error-content border-error': color === 'error'
-    });
-    $: titleClasses = classnames('collapse-title cursor-pointer', titleClass, {
-        [titleOpenClass]: isOpen
-    });
-    $: contentClasses = classnames('collapse-content', contentClass, {
-        [contentOpenClass]: isOpen
-    });
+    interface Props {
+        title: string | Snippet;
+        class?: string;
+        color?: ThemeColor;
+        titleClass?: string;
+        titleOpenClass?: string;
+        contentClass?: string;
+        contentOpenClass?: string;
+        openClass?: string;
+        isOpen?: boolean;
+        children: Snippet;
+    }
+
+    let {
+        title,
+        class: className = '',
+        color = 'primary',
+        titleClass = '',
+        titleOpenClass = '',
+        contentClass = '',
+        contentOpenClass = '',
+        openClass = '',
+        isOpen = false,
+        children
+    }: Props = $props();
 </script>
 
-<div class={classes}>
-    <div class={titleClasses} on:click={() => (isOpen = !isOpen)}>
-        <slot name="title">
+<div
+    class={[
+        'collapse-arrow collapse rounded border',
+        className,
+        {
+            ['collapse-open ' + openClass]: isOpen,
+            'collapse-close': !isOpen,
+            'bg-primary text-primary-content border-primary': color === 'primary',
+            'bg-secondary text-secondary-content border-secondary': color === 'secondary',
+            'bg-accent text-accent-content border-accent': color === 'accent',
+            'bg-info text-info-content border-info': color === 'info',
+            'bg-success text-success-content border-success': color === 'success',
+            'bg-warning text-warning-content border-warning': color === 'warning',
+            'bg-error text-error-content border-error': color === 'error'
+        }
+    ]}
+>
+    <div
+        class={[
+            'collapse-title cursor-pointer',
+            titleClass,
+            {
+                [titleOpenClass]: isOpen
+            }
+        ]}
+        onclick={() => (isOpen = !isOpen)}
+    >
+        {#if typeof title === 'string'}
             {title}
-        </slot>
+        {:else}
+            {@render title()}
+        {/if}
     </div>
-    <div class={contentClasses}>
+    <div
+        class={[
+            'collapse-content',
+            contentClass,
+            {
+                [contentOpenClass]: isOpen
+            }
+        ]}
+    >
         {#if isOpen}
-            <slot />
+            {@render children()}
         {/if}
     </div>
 </div>
