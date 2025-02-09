@@ -1,15 +1,18 @@
-import type { BlueprintNodeDto } from '@bytebunker/backend';
+import type { BlueprintNodeDto, PipelineModuleDto } from '@bytebunker/backend';
 import type { Component } from 'svelte';
 import EditBlueprintNodeModal from '$lib/components/modal/EditBlueprintNodeModal.svelte';
 import { ModalTypeEnum } from '$lib/components/modal/modalTypeEnum.js';
 
 interface ModalRegistryOptions {
 	component: Component<ModalProps<ModalTypeEnum>>;
+
+	size: 'sm' | 'md' | 'lg';
 }
 
 export const modalRegistry = {
 	[ModalTypeEnum.EDIT_BLUEPRINT_NODE]: {
-		component: EditBlueprintNodeModal
+		component: EditBlueprintNodeModal,
+		size: 'lg'
 	}
 } satisfies Record<ModalTypeEnum, ModalRegistryOptions>;
 
@@ -29,12 +32,14 @@ export interface ModalProps<T extends ModalTypeEnum> {
 export interface EditBlueprintNodeOptions {
 	blueprintNode: BlueprintNodeDto;
 
+	pipelineModule: PipelineModuleDto;
+
 	returnType: BlueprintNodeDto;
 }
 
 export interface ModalContext {
 	open<T extends ModalTypeEnum>(
 		type: T,
-		options?: ModalOptionsType<T>
+		options?: Omit<ModalOptionsType<T>, 'returnType'>
 	): Promise<ModalReturnType<T> | undefined>;
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Dialog, Label, Separator } from 'bits-ui';
+	import { Button } from '@bytebunker/daisyui-components';
 	import { fade } from 'svelte/transition';
 	import { flyAndScale } from '$lib/util/flyAndScaleTransition.js';
 	import { setModalContext } from '$lib/context.js';
@@ -35,15 +36,24 @@
 		currentOptions = options;
 		isOpen = true;
 
+		console.log('opening', type);
+
 		return new Promise((resolve) => {
 			currentCloseCallback = ((value?: ModalReturnType<T>) => {
 				isOpen = false;
 				currentType = undefined;
 				currentOptions = undefined;
+				currentCloseCallback = undefined;
 
 				resolve(value);
 			}) as (value?: ModalReturnType<ModalTypeEnum>) => void;
 		});
+	}
+
+	function onOpenChange(open: boolean) {
+		if (!open && currentCloseCallback) {
+			currentCloseCallback();
+		}
 	}
 
 	setModalContext({
@@ -53,53 +63,38 @@
 
 {@render children()}
 
-{#if isOpen && modalTypeInfo && ModalComponent && currentOptions && currentCloseCallback}
-	<Dialog.Root>
-		<Dialog.Portal>
-			<Dialog.Overlay
-				transition={fade}
-				transitionConfig={{ duration: 150 }}
-				class="fixed inset-0 z-50 bg-black/80"
-			/>
-			<Dialog.Content transition={flyAndScale} class="modal">
-				<ModalComponent options={currentOptions} close={currentCloseCallback} />
-				<!--<Dialog.Title
-				class="flex w-full items-center justify-center text-lg font-semibold tracking-tight"
-				>Create API key</Dialog.Title
-			>
-			<Separator.Root class="bg-muted -mx-5 mt-5 mb-6 block h-px" />
-			<Dialog.Description class="text-foreground-alt text-sm">
-				Create and manage API keys. You can create multiple keys to organize your applications.
-			</Dialog.Description>
-			<div class="flex flex-col items-start gap-1 pt-7 pb-11">
-				<Label.Root for="apiKey" class="text-sm font-medium">API Key</Label.Root>
-				<div class="relative w-full">
-					<input
-						id="apiKey"
-						class="h-input rounded-card-sm border-border-input bg-background placeholder:text-foreground-alt/50 hover:border-dark-40 focus:ring-foreground focus:ring-offset-background inline-flex w-full items-center border px-4 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none"
-						placeholder="secret_api_key"
-						type="password"
-						autocomplete="off"
-					/>
-					<LockKeyOpen class="text-dark/30 absolute top-[14px] right-4 size-[22px]" />
-				</div>
-			</div>
-			<div class="flex w-full justify-end">
-				<Dialog.Close
-					class="h-input rounded-input bg-dark text-background shadow-mini hover:bg-dark/95 focus-visible:ring-dark focus-visible:ring-offset-background inline-flex items-center justify-center px-[50px] text-[15px] font-semibold focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-98"
-				>
-					Save
-				</Dialog.Close>
-			</div>-->
-				<Dialog.Close
-					class="focus-visible:ring-foreground focus-visible:ring-offset-background absolute top-5 right-5 rounded-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-98"
-				>
-					<div>
-						<LucideX class="size-5" />
-						<span class="sr-only">Close</span>
-					</div>
-				</Dialog.Close>
-			</Dialog.Content>
-		</Dialog.Portal>
-	</Dialog.Root>
-{/if}
+<Dialog.Root bind:open={isOpen} {onOpenChange}>
+	<Dialog.Portal>
+		<Dialog.Overlay
+			transition={fade}
+			transitionConfig={{ duration: 100 }}
+			class="fixed inset-0 z-50 bg-black/20"
+		/>
+		<Dialog.Content
+			transition={flyAndScale}
+			class={[
+				'rounded-box bg-base-100 fixed top-[50%] left-[50%] z-50 translate-x-[-50%] translate-y-[-50%] border border-neutral-300 drop-shadow-2xl outline-none',
+				{
+					'w-full max-w-[94%] sm:max-w-[490px]': modalTypeInfo?.size === 'sm',
+					'w-full max-w-[94%] md:max-w-sm': modalTypeInfo?.size === 'md' || !modalTypeInfo?.size,
+					'w-full max-w-[94%] md:max-w-[90%] lg:max-w-[80%] xl:max-w-[60%]':
+						modalTypeInfo?.size === 'lg'
+				}
+			]}
+		>
+			{#if modalTypeInfo && ModalComponent && currentOptions && currentCloseCallback}
+				<svelte:boundary>
+					<ModalComponent options={currentOptions} close={currentCloseCallback} />
+
+					{#snippet failed(error, reset)}
+						<span class="text-error">Das Modal konnte nicht geladen werden</span>
+					{/snippet}
+				</svelte:boundary>
+			{/if}
+			<Dialog.Close class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2 cursor-pointer">
+				<LucideX class="size-5" />
+				<span class="sr-only">Close</span>
+			</Dialog.Close>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
