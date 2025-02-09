@@ -1,6 +1,5 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
-import { EntityManager } from '@mikro-orm/core';
 import { PipelineModuleEntity } from './entity/pipeline-module.entity.js';
 import { PipelineModuleDto } from './dto/pipeline-module.dto.js';
 import { FindRestApiService } from '../../../shared/find-rest-api/find-rest-api.service.js';
@@ -16,26 +15,23 @@ import {
 import { ParsePipelineModuleIdentifierPipe } from './util/parse-pipeline-module-identifier.pipe.js';
 import type { PipelineModuleIdentifier } from './type/pipeline-module-identifier.type.js';
 
-@Controller('pipelines/modules')
+@Controller('pipelines-modules')
 export class PipelineModuleController {
-    constructor(
-        private readonly em: EntityManager,
-        private readonly findRestApiService: FindRestApiService,
-    ) {}
+    constructor(private readonly findRestApiService: FindRestApiService) {}
 
-    @Get()
+    @Get('/')
     @ApiFindAllMethod(PipelineModuleDto)
     public findAll(@Query() query: FindAllDto<PipelineModuleEntity>): Promise<PipelineModuleDto[]> {
         return this.findRestApiService.findAll(PipelineModuleEntity, query);
     }
 
-    @Get('count')
+    @Get('/count')
     @ApiCountMethod(PipelineModuleDto)
     public count(@Query() query: FindRestApiCountDto<PipelineModuleEntity>): Promise<FindRestApiCountResponseDto> {
         return this.findRestApiService.count(PipelineModuleEntity, query);
     }
 
-    @Get(':id')
+    @Get('/:id')
     @ApiOperation({ summary: 'Get a pipeline module by ID' })
     @ApiFindOneMethod(PipelineModuleDto)
     public findOne(

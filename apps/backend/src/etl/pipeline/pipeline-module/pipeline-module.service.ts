@@ -18,6 +18,7 @@ import type { PipelineModuleIdentifier } from './type/pipeline-module-identifier
 import { buildModuleIdentifier, deconstructPipelineModuleIdentifier } from './util/pipeline-module-identifier.util.js';
 import { JsonSchemaEntity } from '../../../shared/json-schema/entity/json-schema.entity.js';
 import { AbstractTriggerPipelineModule } from './abstract-trigger-pipeline.module.js';
+import { AppConfig } from '../../../util/config/app.config.js';
 
 @Injectable()
 export class PipelineModuleService {
@@ -28,6 +29,7 @@ export class PipelineModuleService {
     constructor(
         private readonly discoveryService: DiscoveryService,
         private readonly jsonSchemaService: JsonSchemaService,
+        private readonly config: AppConfig,
     ) {}
 
     public async discoverPipelineModules(em: EntityManager): Promise<void> {
@@ -152,7 +154,7 @@ export class PipelineModuleService {
             const inputTypesEqual = deepEqual(existingInputTypeSchema, inputTypeSchema);
             const outputTypesEqual = deepEqual(existingOutputTypeSchema, outputTypeSchema);
 
-            if (!inputTypesEqual || !outputTypesEqual) {
+            if ((!inputTypesEqual || !outputTypesEqual) && this.config.nodeEnv !== 'development') {
                 this.logger.warn(
                     `Registering existing pipeline module ${moduleIdentifier} with different types but the same version`,
                 );

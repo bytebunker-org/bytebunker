@@ -2,7 +2,7 @@ import type { PipeTransform } from '@nestjs/common/interfaces/features/pipe-tran
 import type { PipelineModuleIdentifier } from '../type/pipeline-module-identifier.type.js';
 import { validatePipelineModuleIdentifier } from './pipeline-module-identifier.util.js';
 import { BadRequestError } from '../../../../util/rest-error.js';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 export interface ParsePipelineModuleIdentifierPipeOptions {
     /**
@@ -16,10 +16,10 @@ export interface ParsePipelineModuleIdentifierPipeOptions {
 export class ParsePipelineModuleIdentifierPipe
     implements PipeTransform<string | undefined, PipelineModuleIdentifier | undefined>
 {
-    constructor(protected readonly options?: ParsePipelineModuleIdentifierPipeOptions) {}
+    constructor(@Optional() protected readonly options: ParsePipelineModuleIdentifierPipeOptions = {}) {}
 
     public transform(value: string | undefined): PipelineModuleIdentifier | undefined {
-        if (!value && this.options?.optional) {
+        if (!value && this.options.optional) {
             return value as undefined;
         }
 

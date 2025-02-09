@@ -4,9 +4,11 @@ import { PipelineModuleService } from './pipeline-module.service.js';
 import { DiscoveryModule } from '@golevelup/nestjs-discovery';
 import { JsonSchemaModule } from '../../../shared/json-schema/json-schema.module.js';
 import { CorePipelineModuleModule } from './core-module/core-pipeline-module.module.js';
+import { PipelineModuleController } from './pipeline-module.controller.js';
 
 @Module({
     imports: [DiscoveryModule, JsonSchemaModule, CorePipelineModuleModule],
+    controllers: [PipelineModuleController],
     providers: [PipelineModuleService],
     exports: [PipelineModuleService],
 })

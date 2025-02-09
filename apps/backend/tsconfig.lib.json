@@ -10,8 +10,7 @@
         "./src/**/*.enum.ts",
         "./src/**/*.interface.ts",
         "./src/**/*.type.ts",
-        "./src/util/generated-library-imports/*.ts",
-        "./src/etl/pipeline/blueprint/util/blueprint.class.ts"
+        "./src/util/generated-library-imports/*.ts"
     ],
     "exclude": [
         "lib",
@@ -22,5 +21,9 @@
         "./src/util/type/dto-ref.type.ts",
         "./src/util/type/dto-collection.type.ts"
     ],
-    "files": ["./src/util/rest-error.ts"]
+    "files": [
+        "./src/util/rest-error.ts",
+        "./src/etl/pipeline/blueprint/util/blueprint.class.ts",
+        "./src/etl/pipeline/pipeline-module/util/pipeline-module-identifier.util.ts"
+    ]
 }

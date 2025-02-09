@@ -1,4 +1,7 @@
-import { PIPELINE_MODULE_IDENTIFIER_REGEX } from '../pipeline-module.constant.js';
+import {
+    PIPELINE_MODULE_IDENTIFIER_REGEX,
+    PIPELINE_MODULE_IDENTIFIER_VERSION_OPTIONAL_REGEX,
+} from '../pipeline-module.constant.js';
 import type {
     DeconstructedPipelineModuleIdentifier,
     PipelineModuleIdentifier,
@@ -18,8 +21,12 @@ export function validatePipelineModuleIdentifier(identifier: string): identifier
 
 export function deconstructPipelineModuleIdentifier(
     identifier: PipelineModuleIdentifier,
+    versionOptional = false,
 ): DeconstructedPipelineModuleIdentifier {
-    const match = PIPELINE_MODULE_IDENTIFIER_REGEX.exec(identifier);
+    const match = (
+        versionOptional ? PIPELINE_MODULE_IDENTIFIER_VERSION_OPTIONAL_REGEX : PIPELINE_MODULE_IDENTIFIER_REGEX
+    ).exec(identifier);
+
     if (!match) {
         throw new Error(`Invalid module identifier ${identifier}`);
     }
@@ -27,6 +34,6 @@ export function deconstructPipelineModuleIdentifier(
     return {
         extensionName: match[1],
         moduleName: match[2],
-        moduleVersion: Number.parseInt(match[3]),
+        moduleVersion: Number.parseInt(match[3] ?? '1'),
     };
 }

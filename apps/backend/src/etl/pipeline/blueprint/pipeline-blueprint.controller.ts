@@ -21,7 +21,7 @@ import { PipelineBlueprintDatatableDto } from './dto/pipeline-blueprint-datatabl
 import { PipelineBlueprintService } from './pipeline-blueprint.service.js';
 import { ApiFindAllDatatableMethod } from '../../../shared/datatable/find-all-datatable-swagger.decorator.js';
 
-@Controller('pipelines/blueprints')
+@Controller('pipelines-blueprints')
 export class PipelineBlueprintController {
     constructor(
         private readonly em: EntityManager,

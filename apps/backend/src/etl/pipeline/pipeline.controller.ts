@@ -2,7 +2,6 @@ import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { FindRestApiService } from '../../shared/find-rest-api/find-rest-api.service.js';
-import { PipelineExecutionService } from './execution/pipeline-execution.service.js';
 import { PipelineExecutionEntity } from './entity/pipeline-execution.entity.js';
 import { PipelineExecutionDto } from './dto/pipeline-execution.dto.js';
 import { PaginatedListRequestDto } from '../../shared/datatable/dto/paginated-list-request.dto.js';
