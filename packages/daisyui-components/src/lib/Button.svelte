@@ -1,6 +1,5 @@
 <script lang="ts">
     import type { ThemeButtonStyle, ThemeColor, ThemeSize } from '$lib/type/Theme.js';
-    import { classnames } from '$lib/util.js';
     import { getJoinGroupContext } from '$lib/context.js';
     import type { ClassValue, HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
     import type { Snippet } from 'svelte';
@@ -43,8 +42,8 @@
 
     const isJoinGroup = getJoinGroupContext();
 
-    let ignoreColors = $derived(btnStyle === 'link');
-    let classes = $derived(classnames(className, 'btn', {
+    let ignoreColors = $derived(btnStyle === 'link' || btnStyle === "ghost");
+    let classes = $derived<ClassValue>([className, 'btn', {
         'btn-active': active,
         // Styles
         'btn-ghost': btnStyle === 'ghost',
@@ -67,7 +66,7 @@
         'btn-wide': wide,
         'btn-block': block,
         'join-item': isJoinGroup
-    }));
+    }]);
 </script>
 
 {#if href}
