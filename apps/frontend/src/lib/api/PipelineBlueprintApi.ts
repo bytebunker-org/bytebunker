@@ -16,28 +16,28 @@ export class PipelineBlueprintApi extends ApiBase {
 		data: CreatePipelineBlueprintDto,
 		fetchImpl?: typeof fetch
 	): Promise<PipelineBlueprintDto> {
-		return ApiBase.post(fetchImpl, '/pipelines/blueprints', data);
+		return ApiBase.post(fetchImpl, '/pipelines-blueprints', data);
 	}
 
 	public static findAllDatatable(
 		params: PaginatedListRequestDto<PipelineBlueprintDatatableDto>,
 		fetchImpl?: typeof fetch
 	): Promise<PaginatedListResponseDto<PipelineBlueprintDatatableDto>> {
-		return ApiBase.get(fetchImpl, '/pipelines/blueprints/datatable-entries', { params });
+		return ApiBase.get(fetchImpl, '/pipelines-blueprints/datatable-entries', { params });
 	}
 
 	public static findAll(
 		params: FindAllDto<PipelineBlueprintDto>,
 		fetchImpl?: typeof fetch
 	): Promise<PipelineBlueprintDto[]> {
-		return ApiBase.get(fetchImpl, '/pipelines/blueprints', { params });
+		return ApiBase.get(fetchImpl, '/pipelines-blueprints', { params });
 	}
 
 	public static count(
 		params: FindRestApiCountDto<PipelineBlueprintDto>,
 		fetchImpl?: typeof fetch
 	): Promise<PipelineBlueprintDto[]> {
-		return ApiBase.get(fetchImpl, '/pipelines/blueprints/count', { params });
+		return ApiBase.get(fetchImpl, '/pipelines-blueprints/count', { params });
 	}
 
 	public static findOne(
@@ -45,7 +45,7 @@ export class PipelineBlueprintApi extends ApiBase {
 		params: FindOneDto<PipelineBlueprintDto>,
 		fetchImpl?: typeof fetch
 	): Promise<PipelineBlueprintDto> {
-		return ApiBase.get(fetchImpl, `/pipelines/blueprints/${id}`, { params });
+		return ApiBase.get(fetchImpl, `/pipelines-blueprints/${id}`, { params });
 	}
 
 	public static update(
@@ -53,10 +53,10 @@ export class PipelineBlueprintApi extends ApiBase {
 		data: UpdatePipelineBlueprintDto,
 		fetchImpl?: typeof fetch
 	): Promise<PipelineBlueprintDto[]> {
-		return ApiBase.patch(fetchImpl, `/pipelines/blueprints/${id}`, data);
+		return ApiBase.patch(fetchImpl, `/pipelines-blueprints/${id}`, data);
 	}
 
 	public static remove(id: number, fetchImpl?: typeof fetch): Promise<void> {
-		return ApiBase.del(fetchImpl, `/pipelines/blueprints/${id}`);
+		return ApiBase.del(fetchImpl, `/pipelines-blueprints/${id}`);
 	}
 }

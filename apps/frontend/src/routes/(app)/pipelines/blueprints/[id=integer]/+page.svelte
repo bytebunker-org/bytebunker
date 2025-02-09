@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Card, CardBody } from '@bytebunker/daisyui-components';
-	import BlueprintNodeView from '$lib/components/pipeline/BlueprintNodeView.svelte';
+	import BlueprintEditor from '$lib/components/pipeline/BlueprintEditor.svelte';
 	import { createQuery } from '@tanstack/svelte-query';
 	import { page } from '$app/state';
 	import { PipelineBlueprintApi } from '$lib/api/PipelineBlueprintApi.js';
@@ -40,11 +40,5 @@
 		<ToolbarButton icon={LucideCircuitBoard} tooltip="Blueprint bearbeiten"></ToolbarButton>
 	{/snippet}
 
-	<Card class="bg-base-100 border-base-300 rounded-box border shadow">
-		<CardBody class="overflow-hidden p-0">
-			{#if blueprint}
-				<BlueprintNodeView {blueprint} />
-			{/if}
-		</CardBody>
-	</Card>
+	<BlueprintEditor {blueprint} />
 </MainLayout>

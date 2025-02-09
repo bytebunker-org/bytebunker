@@ -6,6 +6,7 @@
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import ToastContainer from '$lib/util/ToastContainer.svelte';
 	import { onNavigate } from '$app/navigation';
+	import ModalContainer from '$lib/components/modal/ModalContainer.svelte';
 
 	let { data, children }: LayoutProps = $props();
 
@@ -26,6 +27,8 @@
 </script>
 
 <QueryClientProvider client={data.queryClient}>
-	{@render children()}
+	<ModalContainer>
+		{@render children()}
+	</ModalContainer>
 </QueryClientProvider>
 <ToastContainer />

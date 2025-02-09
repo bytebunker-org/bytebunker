@@ -433,18 +433,27 @@ importers:
       '@total-typescript/ts-reset':
         specifier: ^0.6.1
         version: 0.6.1
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       '@types/luxon':
         specifier: ^3.4.2
         version: 3.4.2
       '@types/set-cookie-parser':
         specifier: ^2.4.10
         version: 2.4.10
+      '@types/string-hash':
+        specifier: ^1.1.3
+        version: 1.1.3
       '@valibot/i18n':
         specifier: 1.0.0-beta.2
         version: 1.0.0-beta.2(valibot@1.0.0-beta.14(typescript@5.7.3))
       '@xyflow/svelte':
         specifier: 1.0.0-next.3
         version: 1.0.0-next.3(svelte@5.19.9)
+      '@xyflow/system':
+        specifier: ^0.0.50
+        version: 0.0.50
       '@zerodevx/svelte-img':
         specifier: ^2.1.2
         version: 2.1.2(rollup@4.34.6)(svelte@5.19.9)
@@ -472,12 +481,12 @@ importers:
       globals:
         specifier: ^15.14.0
         version: 15.14.0
+      js-convert-case:
+        specifier: ^4.2.0
+        version: 4.2.0
       luxon:
         specifier: ^3.5.0
         version: 3.5.0
-      material-color-hash:
-        specifier: ^0.1.6
-        version: 0.1.6
       prettier:
         specifier: ^3.4.2
         version: 3.4.2
@@ -490,6 +499,9 @@ importers:
       set-cookie-parser:
         specifier: ^2.7.1
         version: 2.7.1
+      string-hash:
+        specifier: ^1.1.3
+        version: 1.1.3
       svelte:
         specifier: ^5.19.9
         version: 5.19.9
@@ -499,6 +511,9 @@ importers:
       svelte-check:
         specifier: ^4.1.4
         version: 4.1.4(picomatch@4.0.2)(svelte@5.19.9)(typescript@5.7.3)
+      svelte-drag-and-drop-actions:
+        specifier: ^1.0.2
+        version: 1.0.2
       svelte-i18n:
         specifier: ^4.0.1
         version: 4.0.1(svelte@5.19.9)
@@ -3593,6 +3608,9 @@ packages:
   '@types/stack-utils@2.0.3':
     resolution: {integrity: sha512-9aEbYZ3TbYMznPdcdr3SmIrLXwC/AKZXQeCf9Pgao5CKb8CyHuEX5jzWPTkvregvhRJHcpRO6BFoGW9ycaOkYw==}
 
+  '@types/string-hash@1.1.3':
+    resolution: {integrity: sha512-p6skq756fJWiA59g2Uss+cMl6tpoDGuCBuxG0SI1t0NwJmYOU66LAMS6QiCgu7cUh3/hYCaMl5phcCW1JP5wOA==}
+
   '@types/superagent@8.1.9':
     resolution: {integrity: sha512-pTVjI73witn+9ILmoJdajHGW2jkSaOzhiFYF1Rd3EQ94kymLqB9PjD9ISg7WaALC7+dCHT0FGe9T2LktLq/3GQ==}
 
@@ -6525,6 +6543,9 @@ packages:
     resolution: {integrity: sha512-qjdpeo2yKlYTH7nFdK0vbZWuTCesk4o63v5iVOlhMQPfuIZQfW/HI35SjfhA+4qpg36rnFSvUK5b1m+ckIblQQ==}
     engines: {node: '>= 0.6.0'}
 
+  javascript-interface-library@0.1.14:
+    resolution: {integrity: sha512-TSdQbLKqq6PcFk9M9Qk+l45rjqWfTMhSkvZVcByy1tKsDYDH+kblKu/FcVk4lWkeYXvcczX8NtPGdeyrZYEBrw==}
+
   jest-changed-files@29.7.0:
     resolution: {integrity: sha512-fEArFiwf1BpQ+4bXSprcDc3/x4HSzL4al2tozwVpDFpsxALjLYdyiIK4e5Vz66GQJIbXJ82+35PtysofptNX2w==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -7086,9 +7107,6 @@ packages:
     resolution: {integrity: sha512-qXUm7e/YKFoqFPYPa3Ukg9xlI5cyAtGmyEIzMfW//m6kXwCy2Ps9DYf5ioijFKQ8qyuscrHoY04iJGctu2Kg0Q==}
     engines: {node: '>= 18'}
     hasBin: true
-
-  material-color-hash@0.1.6:
-    resolution: {integrity: sha512-lN0U0ZJb8FWVP8kXZaUVZDZkA+xjOR1Fvy5thYHlC/G3Jpv3sqlCvOvYQq6CfYcUIyqc2MEFQtlyooXrpuTc7Q==}
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -8921,6 +8939,15 @@ packages:
     peerDependencies:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
+
+  svelte-coordinate-conversion@0.1.9:
+    resolution: {integrity: sha512-9BBAoZ7U5psGxgYKd61DEFxou3MmWrW9xIGvgG1n+Jtg47ll/jpNYsiS8iy6fVu1Sfbq3TQF/cljqRKHwaOeeg==}
+
+  svelte-drag-and-drop-actions@0.1.35:
+    resolution: {integrity: sha512-v2XtENssLfX5BE41E5653emXSTHd1hHtEXtB2k8PbTQ0jC0iB/WdEx9SwWesoKXRLcvLN7WLDVnmuSB3g3BIeg==}
+
+  svelte-drag-and-drop-actions@1.0.2:
+    resolution: {integrity: sha512-0T0Z0v5NFiPZlzP5/SrWnbDWCPSIZtyn07H7IwVgUku5v6A95FRySWhbGrBn0b/y+4oayh+VmkU2TqMEcoitTw==}
 
   svelte-eslint-parser@0.41.1:
     resolution: {integrity: sha512-08ndI6zTghzI8SuJAFpvMbA/haPSGn3xz19pjre19yYMw8Nw/wQJ2PrZBI/L8ijGTgtkWCQQiLLy+Z1tfaCwNA==}
@@ -12845,6 +12872,8 @@ snapshots:
   '@types/stack-utils@2.0.3':
     optional: true
 
+  '@types/string-hash@1.1.3': {}
+
   '@types/superagent@8.1.9':
     dependencies:
       '@types/cookiejar': 2.1.5
@@ -16586,6 +16615,8 @@ snapshots:
 
   java-properties@1.0.2: {}
 
+  javascript-interface-library@0.1.14: {}
+
   jest-changed-files@29.7.0:
     dependencies:
       execa: 5.1.1
@@ -17351,10 +17382,6 @@ snapshots:
       supports-hyperlinks: 3.2.0
 
   marked@12.0.2: {}
-
-  material-color-hash@0.1.6:
-    dependencies:
-      string-hash: 1.1.3
 
   math-intrinsics@1.1.0: {}
 
@@ -19157,6 +19184,20 @@ snapshots:
       typescript: 5.7.3
     transitivePeerDependencies:
       - picomatch
+
+  svelte-coordinate-conversion@0.1.9: {}
+
+  svelte-drag-and-drop-actions@0.1.35:
+    dependencies:
+      javascript-interface-library: 0.1.14
+      svelte-coordinate-conversion: 0.1.9
+
+  svelte-drag-and-drop-actions@1.0.2:
+    dependencies:
+      javascript-interface-library: 0.1.14
+      svelte-coordinate-conversion: 0.1.9
+      svelte-drag-and-drop-actions: 0.1.35
+      tslib: 2.8.1
 
   svelte-eslint-parser@0.41.1(svelte@5.19.9):
     dependencies:

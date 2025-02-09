@@ -8,10 +8,10 @@
 	import LucideLock from '~icons/lucide/lock';
 	import LucideHouse from '~icons/lucide/house';
 	import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical';
-	import LucideTelescope from '~icons/lucide/telescope';
 	import LucideWorkflow from '~icons/lucide/workflow';
 	import LucideCircuitBoard from '~icons/lucide/circuit-board';
 	import LucideSettings from '~icons/lucide/settings';
+	import LogoIcon from '~icons/custom/logo';
 	import { toastManager } from '$lib/util/toastManager.svelte.js';
 	import { AuthApi } from '$lib/api/AuthApi.js';
 
@@ -38,12 +38,15 @@
 
 <div class="bg-base-200 relative flex min-h-screen flex-col justify-between">
 	<div class="px-6">
-		<div class="mb-4 border-b border-neutral-200 py-6 dark:border-neutral-700">
+		<div
+			class="mb-4 flex items-center gap-2 border-b border-neutral-200 py-6 dark:border-neutral-700"
+		>
 			<!--<Img
                 src={logoImg}
                 alt="ByteBunker"
                 class="aspect-square max-w-24 rounded-lg border border-neutral-700 object-contain p-1 shadow-md shadow-black/80"
             />-->
+			<LogoIcon class="size-8 text-[#245150]" width="64" height="64" />
 			<h1 class="text-lg font-bold">ByteBunker</h1>
 		</div>
 		<ul class="menu flex w-full">
