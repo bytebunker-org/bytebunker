@@ -11,14 +11,19 @@
 	import BlueprintEditorToolbox from '$lib/components/pipeline/BlueprintEditorToolbox.svelte';
 	import { Card, CardBody } from '@bytebunker/daisyui-components';
 	import { SvelteFlowProvider } from '@xyflow/svelte';
+	import type { PipelineExecutionDto } from '@bytebunker/backend';
+	import { enumValues, PipelineExecutionStatusEnum } from '@bytebunker/backend';
+	import PipelineStatusBadge from '$lib/components/pipeline/PipelineStatusBadge.svelte';
 
 	interface Props {
 		blueprint: Blueprint;
 
+		pipelineExecution?: PipelineExecutionDto;
+
 		allowEdit?: boolean;
 	}
 
-	let { blueprint, allowEdit = true }: Props = $props();
+	let { blueprint, pipelineExecution, allowEdit = true }: Props = $props();
 
 	const pipelineModulesQuery = createQuery<
 		PipelineModuleDto[],
@@ -44,31 +49,43 @@
 	setBlueprintEditorContext(() => ({
 		blueprint,
 		// All children of the blueprint are only rendered when everything is loaded
-		pipelineModules: pipelineModules!
+		pipelineModules: pipelineModules!,
+		pipelineExecution,
+		allowEdit
 	}));
 </script>
 
-<SvelteFlowProvider>
-	<div class="flex flex-col gap-4">
-		<Card class="bg-base-100 border-base-300 rounded-box border shadow">
-			<CardBody class="overflow-hidden p-0">
-				<div style:height="500px" class="rounded-box relative overflow-hidden">
-					{#if blueprint && pipelineModules}
+<div class="flex flex-col gap-4">
+	<Card class="bg-base-100 border-base-300 rounded-box border shadow">
+		<CardBody class="overflow-hidden p-0">
+			<div style:height="500px" class="rounded-box relative overflow-hidden">
+				{#if blueprint && pipelineModules}
+					<SvelteFlowProvider>
 						<BlueprintEditorFlow />
-					{:else}
-						<div
-							class="bg-base-100 absolute inset-0 z-20 flex w-full items-center justify-center"
-							transition:blur={{ duration: 300 }}
-						>
-							<span class="loading loading-ring text-primary size-12"></span>
-						</div>
-					{/if}
-				</div>
-			</CardBody>
-		</Card>
+					</SvelteFlowProvider>
+				{:else}
+					<div
+						class="bg-base-100 absolute inset-0 z-20 flex w-full items-center justify-center"
+						transition:blur={{ duration: 300 }}
+					>
+						<span class="loading loading-ring text-primary size-16"></span>
+					</div>
+				{/if}
+			</div>
+		</CardBody>
+	</Card>
+	{#if pipelineExecution}
+		<div class="rounded-box flex w-fit flex-col bg-neutral-100 p-2">
+			<p class="mb-1 text-sm font-bold">Ausführungsstatus</p>
+			<div class="flex flex-wrap gap-1">
+				{#each enumValues(PipelineExecutionStatusEnum) as status}
+					<PipelineStatusBadge {status} />
+				{/each}
+			</div>
+		</div>
+	{/if}
 
-		{#if allowEdit && pipelineModules}
-			<BlueprintEditorToolbox />
-		{/if}
-	</div>
-</SvelteFlowProvider>
+	{#if allowEdit}
+		<BlueprintEditorToolbox />
+	{/if}
+</div>

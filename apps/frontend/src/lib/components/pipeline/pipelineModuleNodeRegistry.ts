@@ -2,6 +2,7 @@ import type { PipelineModuleIdentifier } from '@bytebunker/backend';
 import type { Component } from 'svelte';
 import LucideFolderInput from '~icons/lucide/folder-input';
 import LucideBlocks from '~icons/lucide/blocks';
+import LucideSquareX from '~icons/lucide/square-x';
 import {
 	type MaterialColorName,
 	type MaterialColorShade
@@ -97,7 +98,7 @@ registerPipelineModuleNode('common-pipeline-triggers:local-file-trigger@1', {
 });
 
 registerPipelineModuleNode('bytebunker-core:abort-execution@1', {
-	icon: LucideFolderInput,
+	icon: LucideSquareX,
 	materialColor: 'Red',
 	materialColorShade: 900
 });

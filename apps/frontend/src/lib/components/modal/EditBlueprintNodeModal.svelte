@@ -17,8 +17,6 @@
 	let constantInputDataJson = $state('');
 
 	onMount(() => {
-		console.log('onMount modal');
-
 		constantInputDataJson = JSON.stringify(options.blueprintNode.constantInputData, null, 4);
 	});
 

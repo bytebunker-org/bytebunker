@@ -87,7 +87,7 @@
 					<ModalComponent options={currentOptions} close={currentCloseCallback} />
 
 					{#snippet failed(error, reset)}
-						<span class="text-error">Das Modal konnte nicht geladen werden</span>
+						<span class="text-error p-4">Das Modal konnte nicht geladen werden</span>
 					{/snippet}
 				</svelte:boundary>
 			{/if}

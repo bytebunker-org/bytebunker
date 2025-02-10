@@ -15,9 +15,17 @@
 		language?: string;
 
 		jsonSchema?: JSONSchema7;
+
+		readOnly?: boolean;
 	}
 
-	let { value = $bindable(), language = 'json', jsonSchema, ...restProps }: Props = $props();
+	let {
+		value = $bindable(),
+		language = 'json',
+		jsonSchema,
+		readOnly = false,
+		...restProps
+	}: Props = $props();
 
 	onMount(() => {
 		(async () => {
@@ -34,11 +42,11 @@
 
 			if (jsonSchema) {
 				monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-					validate: true,
-					schemaValidation: 'warning',
+					validate: !readOnly,
+					schemaValidation: readOnly ? 'ignore' : 'warning',
 					allowComments: false,
-					trailingCommas: 'error',
-					comments: 'error',
+					trailingCommas: readOnly ? 'ignore' : 'error',
+					comments: readOnly ? 'ignore' : 'error',
 					schemas: [
 						{
 							uri: jsonSchema.$id ?? 'http://example.com/unknown-schema.json',
@@ -60,7 +68,8 @@
 				automaticLayout: true,
 				overviewRulerLanes: 0,
 				overviewRulerBorder: false,
-				wordWrap: 'on'
+				wordWrap: 'on',
+				readOnly
 			});
 
 			editor.onDidChangeModelContent((e) => {

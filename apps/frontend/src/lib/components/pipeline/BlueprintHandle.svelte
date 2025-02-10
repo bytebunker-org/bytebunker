@@ -30,7 +30,7 @@
 
 <Handle
 	id={name}
-	type="target"
+	type={type === 'input' ? 'target' : 'source'}
 	position={type === 'input' ? Position.Left : Position.Right}
 	class={[
 		'!size-3 h-[32px] rounded-none border-none',

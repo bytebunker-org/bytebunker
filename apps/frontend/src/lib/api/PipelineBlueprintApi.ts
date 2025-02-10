@@ -52,7 +52,7 @@ export class PipelineBlueprintApi extends ApiBase {
 		id: number,
 		data: UpdatePipelineBlueprintDto,
 		fetchImpl?: typeof fetch
-	): Promise<PipelineBlueprintDto[]> {
+	): Promise<PipelineBlueprintDto> {
 		return ApiBase.patch(fetchImpl, `/pipelines-blueprints/${id}`, data);
 	}
 

@@ -9,19 +9,21 @@
 	import { asDroppable } from 'svelte-drag-and-drop-actions';
 	import { groupByKey } from '@bytebunker/backend';
 
-	let editorContext = getBlueprintEditorContext()();
+	let editorContext = $derived(getBlueprintEditorContext()());
 	let pipelineModules = $derived(editorContext.pipelineModules);
 
 	let groupedModules = $derived(
-		groupByKey(
-			Object.values(pipelineModules)
-				.map((m) => ({
-					...m,
-					extensionName: deconstructPipelineModuleIdentifier(m.id).extensionName
-				}))
-				.sort((a, b) => a.extensionName.localeCompare(b.extensionName)),
-			'extensionName'
-		)
+		pipelineModules
+			? groupByKey(
+					Object.values(pipelineModules)
+						.map((m) => ({
+							...m,
+							extensionName: deconstructPipelineModuleIdentifier(m.id).extensionName
+						}))
+						.sort((a, b) => a.extensionName.localeCompare(b.extensionName)),
+					'extensionName'
+				)
+			: {}
 	);
 </script>
 
@@ -61,6 +63,10 @@
 							</div>
 						{/each}
 					</div>
+				</div>
+			{:else}
+				<div class="p-4">
+					<span class="loading loading-ring text-primary loading-lg"></span>
 				</div>
 			{/each}
 		</div>

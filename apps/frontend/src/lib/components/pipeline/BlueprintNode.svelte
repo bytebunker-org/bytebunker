@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { useViewport } from '@xyflow/svelte';
+	import { type Node, useSvelteFlow, useViewport } from '@xyflow/svelte';
 	import {
+		type BlueprintNodeData,
 		type BlueprintNodeProps,
 		specialHandleNames
 	} from '$lib/components/pipeline/blueprintUtil.js';
@@ -8,15 +9,18 @@
 	import { deconstructPipelineModuleIdentifier } from '@bytebunker/backend';
 	import { toHeaderCase } from 'js-convert-case';
 	import BlueprintHandle from '$lib/components/pipeline/BlueprintHandle.svelte';
-	import type { JsonSchemaDto } from '@bytebunker/backend';
+	import type { JsonSchemaDto, PipelineExecutionDataDto } from '@bytebunker/backend';
 	import type { JSONSchema7 } from 'json-schema';
 	import { getPipelineModuleNodeInfo } from '$lib/components/pipeline/pipelineModuleNodeRegistry.js';
-	import { Button } from '@bytebunker/daisyui-components';
 	import LucidePencil from '~icons/lucide/pencil';
+	import LucideFileText from '~icons/lucide/file-text';
 	import { getModalContext } from '$lib/context.js';
 	import { ModalTypeEnum } from '$lib/components/modal/modalTypeEnum.js';
+	import { PipelineExecutionStatusEnum } from '@bytebunker/backend';
 
-	let { data }: BlueprintNodeProps = $props();
+	const { updateNodeData } = $derived(useSvelteFlow());
+
+	let { id: nodeId, data, selected }: BlueprintNodeProps = $props();
 
 	let moduleId = $derived(deconstructPipelineModuleIdentifier(data.moduleId));
 
@@ -24,6 +28,10 @@
 
 	let editorContext = getBlueprintEditorContext()();
 	let module = $derived(editorContext.pipelineModules[data.moduleId]);
+	let pipelineExecution = $derived(editorContext.pipelineExecution);
+	let executionData: PipelineExecutionDataDto | undefined = $derived(
+		pipelineExecution?.executionData.find((d) => d.nodeId === Number(nodeId))
+	);
 	let maxHandleAmount = $derived(
 		Math.max(
 			Object.keys(module.inputTypeSchema?.jsonSchema?.properties ?? {}).length,
@@ -64,12 +72,48 @@
 
 		if (result) {
 			console.log('result', result);
+			updateNodeData(nodeId, (node: Node<BlueprintNodeData>) => {
+				node.data = result as BlueprintNodeData;
+
+				return node;
+			});
 		}
+	}
+
+	function viewNodeExecutionInfoModal(event: MouseEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+
+		modalContext.open(ModalTypeEnum.VIEW_NODE_EXECUTION_INFO, {
+			blueprintNode: data,
+			module,
+			executionData: executionData!,
+			executionLogs:
+				pipelineExecution?.executionLogs?.filter((l) => l.nodeId === Number(nodeId)) ?? []
+		});
 	}
 </script>
 
 <div
-	class="rounded-box bg-base-100 min-w-fit shadow-md"
+	class={[
+		'rounded-box bg-base-100 min-w-fit shadow-md transition-all',
+		selected ? 'ring-accent ring-2' : '',
+		{
+			'ring-2': executionData || pipelineExecution,
+			'ring-6 shadow-xl': (executionData || pipelineExecution) && enlargedTitle,
+			'shadow-indigo-400 ring-indigo-400':
+				(!executionData && pipelineExecution) ||
+				executionData?.executionStatus === PipelineExecutionStatusEnum.WAITING,
+			'shadow-success ring-success':
+				executionData?.executionStatus === PipelineExecutionStatusEnum.SUCCESS,
+			'shadow-neutral-700 ring-neutral-700':
+				executionData?.executionStatus === PipelineExecutionStatusEnum.ABORTED,
+			'shadow-error ring-error':
+				executionData?.executionStatus === PipelineExecutionStatusEnum.FAILED,
+			'shadow-neutral-400 ring-neutral-400':
+				executionData?.executionStatus === PipelineExecutionStatusEnum.BRANCH_IGNORED
+		}
+	]}
 	style="--header-height: 32px; --handle-height: 36px; --max-handle-amount: {maxHandleAmount}; --bg-color: {blueprintNodeInfo.backgroundColor}; --fg-color: {blueprintNodeInfo.color}"
 >
 	{#snippet headerItems()}
@@ -78,10 +122,14 @@
 		{#if !enlargedTitle}
 			<div class="node-buttons">
 				<button
-					onclick={editNode}
+					onclick={(e) => (executionData ? viewNodeExecutionInfoModal(e) : editNode(e))}
 					class="btn btn-xs btn-ghost rounded-tr-box aspect-square h-[32px] w-auto rounded-none p-0 hover:bg-white/40"
 				>
-					<LucidePencil />
+					{#if executionData}
+						<LucideFileText />
+					{:else}
+						<LucidePencil />
+					{/if}
 				</button>
 			</div>
 		{/if}
