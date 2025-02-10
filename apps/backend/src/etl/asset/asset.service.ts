@@ -99,6 +99,7 @@ export class AssetService implements OnApplicationBootstrap {
             type: options.type,
             hash: hashBuffer,
             storagePath,
+            textAssetPreview: typeof data === 'string' ? data.slice(512) : undefined,
             metadata: options.metadata,
         });
         await em.flush();

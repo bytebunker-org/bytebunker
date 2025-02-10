@@ -15,12 +15,13 @@ import { AssetTypeEnum } from '../type/asset-type.enum.js';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import type { CommonMetadata } from '../common-metadata.interface.js';
+import type { AssetDto } from '../dto/asset.dto.js';
 
 @Entity()
 @Unique({
     properties: ['type', 'hash'],
 })
-export class AssetEntity extends TimestampEntity {
+export class AssetEntity extends TimestampEntity implements AssetDto {
     [PrimaryKeyProp]?: 'id';
 
     @PrimaryKey({
@@ -42,6 +43,13 @@ export class AssetEntity extends TimestampEntity {
 
     @Property()
     public storagePath!: string;
+
+    @Property({
+        type: types.text,
+        length: 512,
+        nullable: true,
+    })
+    public textAssetPreview?: string;
 
     @Property({
         type: types.json,

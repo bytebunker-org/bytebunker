@@ -25,8 +25,10 @@ export class PipelineExecutionService {
         private readonly moduleService: PipelineModuleService,
         @InjectFlowProducer(QueueFlowNameEnum.PIPELINE_EXECUTION_FLOW)
         private readonly pipelineExecutionFlowProducer: FlowProducer,
-        @InjectQueue(QueueNameEnum.PIPELINE_EXECUTION)
-        private readonly pipelineExecutionQueue: Queue,
+        @InjectQueue(QueueNameEnum.CONTINUE_PIPELINE_EXECUTION)
+        private readonly continuePipelineExecutionQueue: Queue,
+        @InjectQueue(QueueNameEnum.START_PIPELINE_EXECUTION)
+        private readonly startPipelineExecutionQueue: Queue,
     ) {}
 
     public async executeBlueprintFromTrigger(
@@ -69,15 +71,16 @@ export class PipelineExecutionService {
     }
 
     public async schedulePipelineExecution(pipelineId: number): Promise<void> {
-        await this.pipelineExecutionQueue.add(
-            QueueNameEnum.PIPELINE_EXECUTION,
+        await this.startPipelineExecutionQueue.add(
+            QueueNameEnum.START_PIPELINE_EXECUTION,
             {
                 pipelineId,
-            } satisfies JobDataType<QueueNameEnum.PIPELINE_EXECUTION>,
+            } satisfies JobDataType<QueueNameEnum.START_PIPELINE_EXECUTION>,
             {
                 deduplication: {
                     id: String(pipelineId),
                 },
+                delay: 500,
             },
         );
     }
@@ -126,18 +129,21 @@ export class PipelineExecutionService {
         const executableModuleNodes = findNextExecutableModules();
 
         if (executableModuleNodes.length) {
-            this.logger.debug(`Executing nodes ${executableModuleNodes.map((n) => n.moduleId).join(', ')}`);
+            this.logger.debug(
+                `Scheduling nodes for execution ${executableModuleNodes.map((n) => n.moduleId).join(', ')}`,
+            );
 
-            await this.pipelineExecutionFlowProducer.add({
+            const job = await this.pipelineExecutionFlowProducer.add({
                 name: QueueFlowNameEnum.PIPELINE_EXECUTION_FLOW,
-                queueName: QueueNameEnum.PIPELINE_EXECUTION,
+                queueName: QueueNameEnum.CONTINUE_PIPELINE_EXECUTION,
                 data: {
                     pipelineId,
-                } satisfies JobDataType<QueueNameEnum.PIPELINE_EXECUTION>,
+                } satisfies JobDataType<QueueNameEnum.CONTINUE_PIPELINE_EXECUTION>,
                 opts: {
                     deduplication: {
                         id: String(pipelineId),
                     },
+                    delay: 500,
                 },
                 children: executableModuleNodes.map((node) => ({
                     queueName: QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION,
@@ -148,6 +154,14 @@ export class PipelineExecutionService {
                     } satisfies JobDataType<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>,
                 })),
             });
+
+            console.log('Flow Job', JSON.stringify(job));
+
+            const flowTree = await this.pipelineExecutionFlowProducer.getFlow({
+                id: job.job.id!,
+                queueName: QueueNameEnum.CONTINUE_PIPELINE_EXECUTION,
+            });
+            console.log('created flow, tree:', JSON.stringify(flowTree));
         } else {
             const executionDataList = await em.find(
                 PipelineExecutionDataEntity,
@@ -233,35 +247,33 @@ export class PipelineExecutionService {
         const inputData = this.buildNodeInputData(pipelineExecution, node);
 
         try {
-            await em.transactional(async (em) => {
-                const module = this.moduleService.getPipelineModule(node.moduleId);
+            const module = this.moduleService.getPipelineModule(node.moduleId);
 
-                if (!module) {
-                    throw new Error(
-                        `Invalid internal module identifier ${node.moduleId}, available modules: ${this.moduleService
-                            .getAllPipelineModuleNames()
-                            .join(', ')}`,
-                    );
-                }
+            if (!module) {
+                throw new Error(
+                    `Invalid internal module identifier ${node.moduleId}, available modules: ${this.moduleService
+                        .getAllPipelineModuleNames()
+                        .join(', ')}`,
+                );
+            }
 
-                const outputDataOrHoldExecution = await module.executeModule({
-                    em,
-                    pipelineExecution,
-                    blueprint,
-                    currentNode: node,
-                    inputData,
-                });
-
-                if (outputDataOrHoldExecution instanceof CreateHoldExecutionDto) {
-                    this.holdModuleExecution(em, pipelineExecution, node, outputDataOrHoldExecution);
-                } else {
-                    this.createExecutionData(em, pipelineExecution, node.id, outputDataOrHoldExecution);
-                }
-
-                await em.flush();
-
-                this.logger.log(`Executed module ${node.moduleId}, returned ${outputDataOrHoldExecution}`);
+            const outputDataOrHoldExecution = await module.executeModule({
+                em,
+                pipelineExecution,
+                blueprint,
+                currentNode: node,
+                inputData,
             });
+
+            if (outputDataOrHoldExecution instanceof CreateHoldExecutionDto) {
+                this.holdModuleExecution(em, pipelineExecution, node, outputDataOrHoldExecution);
+            } else {
+                this.createExecutionData(em, pipelineExecution, node.id, outputDataOrHoldExecution);
+            }
+
+            await em.flush();
+
+            this.logger.log(`Executed module ${node.moduleId}, returned ${outputDataOrHoldExecution}`);
         } catch (error) {
             this.logger.warn(
                 `Couldn't execute module ${node.moduleId} in pipeline execution ${pipelineExecution.id} (node ${node.id})`,

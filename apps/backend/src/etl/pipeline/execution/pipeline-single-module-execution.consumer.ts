@@ -13,15 +13,18 @@ export class PipelineSingleModuleExecutionConsumer extends AbstractQueueConsumer
         super();
     }
 
-    public override async process(
-        job: QueueConsumerJob<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>,
-    ): Promise<void> {
-        console.log('PipelineSingleModuleExecutionConsumer processing', job);
+    public override process(job: QueueConsumerJob<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>): Promise<void> {
+        console.log('PipelineSingleModuleExecutionConsumer processing', job.name, job.data);
         return this.em.transactional(async (em) => {
-            const { pipelineId, nodeId } = job.data;
+            try {
+                const { pipelineId, nodeId } = job.data;
 
-            // TODO: Also give executeModule the job instance to track granular progress
-            await this.pipelineExecutionService.executeModule(em, pipelineId, nodeId);
+                // TODO: Also give executeModule the job instance to track granular progress
+                await this.pipelineExecutionService.executeModule(em, pipelineId, nodeId);
+            } catch (error) {
+                console.error(error);
+                throw error;
+            }
         });
     }
 }

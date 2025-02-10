@@ -4,7 +4,7 @@ import { PipelineModule } from '../../../../etl/pipeline/pipeline-module/decorat
 import { PipelineModuleTypeEnum } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module-type.enum.js';
 import { AbstractTriggerPipelineModule } from '../../../../etl/pipeline/pipeline-module/abstract-trigger-pipeline.module.js';
 import { COMMON_PIPELINE_TRIGGERS_EXTENSION } from '../../local-extension.constant.js';
-import type { AssetDto } from '../../../../etl/asset/dto/asset.dto.js';
+import { AssetDto } from '../../../../etl/asset/dto/asset.dto.js';
 
 @PipelineModuleJsonSchema()
 export class LocalFileTriggerInput {
@@ -17,7 +17,7 @@ export class LocalFileTriggerInput {
 @PipelineModuleJsonSchema()
 export class LocalFileTriggerOutput {
     @Required()
-    @Type('object')
+    @Type(AssetDto)
     public fileAsset!: AssetDto;
 }
 

@@ -4,7 +4,8 @@ import { PipelineExecutionJobDataDto } from './dto/pipeline-execution-job-data.d
 import { PipelineSingleModuleExecutionJobDataDto } from './dto/pipeline-single-module-execution-job-data.dto.js';
 
 export const queueJobDataMap = {
-    [QueueNameEnum.PIPELINE_EXECUTION]: PipelineExecutionJobDataDto,
+    [QueueNameEnum.CONTINUE_PIPELINE_EXECUTION]: PipelineExecutionJobDataDto,
+    [QueueNameEnum.START_PIPELINE_EXECUTION]: PipelineExecutionJobDataDto,
     [QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION]: PipelineSingleModuleExecutionJobDataDto,
 } satisfies Record<QueueNameEnum, Constructable>;
 
