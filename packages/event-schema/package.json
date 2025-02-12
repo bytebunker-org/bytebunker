@@ -1,0 +1,50 @@
+{
+    "name": "@bytebunker/event-schema",
+    "version": "0.0.1",
+    "description": "",
+    "author": {
+        "name": "Moritz Hein",
+        "email": "moritz.hein@live.de",
+        "url": "https://moritz.website"
+    },
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "scripts": {
+        "build:lib": "tsc --project tsconfig.lib.json",
+        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
+    },
+    "main": "./lib/index.js",
+    "types": "./lib/index.d.ts",
+    "keywords": [],
+    "dependencies": {
+        "json-schema": "^0.4.0",
+        "luxon": "^3.5.0",
+        "remeda": "^2.20.1",
+        "schema-dts": "^1.1.2",
+        "schema-org-json-schemas": "^2.1.4"
+    },
+    "devDependencies": {
+        "@apidevtools/json-schema-ref-parser": "^11.9.0",
+        "@bytebunker/tsconfig": "workspace:^",
+        "@types/json-schema": "^7.0.15",
+        "@types/luxon": "^3.4.2",
+        "@types/node": "22",
+        "json-schema-to-typescript": "^14.1.0",
+        "prettier": "^3.5.0",
+        "tsx": "4.19.2",
+        "typescript": "^5.7.3"
+    },
+    "files": [
+        "./src"
+    ],
+    "engines": {
+        "node": ">=22",
+        "pnpm": ">=9"
+    },
+    "lint-staged": {
+        "*.{js,ts}": [
+            "prettier --write"
+        ]
+    }
+}

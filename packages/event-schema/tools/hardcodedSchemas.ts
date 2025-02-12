@@ -1,0 +1,24 @@
+import type { JSONSchema4 } from 'json-schema';
+
+export const hardcodedSchemas: Record<string, JSONSchema4> = {
+    Boolean: { type: 'boolean' },
+    Date: { type: 'string', format: 'date' },
+    DateTime: { type: 'string', format: 'date-time' },
+    Float: { type: 'number', $comment: 'https://schema.org/Float' },
+    Integer: { type: 'integer' },
+    Number: { type: 'number' },
+    Text: { type: 'string' },
+    Time: { type: 'string', format: 'time' },
+    URL: { type: 'string', format: 'uri' },
+    Quantity: { type: 'string', $comment: 'https://schema.org/Quantity' },
+    Distance: { type: 'string', $comment: 'https://schema.org/Distance' },
+    Duration: { type: 'string', $comment: 'https://schema.org/Duration' },
+    Energy: { type: 'string', $comment: 'https://schema.org/Energy' },
+    Mass: { type: 'string', $comment: 'https://schema.org/Mass' },
+    acceptsReservations: {
+        anyOf: [{ type: 'boolean' }, { type: 'string', format: 'uri' }, { type: 'string', enum: ['Yes', 'No'] }],
+    },
+    cssSelector: { type: 'string' },
+    repetitions: { type: 'integer', minimum: 1 },
+    xpath: { type: 'string' },
+};
