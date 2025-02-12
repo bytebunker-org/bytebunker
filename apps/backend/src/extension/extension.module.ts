@@ -8,8 +8,9 @@ import { ExtensionController } from './extension.controller.js';
 import { ExtensionDeveloperController } from './extension-developer.controller.js';
 import { CommonPipelineTriggersModule } from './extensions/common-pipeline-triggers/common-pipeline-triggers.module.js';
 import { localExtensions } from './extensions/local-extension.constant.js';
+import { GoogleExtensionModule } from './extensions/google/google-extension.module.js';
 
-const manuallyLoadedExtensions = [CommonPipelineTriggersModule];
+const manuallyLoadedExtensions = [CommonPipelineTriggersModule, GoogleExtensionModule];
 
 @Module({
     imports: manuallyLoadedExtensions,

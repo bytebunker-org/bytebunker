@@ -16,6 +16,7 @@ import { AssetEntity } from './entity/asset.entity.js';
 import { v7 as uuidV7 } from 'uuid';
 import fs from 'node:fs/promises';
 import mmmagic from 'mmmagic';
+import type { Readable } from 'node:stream';
 
 @Injectable()
 export class AssetService implements OnApplicationBootstrap {
@@ -109,6 +110,38 @@ export class AssetService implements OnApplicationBootstrap {
         this.logger.log(`Created new asset ${storagePath}`);
 
         return asset;
+    }
+
+    public async getAssetStream(em: EntityManager, assetOrId: AssetDto | string): Promise<Readable> {
+        const asset = typeof assetOrId === 'string' ? await em.findOneOrFail(AssetEntity, assetOrId) : assetOrId;
+
+        const assetStorage = this.getStorageService(asset.type);
+
+        return assetStorage.retrieveAssetStream(asset.storagePath);
+    }
+
+    public async getAsset(
+        em: EntityManager,
+        assetOrId: AssetDto | string,
+        encoding: BufferEncoding = 'utf8',
+    ): Promise<Buffer> {
+        const asset = typeof assetOrId === 'string' ? await em.findOneOrFail(AssetEntity, assetOrId) : assetOrId;
+
+        const assetStorage = this.getStorageService(asset.type);
+
+        return assetStorage.retrieveAsset(asset.storagePath, encoding);
+    }
+
+    public async getAssetString(
+        em: EntityManager,
+        assetOrId: AssetDto | string,
+        encoding: BufferEncoding = 'utf8',
+    ): Promise<string> {
+        const asset = typeof assetOrId === 'string' ? await em.findOneOrFail(AssetEntity, assetOrId) : assetOrId;
+
+        const assetStorage = this.getStorageService(asset.type);
+
+        return assetStorage.retrieveAssetString(asset.storagePath, encoding);
     }
 
     private buildStoragePath(id: string, parsedOriginalPath: ParsedPath | undefined, options: CreateAssetDto): string {

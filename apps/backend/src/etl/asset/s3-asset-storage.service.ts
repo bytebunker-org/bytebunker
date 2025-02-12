@@ -36,4 +36,45 @@ export class S3AssetStorageService extends AssetStorageService {
     ): Promise<void> {
         await this.minioClient!.putObject(this.bucketName, storagePath, data, size, metadata);
     }
+
+    public override retrieveAssetStream(storagePath: string): Promise<Readable> {
+        return this.minioClient!.getObject(this.bucketName, storagePath);
+    }
+
+    public override async retrieveAsset(storagePath: string, encoding: BufferEncoding = 'utf8'): Promise<Buffer> {
+        const readableStream = await this.retrieveAssetStream(storagePath);
+
+        return this.streamToBuffer(readableStream, encoding);
+    }
+
+    public override async retrieveAssetString(storagePath: string, encoding: BufferEncoding = 'utf8'): Promise<string> {
+        const assetBuffer = await this.retrieveAsset(storagePath, encoding);
+
+        return assetBuffer.toString(encoding);
+    }
+
+    private streamToBuffer(readableStream: Readable, encoding?: BufferEncoding): Promise<Buffer> {
+        return new Promise((resolve, reject) => {
+            const chunks: Buffer[] = [];
+
+            // from https://medium.com/@akhilanand.ak01/converting-streams-to-buffers-a-practical-guide-745fc2f77728
+            readableStream.on('data', (data) => {
+                if (typeof data === 'string') {
+                    chunks.push(Buffer.from(data, encoding));
+                } else if (data instanceof Buffer) {
+                    chunks.push(data);
+                } else {
+                    // Convert other data types to JSON and then to a Buffer
+                    const jsonData = JSON.stringify(data);
+                    chunks.push(Buffer.from(jsonData, encoding));
+                }
+            });
+
+            readableStream.on('end', () => {
+                resolve(Buffer.concat(chunks));
+            });
+
+            readableStream.on('error', reject);
+        });
+    }
 }

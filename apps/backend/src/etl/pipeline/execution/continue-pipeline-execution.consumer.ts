@@ -14,7 +14,6 @@ export class ContinuePipelineExecutionConsumer extends AbstractQueueConsumer<Que
     }
 
     public override process(job: QueueConsumerJob<QueueNameEnum.CONTINUE_PIPELINE_EXECUTION>): Promise<void> {
-        console.log('ContinuePipelineExecutionConsumer processing', job.name, job.data);
         return this.em.transactional(async (em) => {
             try {
                 await this.pipelineExecutionService.continuePipelineExecution(em, job.data.pipelineId);

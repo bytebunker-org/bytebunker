@@ -14,7 +14,6 @@ export class PipelineSingleModuleExecutionConsumer extends AbstractQueueConsumer
     }
 
     public override process(job: QueueConsumerJob<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>): Promise<void> {
-        console.log('PipelineSingleModuleExecutionConsumer processing', job.name, job.data);
         return this.em.transactional(async (em) => {
             try {
                 const { pipelineId, nodeId } = job.data;

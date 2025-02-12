@@ -11,4 +11,10 @@ export abstract class AssetStorageService {
         size?: number,
         metadata?: CommonMetadata & Record<string, unknown>,
     ): Promise<void>;
+
+    public abstract retrieveAssetStream(storagePath: string): Promise<Readable>;
+
+    public abstract retrieveAsset(storagePath: string, encoding?: BufferEncoding): Promise<Buffer>;
+
+    public abstract retrieveAssetString(storagePath: string, encoding?: BufferEncoding): Promise<string>;
 }
