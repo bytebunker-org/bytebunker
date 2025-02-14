@@ -1,12 +1,11 @@
 import { isPlainObject } from './util.js';
 
-export type StableKey = string | readonly unknown[];
-export type EnsuredStableKey<T extends StableKey> = T extends string ? [T] : Exclude<T, string>;
+export type StableKey = readonly unknown[];
 
 /**
  * Hashes the value into a stable hash.
  */
-function stableKeyHash<Q extends StableKey>(value: EnsuredStableKey<Q>, ignorePrototypes = false): string {
+function stableKeyHash<K extends StableKey>(value: K, ignorePrototypes = false): string {
     return JSON.stringify(value, (_, value_) => {
         if ((ignorePrototypes && typeof value_ === 'object' && value_ !== null) || isPlainObject(value_)) {
             return Object.keys(value_)
@@ -22,20 +21,14 @@ function stableKeyHash<Q extends StableKey>(value: EnsuredStableKey<Q>, ignorePr
 }
 
 // Copied from: https://github.com/SvelteStack/svelte-query/blob/main/src/queryCore/core/utils.ts
-function ensureStableKeyArray<T extends StableKey>(value: T): EnsuredStableKey<T> {
-    return (Array.isArray(value) ? value : ([value] as unknown)) as EnsuredStableKey<T>;
-}
-
-export function hashStableKey<Q extends StableKey>(stableKey: Q): string {
-    const asArray = ensureStableKeyArray<Q>(stableKey);
-    return stableKeyHash(asArray);
+export function hashStableKey<K extends StableKey>(stableKey: K): string {
+    return stableKeyHash(stableKey);
 }
 
 /**
  * The same as hashStableKey but still works if there are any non-plain objects (class instances etc.)
  * @param stableKey
  */
-export function hashStableKeyForcePlainObjects<Q extends StableKey>(stableKey: Q): string {
-    const asArray = ensureStableKeyArray<Q>(stableKey);
-    return stableKeyHash(asArray, true);
+export function hashStableKeyForcePlainObjects<K extends StableKey>(stableKey: K): string {
+    return stableKeyHash(stableKey, true);
 }

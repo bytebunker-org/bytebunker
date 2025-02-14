@@ -26,7 +26,7 @@ export class MikroOrmSessionStoreService extends Store {
             const session = await em.findOne(
                 StoredUserSessionEntity,
                 { sessionId, expiresAt: { $gt: DateTime.now() } },
-                { cache: cacheQuery(StoredUserSessionEntity, sessionId, 1000 * 60) },
+                { cache: cacheQuery(StoredUserSessionEntity, [sessionId], 1000 * 60) },
             );
 
             callback?.(null, session?.data);
@@ -74,7 +74,7 @@ export class MikroOrmSessionStoreService extends Store {
                     },
                 ],
             });
-            await em.clearCache(buildQueryCacheKey(StoredUserSessionEntity, sessionId));
+            await em.clearCache(buildQueryCacheKey(StoredUserSessionEntity, [sessionId]));
 
             callback?.(null);
         } catch (error) {

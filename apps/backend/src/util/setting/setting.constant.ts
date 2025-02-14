@@ -1,5 +1,18 @@
 import { SettingTypeEnum } from '../../shared/setting/type/setting-type.enum.js';
 import type { SettingConfigType } from '../../shared/setting/type/setting-config.type.js';
+import type { DateTimeUnit } from 'luxon';
+
+export const validDateTimeUnits: DateTimeUnit[] = [
+    'year',
+    'quarter',
+    'month',
+    'week',
+    'day',
+    'hour',
+    'minute',
+    'second',
+    'millisecond',
+];
 
 export const settingsConfig = {
     categories: {
@@ -60,6 +73,29 @@ export const settingsConfig = {
             },
             validationSchemaObject: undefined,
             defaultValue: './data/import-failed',
+            required: true,
+        },
+        eventUniqueLocationPrecision: {
+            parentCategoryKey: 'etl',
+            type: SettingTypeEnum.NUMBER,
+            targetType: 'global',
+            validationSchema: {
+                type: 'integer',
+            },
+            validationSchemaObject: undefined,
+            defaultValue: 5,
+            required: true,
+        },
+        eventUniqueDateTimePrecision: {
+            parentCategoryKey: 'etl',
+            type: SettingTypeEnum.STRING,
+            targetType: 'global',
+            validationSchema: {
+                type: 'string',
+                enum: validDateTimeUnits,
+            },
+            validationSchemaObject: undefined,
+            defaultValue: 'second',
             required: true,
         },
     },

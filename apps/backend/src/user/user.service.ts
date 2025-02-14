@@ -10,6 +10,7 @@ export class UserService {
     private readonly logger = new Logger(UserService.name);
 
     private nullUser: UserEntity | null = null;
+    private ownerUser: UserEntity | null = null;
 
     constructor(private readonly bcryptService: BcryptService) {}
 
@@ -56,6 +57,18 @@ export class UserService {
                 throw error;
             }
         }
+    }
+
+    public async getOwnerUser(em: EntityManager): Promise<UserEntity> {
+        if (!this.ownerUser) {
+            this.ownerUser = await em.findOneOrFail(UserEntity, {
+                username: {
+                    $ne: (await this.getNullUser(em)).username,
+                },
+            });
+        }
+
+        return this.ownerUser;
     }
 
     public async getNullUser(em: EntityManager): Promise<UserEntity> {
