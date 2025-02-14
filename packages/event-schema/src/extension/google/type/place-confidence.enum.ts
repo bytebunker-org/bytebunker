@@ -1,0 +1,11 @@
+/**
+ * Categorized confidence for this place visit. One of: `LOW_CONFIDENCE`, `MEDIUM_CONFIDENCE`, `HIGH_CONFIDENCE` or `USER_CONFIRMED`.
+ */
+export type PlaceConfidence = 'LOW_CONFIDENCE' | 'MEDIUM_CONFIDENCE' | 'HIGH_CONFIDENCE' | 'USER_CONFIRMED';
+
+export enum PlaceConfidenceEnum {
+    LOW_CONFIDENCE = 'LOW_CONFIDENCE',
+    MEDIUM_CONFIDENCE = 'MEDIUM_CONFIDENCE',
+    HIGH_CONFIDENCE = 'HIGH_CONFIDENCE',
+    USER_CONFIRMED = 'USER_CONFIRMED',
+}

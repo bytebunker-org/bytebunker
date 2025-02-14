@@ -1,0 +1,3 @@
+[submodule "packages/event-schema/tools/google/LocationHistoryFormat"]
+	path = packages/event-schema/tools/google/LocationHistoryFormat
+	url = https://github.com/CarlosBergillos/LocationHistoryFormat.git

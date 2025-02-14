@@ -1,0 +1,10 @@
+{
+    "extends": "@bytebunker/tsconfig/nestjs-lib.json",
+    "compilerOptions": {
+        "outDir": "./lib",
+        "rootDir": "./",
+        "resolveJsonModule": true
+    },
+    "include": ["./tools/**/*.ts"],
+    "exclude": ["node_modules"]
+}

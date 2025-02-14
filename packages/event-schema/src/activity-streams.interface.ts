@@ -13,18 +13,19 @@
 // xsd:duration is mapped to string (ISO 8601 duration format)
 
 import type { DateTime, Duration } from 'luxon';
+import type { ASTypeWithFallback } from './activity-streams-util.type.js';
 
 /**
  * Union Types
  */
-export type ObjectOrLink = ASObject | Link;
-export type ImageOrLink = Image | Link;
-export type CollectionOrLink = Collection | Link;
-export type CollectionPageOrLink = CollectionPage | Link;
-export type CollectionPageOrCollectionPageLink = CollectionPage | Link; // Corrected union name
+export type ObjectOrLink = ASObject | ASLink;
+export type ImageOrLink = Image | ASLink;
+export type CollectionOrLink = Collection | ASLink;
+export type CollectionPageOrLink = CollectionPage | ASLink;
+export type CollectionPageOrCollectionPageLink = CollectionPage | ASLink; // Corrected union name
 export type ObjectOrLinkOrOrderedItems = ObjectOrLink | OrderedItems;
-export type ImageOrLinkOrThing = Image | Link | Thing; // Thing from owl:Thing, assuming it's a basic type if needed
-export type LinkOrThing = Link | Thing; // Thing from owl:Thing
+export type ImageOrLinkOrThing = Image | ASLink | OwlThing; // Thing from owl:Thing, assuming it's a basic type if needed
+export type LinkOrThing = ASLink | OwlThing; // Thing from owl:Thing
 export type LangStringOrString = string; // rdf:langString or xsd:string
 
 /**
@@ -36,7 +37,7 @@ export type LangStringOrString = string; // rdf:langString or xsd:string
  * @see https://www.w3.org/ns/activitystreams#Relationship
  */
 export interface Relationship extends ASObject {
-    '@type': 'Relationship' | string;
+    '@type': 'Relationship';
 
     /**
      * On a Relationship object, identifies the subject. e.g. when saying "John is connected to Sally", 'subject' refers to 'John'
@@ -56,7 +57,7 @@ export interface Relationship extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Tombstone
  */
 export interface Tombstone extends ASObject {
-    '@type': 'Tombstone' | string;
+    '@type': 'Tombstone';
 
     /**
      * Specifies the date and time the object was deleted
@@ -76,7 +77,7 @@ export interface Tombstone extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Profile
  */
 export interface Profile extends ASObject {
-    '@type': 'Profile' | string;
+    '@type': 'Profile';
 
     /**
      * On a Profile object, describes the object described by the profile
@@ -90,7 +91,7 @@ export interface Profile extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Collection
  */
 export interface Collection extends ASObject {
-    '@type': 'Collection' | 'CollectionPage' | 'OrderedCollection' | string;
+    '@type': 'Collection' | 'CollectionPage' | 'OrderedCollection' | 'OrderedCollectionPage';
 
     /**
      * Identifies the current page of a Collection.
@@ -128,7 +129,7 @@ export interface Collection extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#CollectionPage
  */
 export interface CollectionPage extends Collection {
-    '@type': 'CollectionPage' | 'OrderedCollectionPage' | string;
+    '@type': 'CollectionPage' | 'OrderedCollectionPage';
 
     /**
      * Identifies the next page of a CollectionPage.
@@ -154,7 +155,7 @@ export interface CollectionPage extends Collection {
  * @see https://www.w3.org/ns/activitystreams#OrderedCollectionPage
  */
 export interface OrderedCollectionPage extends OrderedCollection, CollectionPage {
-    '@type': 'OrderedCollectionPage' | string;
+    '@type': 'OrderedCollectionPage';
 
     /**
      * In a strictly ordered logical collection, specifies the index position of the first item in the items list
@@ -168,7 +169,7 @@ export interface OrderedCollectionPage extends OrderedCollection, CollectionPage
  * @see https://www.w3.org/ns/activitystreams#OrderedCollection
  */
 export interface OrderedCollection extends Collection {
-    '@type': 'OrderedCollection' | 'OrderedCollectionPage' | string;
+    '@type': 'OrderedCollection' | 'OrderedCollectionPage';
     // Items is inherited from Collection
 }
 
@@ -178,7 +179,7 @@ export interface OrderedCollection extends Collection {
  */
 export interface OrderedItems extends Array<ObjectOrLink> {
     // Assuming it's conceptually an array of ObjectOrLink
-    '@type'?: 'OrderedItems' | string; // Optional as it's more of a structure than a type with a fixed name.
+    '@type'?: 'OrderedItems'; // Optional as it's more of a structure than a type with a fixed name.
     // No specific properties defined in RDF, using Array<ObjectOrLink> for representation
 }
 
@@ -186,8 +187,10 @@ export interface OrderedItems extends Array<ObjectOrLink> {
  * Represents a qualified reference to another resource. Patterned after the RFC5988 Web Linking Model
  * @see https://www.w3.org/ns/activitystreams#Link
  */
-export interface Link {
-    '@type': 'Link' | 'Mention' | string;
+export interface ASLink {
+    '@id'?: string;
+
+    '@type': 'Link' | 'Mention';
 
     /**
      * The display height expressed as device independent pixels
@@ -206,12 +209,6 @@ export interface Link {
      * @see https://www.w3.org/ns/activitystreams#hreflang
      */
     hreflang?: string; // xsd:language
-
-    /**
-     * @deprecated Deprecated
-     * @see https://www.w3.org/ns/activitystreams#id
-     */
-    id?: string; // xsd:anyURI
 
     /**
      * The MIME Media Type
@@ -248,7 +245,7 @@ export interface Link {
  * A specialized Link that represents an @mention
  * @see https://www.w3.org/ns/activitystreams#Mention
  */
-export interface Mention extends Link {
+export interface Mention extends ASLink {
     '@type': 'Mention';
 }
 
@@ -257,7 +254,7 @@ export interface Mention extends Link {
  * @see https://www.w3.org/ns/activitystreams#Document
  */
 export interface Document extends ASObject {
-    '@type': 'Document' | 'Audio' | 'Image' | 'Video' | string;
+    '@type': 'Document' | 'Audio' | 'Image' | 'Video';
 }
 
 /**
@@ -289,7 +286,7 @@ export interface Video extends Document {
  * @see https://www.w3.org/ns/activitystreams#Page
  */
 export interface Page extends ASObject {
-    '@type': 'Page' | string;
+    '@type': 'Page';
 }
 
 /**
@@ -297,7 +294,7 @@ export interface Page extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Article
  */
 export interface Article extends ASObject {
-    '@type': 'Article' | string;
+    '@type': 'Article';
 }
 
 /**
@@ -305,7 +302,7 @@ export interface Article extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Note
  */
 export interface Note extends ASObject {
-    '@type': 'Note' | string;
+    '@type': 'Note';
 }
 
 /**
@@ -313,7 +310,7 @@ export interface Note extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Place
  */
 export interface Place extends ASObject {
-    '@type': 'Place' | string;
+    '@type': 'Place';
 
     /**
      * Specifies the accuracy around the point established by the longitude and latitude
@@ -359,7 +356,7 @@ export interface Place extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Event
  */
 export interface Event extends ASObject {
-    '@type': 'Event' | string;
+    '@type': 'Event';
 
     /**
      * The ending time of the object
@@ -385,7 +382,7 @@ export interface Event extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Group
  */
 export interface Group extends ASObject {
-    '@type': 'Group' | string;
+    '@type': 'Group';
 }
 
 /**
@@ -393,7 +390,7 @@ export interface Group extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Organization
  */
 export interface Organization extends ASObject {
-    '@type': 'Organization' | string;
+    '@type': 'Organization';
 }
 
 /**
@@ -401,7 +398,7 @@ export interface Organization extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Person
  */
 export interface Person extends ASObject {
-    '@type': 'Person' | string;
+    '@type': 'Person';
 }
 
 /**
@@ -409,7 +406,7 @@ export interface Person extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Application
  */
 export interface Application extends ASObject {
-    '@type': 'Application' | string;
+    '@type': 'Application';
 }
 
 /**
@@ -417,74 +414,81 @@ export interface Application extends ASObject {
  * @see https://www.w3.org/ns/activitystreams#Service
  */
 export interface Service extends ASObject {
-    '@type': 'Service' | string;
+    '@type': 'Service';
 }
+
+export type ASObjectType = ASTypeWithFallback<
+    | 'Object'
+    | 'Activity'
+    | 'IntransitiveActivity'
+    | 'Accept'
+    | 'TentativeAccept'
+    | 'Add'
+    | 'Announce'
+    | 'Arrive'
+    | 'Block'
+    | 'Create'
+    | 'Delete'
+    | 'Dislike'
+    | 'Flag'
+    | 'Follow'
+    | 'Ignore'
+    | 'Invite'
+    | 'Join'
+    | 'Leave'
+    | 'Like'
+    | 'Listen'
+    | 'Move'
+    | 'Offer'
+    | 'Question'
+    | 'Read'
+    | 'Reject'
+    | 'TentativeReject'
+    | 'Remove'
+    | 'Travel'
+    | 'Undo'
+    | 'Update'
+    | 'View'
+    | 'Document'
+    | 'Audio'
+    | 'Image'
+    | 'Video'
+    | 'Note'
+    | 'Article'
+    | 'Page'
+    | 'Place'
+    | 'Event'
+    | 'Group'
+    | 'Organization'
+    | 'Person'
+    | 'Application'
+    | 'Service'
+    | 'Collection'
+    | 'CollectionPage'
+    | 'OrderedCollection'
+    | 'OrderedCollectionPage'
+    | 'Relationship'
+    | 'Tombstone'
+    | 'Profile'
+    | 'Link'
+>;
 
 /**
  * The most generic of RDF classes.
  * @see https://www.w3.org/ns/activitystreams#Object
  */
 export interface ASObject {
-    '@type':
-        | 'Object'
-        | 'Activity'
-        | 'IntransitiveActivity'
-        | 'Accept'
-        | 'TentativeAccept'
-        | 'Add'
-        | 'Announce'
-        | 'Arrive'
-        | 'Block'
-        | 'Create'
-        | 'Delete'
-        | 'Dislike'
-        | 'Flag'
-        | 'Follow'
-        | 'Ignore'
-        | 'Invite'
-        | 'Join'
-        | 'Leave'
-        | 'Like'
-        | 'Listen'
-        | 'Move'
-        | 'Offer'
-        | 'Question'
-        | 'Read'
-        | 'Reject'
-        | 'TentativeReject'
-        | 'Remove'
-        | 'Travel'
-        | 'Undo'
-        | 'Update'
-        | 'View'
-        | 'Document'
-        | 'Audio'
-        | 'Image'
-        | 'Video'
-        | 'Note'
-        | 'Article'
-        | 'Page'
-        | 'Place'
-        | 'Event'
-        | 'Group'
-        | 'Organization'
-        | 'Person'
-        | 'Application'
-        | 'Service'
-        | 'Collection'
-        | 'CollectionPage'
-        | 'OrderedCollectionPage'
-        | 'Relationship'
-        | 'Tombstone'
-        | 'Profile'
-        | 'Link'
-        | string;
+    '@id'?: string;
+
+    '@type': ASObjectType;
+
+    stableKeys?: string[];
 
     /**
      * `@type` is not allowed to be an array, to objects to graph database nodes. To still allow extending
      * objects with other jsonld types, use the `@secondaryTypes` field.
      */
-    '@secondaryTypes'?: string[];
+    '@secondaryTypes'?: ASObjectType[];
 
     /**
      * Subproperty of as:attributedTo that identifies the primary actor
@@ -544,16 +548,16 @@ export interface ASObject {
     context?: ObjectOrLink;
 
     /**
-     * @deprecated Deprecated
-     * @see https://www.w3.org/ns/activitystreams#downstreamDuplicates
-     */
-    downstreamDuplicates?: string | string[]; // xsd:anyURI
-
-    /**
      * The duration of the object
      * @see https://www.w3.org/ns/activitystreams#duration
      */
     duration?: Duration; // xsd:duration (ISO 8601 duration)
+
+    /**
+     * The starting time of the object
+     * @see https://www.w3.org/ns/activitystreams#startTime
+     */
+    startTime?: DateTime;
 
     /**
      * The ending time of the object
@@ -596,12 +600,6 @@ export interface ASObject {
      * @see https://www.w3.org/ns/activitystreams#name
      */
     name?: LangStringOrString;
-
-    /**
-     * @deprecated Deprecated
-     * @see https://www.w3.org/ns/activitystreams#objectType
-     */
-    objectType?: string; // xsd:anyURI
 
     /**
      * Specifies the date and time the object was published
@@ -681,41 +679,45 @@ export interface ASObject {
     url?: LinkOrThing | LinkOrThing[]; // Expecting single or array based on context
 }
 
+export type ActivityType = ASTypeWithFallback<
+    | 'Activity'
+    | 'IntransitiveActivity'
+    | 'Accept'
+    | 'TentativeAccept'
+    | 'Add'
+    | 'Announce'
+    | 'Arrive'
+    | 'Block'
+    | 'Create'
+    | 'Delete'
+    | 'Dislike'
+    | 'Flag'
+    | 'Follow'
+    | 'Ignore'
+    | 'Invite'
+    | 'Join'
+    | 'Leave'
+    | 'Like'
+    | 'Listen'
+    | 'Move'
+    | 'Offer'
+    | 'Question'
+    | 'Read'
+    | 'Reject'
+    | 'TentativeReject'
+    | 'Remove'
+    | 'Travel'
+    | 'Undo'
+    | 'Update'
+    | 'View'
+>;
+
 /**
  * An Object representing some form of Action that has been taken
  * @see https://www.w3.org/ns/activitystreams#Activity
  */
-export interface Activity extends ASObject {
-    '@type':
-        | 'Activity'
-        | 'IntransitiveActivity'
-        | 'Accept'
-        | 'Add'
-        | 'Announce'
-        | 'Arrive'
-        | 'Block'
-        | 'Create'
-        | 'Delete'
-        | 'Dislike'
-        | 'Flag'
-        | 'Follow'
-        | 'Ignore'
-        | 'Invite'
-        | 'Join'
-        | 'Leave'
-        | 'Like'
-        | 'Listen'
-        | 'Move'
-        | 'Offer'
-        | 'Question'
-        | 'Read'
-        | 'Reject'
-        | 'Remove'
-        | 'Travel'
-        | 'Undo'
-        | 'Update'
-        | 'View'
-        | string;
+export interface ASActivity extends ASObject {
+    '@type': ActivityType;
 
     /**
      * Subproperty of as:attributedTo that identifies the primary actor
@@ -752,20 +754,14 @@ export interface Activity extends ASObject {
      * @see https://www.w3.org/ns/activitystreams#target
      */
     target?: ObjectOrLink;
-
-    /**
-     * @deprecated Deprecated
-     * @see https://www.w3.org/ns/activitystreams#verb
-     */
-    verb?: string; // xsd:anyURI
 }
 
 /**
  * An Activity that has no direct object
  * @see https://www.w3.org/ns/activitystreams#IntransitiveActivity
  */
-export interface IntransitiveActivity extends Activity {
-    '@type': 'IntransitiveActivity' | 'Arrive' | 'Question' | 'Travel' | string;
+export interface IntransitiveActivity extends ASActivity {
+    '@type': 'IntransitiveActivity' | 'Arrive' | 'Question' | 'Travel';
     // object property is restricted to maxCardinality 0, so no 'object' property should be here.
 }
 
@@ -773,8 +769,8 @@ export interface IntransitiveActivity extends Activity {
  * Actor accepts the Object
  * @see https://www.w3.org/ns/activitystreams#Accept
  */
-export interface Accept extends Activity {
-    '@type': 'Accept' | 'TentativeAccept' | string;
+export interface Accept extends ASActivity {
+    '@type': 'Accept' | 'TentativeAccept';
 }
 
 /**
@@ -789,7 +785,7 @@ export interface TentativeAccept extends Accept {
  * To Add an Object or Link to Something
  * @see https://www.w3.org/ns/activitystreams#Add
  */
-export interface Add extends Activity {
+export interface Add extends ASActivity {
     '@type': 'Add';
 }
 
@@ -797,7 +793,7 @@ export interface Add extends Activity {
  * Actor announces the object to the target
  * @see https://www.w3.org/ns/activitystreams#Announce
  */
-export interface Announce extends Activity {
+export interface Announce extends ASActivity {
     '@type': 'Announce';
 }
 
@@ -813,8 +809,8 @@ export interface Arrive extends IntransitiveActivity {
  * Actor is ignoring the Object
  * @see https://www.w3.org/ns/activitystreams#Ignore
  */
-export interface Ignore extends Activity {
-    '@type': 'Ignore' | 'Block' | string;
+export interface Ignore extends ASActivity {
+    '@type': 'Ignore' | 'Block';
 }
 
 /**
@@ -829,7 +825,7 @@ export interface Block extends Ignore {
  * To Create Something
  * @see https://www.w3.org/ns/activitystreams#Create
  */
-export interface Create extends Activity {
+export interface Create extends ASActivity {
     '@type': 'Create';
 }
 
@@ -837,7 +833,7 @@ export interface Create extends Activity {
  * To Delete Something
  * @see https://www.w3.org/ns/activitystreams#Delete
  */
-export interface Delete extends Activity {
+export interface Delete extends ASActivity {
     '@type': 'Delete';
 }
 
@@ -845,7 +841,7 @@ export interface Delete extends Activity {
  * The actor dislikes the object
  * @see https://www.w3.org/ns/activitystreams#Dislike
  */
-export interface Dislike extends Activity {
+export interface Dislike extends ASActivity {
     '@type': 'Dislike';
 }
 
@@ -853,7 +849,7 @@ export interface Dislike extends Activity {
  * To Express Interest in Something
  * @see https://www.w3.org/ns/activitystreams#Follow
  */
-export interface Follow extends Activity {
+export interface Follow extends ASActivity {
     '@type': 'Follow';
 }
 
@@ -861,7 +857,7 @@ export interface Follow extends Activity {
  * To flag something (e.g. flag as inappropriate, flag as spam, etc)
  * @see https://www.w3.org/ns/activitystreams#Flag
  */
-export interface Flag extends Activity {
+export interface Flag extends ASActivity {
     '@type': 'Flag';
 }
 
@@ -877,7 +873,7 @@ export interface Invite extends Offer {
  * To Join Something
  * @see https://www.w3.org/ns/activitystreams#Join
  */
-export interface Join extends Activity {
+export interface Join extends ASActivity {
     '@type': 'Join';
 }
 
@@ -885,7 +881,7 @@ export interface Join extends Activity {
  * To Leave Something
  * @see https://www.w3.org/ns/activitystreams#Leave
  */
-export interface Leave extends Activity {
+export interface Leave extends ASActivity {
     '@type': 'Leave';
 }
 
@@ -893,7 +889,7 @@ export interface Leave extends Activity {
  * To Like Something
  * @see https://www.w3.org/ns/activitystreams#Like
  */
-export interface Like extends Activity {
+export interface Like extends ASActivity {
     '@type': 'Like';
 }
 
@@ -901,7 +897,7 @@ export interface Like extends Activity {
  * The actor listened to the object
  * @see https://www.w3.org/ns/activitystreams#Listen
  */
-export interface Listen extends Activity {
+export interface Listen extends ASActivity {
     '@type': 'Listen';
 }
 
@@ -909,7 +905,7 @@ export interface Listen extends Activity {
  * The actor is moving the object. The target specifies where the object is moving to. The origin specifies where the object is moving from.
  * @see https://www.w3.org/ns/activitystreams#Move
  */
-export interface Move extends Activity {
+export interface Move extends ASActivity {
     '@type': 'Move';
     /**
      * For certain activities, specifies the entity from which the action is directed.
@@ -928,8 +924,8 @@ export interface Move extends Activity {
  * To Offer something to someone or something
  * @see https://www.w3.org/ns/activitystreams#Offer
  */
-export interface Offer extends Activity {
-    '@type': 'Offer' | 'Invite' | string;
+export interface Offer extends ASActivity {
+    '@type': 'Offer' | 'Invite';
 }
 
 /**
@@ -956,7 +952,7 @@ export interface Question extends IntransitiveActivity {
  * The actor read the object
  * @see https://www.w3.org/ns/activitystreams#Read
  */
-export interface Read extends Activity {
+export interface Read extends ASActivity {
     '@type': 'Read';
 }
 
@@ -964,8 +960,8 @@ export interface Read extends Activity {
  * Actor rejects the Object
  * @see https://www.w3.org/ns/activitystreams#Reject
  */
-export interface Reject extends Activity {
-    '@type': 'Reject' | 'TentativeReject' | string;
+export interface Reject extends ASActivity {
+    '@type': 'Reject' | 'TentativeReject';
 }
 
 /**
@@ -980,7 +976,7 @@ export interface TentativeReject extends Reject {
  * To Remove Something
  * @see https://www.w3.org/ns/activitystreams#Remove
  */
-export interface Remove extends Activity {
+export interface Remove extends ASActivity {
     '@type': 'Remove';
 }
 
@@ -1008,7 +1004,7 @@ export interface Travel extends IntransitiveActivity {
  * To Undo Something. This would typically be used to indicate that a previous Activity has been undone.
  * @see https://www.w3.org/ns/activitystreams#Undo
  */
-export interface Undo extends Activity {
+export interface Undo extends ASActivity {
     '@type': 'Undo';
 }
 
@@ -1016,7 +1012,7 @@ export interface Undo extends Activity {
  * To Update/Modify Something
  * @see https://www.w3.org/ns/activitystreams#Update
  */
-export interface Update extends Activity {
+export interface Update extends ASActivity {
     '@type': 'Update';
 }
 
@@ -1024,7 +1020,7 @@ export interface Update extends Activity {
  * The actor viewed the object
  * @see https://www.w3.org/ns/activitystreams#View
  */
-export interface View extends Activity {
+export interface View extends ASActivity {
     '@type': 'View';
 }
 
@@ -1032,7 +1028,7 @@ export interface View extends Activity {
  * Represents the concept of "owl:Thing" if needed explicitly.
  * In many cases, 'string' or 'any' might suffice for generic RDF resources.
  */
-export interface Thing {
+export interface OwlThing {
     '@id'?: string; // Optional ID if needed
     '@type'?: string | string[]; // Optional type if needed
     [key: string]: unknown; // To allow for other properties

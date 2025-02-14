@@ -5,7 +5,6 @@ import fs from 'node:fs/promises';
 import type { FileInfo } from '@apidevtools/json-schema-ref-parser';
 import * as path from 'node:path';
 import { hardcodedSchemas } from './hardcodedSchemas.js';
-import * as R from 'remeda';
 
 const schemaOrgJsonSchemas = schemaOrgJsonSchemaExport as Record<string, JSONSchema4>;
 

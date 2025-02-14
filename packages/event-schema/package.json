@@ -12,11 +12,23 @@
     "license": "MIT",
     "scripts": {
         "build:lib": "tsc --project tsconfig.lib.json",
+        "generate:google-types": "cp ./tools/google/LocationHistoryFormat/schemas/*.schema.json ./src/extension/google/schema && rm -f ./src/extension/google/generatedType/*.ts && tsx ./tools/generateGoogleLocationHistoryFormatTypes.ts && prettier --write \"src/extension/google/generatedType/*.ts\"",
         "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
     },
     "main": "./lib/index.js",
     "types": "./lib/index.d.ts",
     "keywords": [],
+    "exports": {
+        ".": {
+            "import": "./lib/index.js",
+            "types": "./lib/index.d.ts"
+        },
+        "./extension/google": {
+            "import": "./lib/extension/google/index.js",
+            "types": "./lib/extension/google/index.d.ts"
+        },
+        "./package.json": "./package.json"
+    },
     "dependencies": {
         "json-schema": "^0.4.0",
         "luxon": "^3.5.0",
