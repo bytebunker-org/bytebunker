@@ -57,13 +57,13 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
             });
             this.watcher.on('add', (filePath, stats) => this.onFileAdded(filePath, stats!));
 
-            const pipelineTriggers = await this.pipelineTriggerService.findMatchingTriggerNodes(
+            /*const pipelineTriggers = await this.pipelineTriggerService.findMatchingTriggerNodes(
                 em,
                 LocalFileTriggerPipelineModule,
             );
 
             for (const { node } of pipelineTriggers) {
-            }
+            }*/
         });
     }
 

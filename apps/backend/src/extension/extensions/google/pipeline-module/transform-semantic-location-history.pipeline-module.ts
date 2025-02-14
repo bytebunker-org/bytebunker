@@ -119,6 +119,7 @@ export class TransformSemanticLocationHistoryPipelineModule
 
         return {
             '@type': 'Move',
+            '@secondaryTypes': [createUnknownASType('GoogleTimelineActivity')],
             generator: this.eventService.getExtension(GOOGLE_EXTENSION_ID),
             actor,
             origin: startLocation,
@@ -200,6 +201,7 @@ export class TransformSemanticLocationHistoryPipelineModule
     ): Place | undefined {
         const rawLatitude = usePlaceLocation && location?.latitudeE7 ? location.latitudeE7 : fallbackLatitude;
         const rawLongitude = usePlaceLocation && location?.longitudeE7 ? location.longitudeE7 : fallbackLongitude;
+        // Latitude/Longitude in "E7" format has to be divided by 10^7 for the expected range
         const latitude = rawLatitude ? rawLatitude / 10 ** 7 : undefined;
         const longitude = rawLongitude ? rawLongitude / 10 ** 7 : undefined;
 

@@ -27,6 +27,9 @@ export class PipelineExecutionEntity extends TimestampEntity implements Pipeline
     @PrimaryKey()
     public id!: number;
 
+    @Property()
+    public description?: string;
+
     @ManyToOne(() => PipelineBlueprintEntity, {
         deleteRule: 'cascade',
         updateRule: 'cascade',
