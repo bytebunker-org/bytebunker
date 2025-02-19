@@ -1,0 +1,1 @@
+export const NEODE_PROVIDER = 'NEODE_PROVIDER';

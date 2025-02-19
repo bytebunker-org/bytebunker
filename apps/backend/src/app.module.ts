@@ -23,6 +23,8 @@ import { DatatableModule } from './shared/datatable/datatable.module.js';
 import { AssetModule } from './etl/asset/asset.module.js';
 import { RedisModule } from './shared/redis/redis.module.js';
 import { QueueModule } from './queue/queue.module.js';
+import { ActivityGraphModule } from './activity-graph/activity-graph.module.js';
+import { GraphDatabaseModule } from './activity-graph/graph-database/graph-database.module.js';
 
 @Module({
     imports: [
@@ -47,6 +49,8 @@ import { QueueModule } from './queue/queue.module.js';
         ExtensionModule,
         PipelineModule,
         UserModule,
+        GraphDatabaseModule,
+        ActivityGraphModule,
     ],
     providers: [
         {

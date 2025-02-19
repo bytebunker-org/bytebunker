@@ -1,6 +1,6 @@
 import { type FactoryProvider, Logger } from '@nestjs/common';
 import type { LoggerFunction } from 'neo4j-driver-core/types/types.d.ts';
-import { NEO4J_LOGGER_PROVIDER } from './graph-database.constant.js';
+import { NEO4J_LOGGER_PROVIDER } from './activity-graph.constant.js';
 
 export const neo4jLoggerProvider: FactoryProvider<LoggerFunction> = {
     provide: NEO4J_LOGGER_PROVIDER,

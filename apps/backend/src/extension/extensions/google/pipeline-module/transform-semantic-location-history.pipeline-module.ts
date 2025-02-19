@@ -7,7 +7,6 @@ import type {
     PipelineModuleExecutionContext,
 } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
 import { PipelineModuleJsonSchema } from '../../../../etl/pipeline/pipeline-module/decorator/pipeline-module-json-schema.decorator.js';
-import { ActivityDto } from '../../../../graph-database/dto/activity.dto.js';
 import { AssetService } from '../../../../etl/asset/asset.service.js';
 import type {
     ActivitySegment,
@@ -16,14 +15,16 @@ import type {
     SemanticLocationHistory,
 } from '@bytebunker/event-schema/extension/google';
 import { PlaceConfidenceEnum } from '@bytebunker/event-schema/extension/google';
-import type { Arrive, ASObject, Move, Place } from '@bytebunker/event-schema';
+import type { Arrive, Move, Place } from '@bytebunker/event-schema';
 import { createUnknownASType } from '@bytebunker/event-schema';
-import { EventService } from '../../../../event/event.service.js';
 import { Logger } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import type { GooglePlaceObjectInterface } from '../type/google-place-object.interface.js';
 import type { GoogleTimelineActivityInterface } from '../type/google-timeline-activity.interface.js';
 import { hasOwn } from '../../../../util/util.js';
+import { ActivityService } from '../../../../activity/activity.service.js';
+import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
+import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 
 @PipelineModuleJsonSchema()
 export class TransformSemanticLocationHistoryInput {
@@ -54,7 +55,8 @@ export class TransformSemanticLocationHistoryPipelineModule
 
     constructor(
         private readonly assetService: AssetService,
-        private readonly eventService: EventService,
+        private readonly activityService: ActivityService,
+        private readonly activityGraphService: ActivityGraphService,
     ) {}
 
     public async executeModule({
@@ -66,7 +68,7 @@ export class TransformSemanticLocationHistoryPipelineModule
         const rawJson = await this.assetService.getAssetString(em, rawJsonAsset);
         const rawLocations = JSON.parse(rawJson) as SemanticLocationHistory;
 
-        const ownerActor = await this.eventService.getOwnerActor(em);
+        const ownerActor = await this.activityGraphService.getOwnerActor(em);
 
         return {
             activities: rawLocations.timelineObjects
@@ -74,12 +76,12 @@ export class TransformSemanticLocationHistoryPipelineModule
                     if (hasOwn(timelineObject, 'activitySegment')) {
                         return this.transformActivitySegment(
                             timelineObject.activitySegment as ActivitySegment,
-                            ownerActor,
+                            ownerActor.get('id')!,
                         );
                     } else if (hasOwn(timelineObject, 'placeVisit')) {
                         return this.transformPlaceVisit({
                             visit: timelineObject.placeVisit as PlaceVisit,
-                            actor: ownerActor,
+                            actorId: ownerActor.get('id')!,
                             minPlaceConfidence,
                         });
                     } else {
@@ -94,7 +96,7 @@ export class TransformSemanticLocationHistoryPipelineModule
 
     private transformActivitySegment(
         activity: ActivitySegment,
-        actor: ASObject,
+        actorId: string,
     ): (Move & GoogleTimelineActivityInterface) | undefined {
         const startLocation = this.parseLocation(activity.startLocation, {
             usePlaceDetails: false,
@@ -120,8 +122,11 @@ export class TransformSemanticLocationHistoryPipelineModule
         return {
             '@type': 'Move',
             '@secondaryTypes': [createUnknownASType('GoogleTimelineActivity')],
-            generator: this.eventService.getExtension(GOOGLE_EXTENSION_ID),
-            actor,
+            generator: this.activityService.getExtension(GOOGLE_EXTENSION_ID),
+            actor: {
+                '@id': actorId,
+                '@type': 'Person',
+            },
             origin: startLocation,
             target: endLocation,
             startTime: startDateTime,
@@ -140,11 +145,11 @@ export class TransformSemanticLocationHistoryPipelineModule
 
     private transformPlaceVisit({
         visit,
-        actor,
+        actorId,
         minPlaceConfidence,
     }: {
         visit: PlaceVisit;
-        actor: ASObject;
+        actorId: string;
         minPlaceConfidence: PlaceConfidenceEnum;
     }): Arrive | undefined {
         const isPlaceConfident = Boolean(
@@ -168,9 +173,9 @@ export class TransformSemanticLocationHistoryPipelineModule
 
         return {
             '@type': 'Arrive',
-            generator: this.eventService.getExtension(GOOGLE_EXTENSION_ID),
+            generator: this.activityService.getExtension(GOOGLE_EXTENSION_ID),
             stableKeys: [
-                this.eventService.createActivityStableKey(
+                this.activityService.createActivityStableKey(
                     'Arrive',
                     {
                         start: startDateTime,
@@ -178,7 +183,10 @@ export class TransformSemanticLocationHistoryPipelineModule
                     { dateTimePrecision: 'minute' },
                 ),
             ],
-            actor,
+            actor: {
+                '@id': actorId,
+                '@type': 'Person',
+            },
             location: place,
             startTime: startDateTime,
             endTime: endDateTime,
@@ -213,12 +221,12 @@ export class TransformSemanticLocationHistoryPipelineModule
             '@type': 'Place',
             '@secondaryTypes': [createUnknownASType('GooglePlace')],
             stableKeys: [
-                this.eventService.createASObjectStableKey('Place', {
+                this.activityService.createASObjectStableKey('Place', {
                     lat: latitude,
                     lng: longitude,
                 }),
                 usePlaceDetails && location?.placeId
-                    ? this.eventService.createASObjectStableKey('Place', { placeId: location?.placeId })
+                    ? this.activityService.createASObjectStableKey('Place', { placeId: location?.placeId })
                     : undefined,
             ].filter(Boolean),
             latitude,

@@ -9,28 +9,11 @@ import type { DateTimeUnit } from 'luxon';
 import type { ASObjectStableKeyCommonDataInterface } from './type/as-object-stable-key-common-data.interface.js';
 
 @Injectable()
-export class EventService {
-    private ownerActor!: ASObject;
-
+export class ActivityService {
     constructor(
         private readonly em: EntityManager,
         private readonly userService: UserService,
     ) {}
-
-    public async getOwnerActor(em: EntityManager): Promise<ASObject> {
-        if (!this.ownerActor) {
-            // TODO: Load from Neo4j
-            const ownerUser = await this.userService.getOwnerUser(em);
-
-            this.ownerActor = {
-                '@id': `/person/${ownerUser.username}`,
-                '@type': 'Person',
-                name: ownerUser.username,
-            } satisfies Person;
-        }
-
-        return this.ownerActor;
-    }
 
     public getExtension(id: string): ASObject {
         return {

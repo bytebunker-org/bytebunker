@@ -5,10 +5,11 @@ import { EntityManager } from '@mikro-orm/postgresql';
 import { JsonSchemaService } from '../../../shared/json-schema/json-schema.service.js';
 import { JsonSchemaModule } from '../../../shared/json-schema/json-schema.module.js';
 import { JsonSchemaValidationModule } from '../../../shared/json-schema-validation/json-schema-validation.module.js';
-import { EventModule } from '../../../event/event.module.js';
+import { ActivityModule } from '../../../activity/activity.module.js';
+import { ActivityGraphModule } from '../../../activity-graph/activity-graph.module.js';
 
 @Module({
-    imports: [AssetModule, JsonSchemaModule, JsonSchemaValidationModule, EventModule],
+    imports: [AssetModule, JsonSchemaModule, JsonSchemaValidationModule, ActivityModule, ActivityGraphModule],
     controllers: [],
     providers: [TransformSemanticLocationHistoryPipelineModule],
 })

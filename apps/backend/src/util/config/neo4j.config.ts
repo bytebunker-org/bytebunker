@@ -1,29 +1,28 @@
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-
-export enum Neo4jLogLevel {
-    DEBUG = 'debug',
-    INFO = 'info',
-    WARN = 'warn',
-    ERROR = 'error',
-}
+import { Allow, IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import type { LogLevelOption } from '@bytebunker/neode/logger';
 
 export class Neo4jConfig {
     @IsString()
     @IsNotEmpty()
-    public readonly url!: string;
+    public readonly connectionString!: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    public readonly user!: string;
+    public readonly username?: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    public readonly password!: string;
+    public readonly password?: string;
 
+    @IsOptional()
+    @IsBoolean()
+    public readonly isEnterprise?: boolean;
+
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    public readonly database!: string;
+    public readonly database?: string;
 
-    @IsEnum(Neo4jLogLevel)
-    public logLevel!: Neo4jLogLevel;
+    @IsOptional()
+    @Allow()
+    public logging?: LogLevelOption;
 }

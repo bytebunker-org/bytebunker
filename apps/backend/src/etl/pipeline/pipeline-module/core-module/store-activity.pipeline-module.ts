@@ -1,15 +1,12 @@
 import { Items, Required } from 'ts-decorator-json-schema-generator';
-import { PipelineModule } from '../../../../etl/pipeline/pipeline-module/decorator/pipeline-module.decorator.js';
-import type {
-    IPipelineModule,
-    PipelineModuleExecutionContext,
-} from '../../../../etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
-import { PipelineModuleJsonSchema } from '../../../../etl/pipeline/pipeline-module/decorator/pipeline-module-json-schema.decorator.js';
-import { ActivityDto } from '../../../../graph-database/dto/activity.dto.js';
-import { AssetService } from '../../../../etl/asset/asset.service.js';
-import { EventService } from '../../../../event/event.service.js';
+import { PipelineModule } from '../decorator/pipeline-module.decorator.js';
+import type { IPipelineModule, PipelineModuleExecutionContext } from '../type/pipeline-module.interface.js';
 import { Logger } from '@nestjs/common';
 import { CORE_EXTENSION_NAME } from '../../../../extension/extension.constant.js';
+import { PipelineModuleJsonSchema } from '../decorator/pipeline-module-json-schema.decorator.js';
+import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
+import { AssetService } from '../../../asset/asset.service.js';
+import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 
 @PipelineModuleJsonSchema()
 export class StoreActivityInput {
@@ -31,7 +28,7 @@ export class StoreActivityPipelineModule implements IPipelineModule<StoreActivit
 
     constructor(
         private readonly assetService: AssetService,
-        private readonly eventService: EventService,
+        private readonly activityGraphService: ActivityGraphService,
     ) {}
 
     public async executeModule({
