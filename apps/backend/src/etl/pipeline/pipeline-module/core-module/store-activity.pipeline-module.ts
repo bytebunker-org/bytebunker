@@ -1,4 +1,4 @@
-import { Items, Required } from 'ts-decorator-json-schema-generator';
+import { Items, Required, Type as SType } from 'ts-decorator-json-schema-generator';
 import { PipelineModule } from '../decorator/pipeline-module.decorator.js';
 import type { IPipelineModule, PipelineModuleExecutionContext } from '../type/pipeline-module.interface.js';
 import { Logger } from '@nestjs/common';
@@ -16,7 +16,15 @@ export class StoreActivityInput {
 }
 
 @PipelineModuleJsonSchema()
-export class StoreActivityOutput {}
+export class StoreActivityOutput {
+    @Required()
+    @SType('integer')
+    public createdCount!: number;
+
+    @Required()
+    @SType('integer')
+    public existingCount!: number;
+}
 
 @PipelineModule({
     extensionName: CORE_EXTENSION_NAME,
@@ -31,10 +39,10 @@ export class StoreActivityPipelineModule implements IPipelineModule<StoreActivit
         private readonly activityGraphService: ActivityGraphService,
     ) {}
 
-    public async executeModule({
+    public executeModule({
         em,
         inputData,
     }: PipelineModuleExecutionContext<StoreActivityInput>): Promise<StoreActivityOutput> {
-        return {};
+        return this.activityGraphService.createActivityGraph(em, inputData.activities);
     }
 }

@@ -7,10 +7,11 @@ import { ContinuePipelineExecutionConsumer } from './continue-pipeline-execution
 import { PipelineSingleModuleExecutionConsumer } from './pipeline-single-module-execution.consumer.js';
 import { QueueModule } from '../../../queue/queue.module.js';
 import { StartPipelineExecutionConsumer } from './start-pipeline-execution.consumer.js';
+import { PipelineExecutionLogController } from './pipeline-execution-log.controller.js';
 
 @Module({
     imports: [QueueModule, PipelineModuleModule],
-    controllers: [PipelineExecutionController],
+    controllers: [PipelineExecutionController, PipelineExecutionLogController],
     providers: [
         PipelineExecutionService,
         PipelineTriggerService,

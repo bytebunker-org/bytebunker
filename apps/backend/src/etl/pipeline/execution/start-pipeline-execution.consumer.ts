@@ -16,7 +16,13 @@ export class StartPipelineExecutionConsumer extends AbstractQueueConsumer<QueueN
     public override process(job: QueueConsumerJob<QueueNameEnum.START_PIPELINE_EXECUTION>): Promise<void> {
         return this.em.transactional(async (em) => {
             try {
-                await this.pipelineExecutionService.continuePipelineExecution(em, job.data.pipelineId);
+                await this.pipelineExecutionService.continuePipelineExecution(
+                    em,
+                    job.data.pipelineId,
+                    [],
+                    undefined,
+                    job.data.forceExecute,
+                );
             } catch (error) {
                 console.error(error);
                 throw error;

@@ -12,7 +12,7 @@ export const ASObjectSchema = {
         default: uuidV4,
     },
     generator: {
-        type: 'node',
+        type: 'relationship',
         required: true,
         target: NodeLabelEnum.EXTENSION,
         relationship: RelationshipLabelEnum.GENERATED_BY,

@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsObject, IsOptional, Max, MaxLength, Min } from 'class-validator';
+import type { ErrorObject } from 'serialize-error';
 
 export class PipelineExecutionLogDataDto {
     @Min(100)
@@ -22,5 +23,5 @@ export class PipelineExecutionLogDataDto {
     // TODO: Use error object from serialize-error utility package
     @IsOptional()
     @IsObject()
-    public error?: Error;
+    public error?: Error | ErrorObject;
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { PipelineExecutionService } from './pipeline-execution.service.js';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EntityManager } from '@mikro-orm/postgresql';
@@ -24,5 +24,13 @@ export class PipelineExecutionController {
                 data.triggerNodeInputData,
             ),
         );
+    }
+
+    @Post(':id/schedule-execution')
+    @ApiOperation({ summary: 'Schedule the pipeline to be executed again' })
+    @ApiResponse({ status: 204 })
+    @HttpCode(204)
+    public scheduleExecution(@Param('id', ParseIntPipe) id: number): Promise<void> {
+        return this.pipelineExecutionService.schedulePipelineExecution(id, true);
     }
 }

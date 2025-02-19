@@ -11,7 +11,7 @@ export const ASActivitySchema = {
         indexed: true,
     },
     actor: {
-        type: 'node',
+        type: 'relationship',
         relationship: RelationshipLabelEnum.ACTED_IN,
         target: NodeLabelEnum.PERSON,
         direction: RelationshipDirectionEnum.IN,
@@ -26,13 +26,13 @@ export const ASActivitySchema = {
         indexed: true,
     },
     origin: {
-        type: 'node',
+        type: 'relationship',
         relationship: RelationshipLabelEnum.FROM,
         target: NodeLabelEnum.AS_OBJECT,
         direction: RelationshipDirectionEnum.OUT,
     },
     target: {
-        type: 'node',
+        type: 'relationship',
         relationship: RelationshipLabelEnum.TO,
         target: NodeLabelEnum.AS_OBJECT,
         direction: RelationshipDirectionEnum.OUT,

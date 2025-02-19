@@ -1,15 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
-import type {
-    CountOptions,
-    EntityName,
-    FilterQuery,
-    FindAllOptions,
-    FindOneOptions,
-    Loaded,
-    NoInfer,
-    PopulatePath,
-} from '@mikro-orm/core';
+import type { EntityName, FilterQuery, FindAllOptions, Loaded, NoInfer, PopulatePath } from '@mikro-orm/core';
 import { FindRestApiCountResponseDto } from './dto/find-rest-api-count-response.dto.js';
 import type { FindRestApiCountDto } from './dto/find-rest-api-count.dto.js';
 

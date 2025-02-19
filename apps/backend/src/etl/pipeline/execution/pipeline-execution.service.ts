@@ -16,6 +16,8 @@ import { QueueFlowNameEnum } from '../../../queue/queue-flow-name.enum.js';
 import { FlowProducer, Queue } from 'bullmq';
 import { QueueNameEnum } from '../../../queue/queue-name.enum.js';
 import type { JobDataType } from '../../../queue/queue-data.type.js';
+import { serializeError } from 'serialize-error';
+import type { QueueConsumerJob } from '../../../queue/abstract-queue-consumer.class.js';
 
 @Injectable()
 export class PipelineExecutionService {
@@ -70,17 +72,16 @@ export class PipelineExecutionService {
         return pipelineExecution;
     }
 
-    public async schedulePipelineExecution(pipelineId: number): Promise<void> {
+    public async schedulePipelineExecution(pipelineId: number, forceExecute = false): Promise<void> {
         await this.startPipelineExecutionQueue.add(
             QueueNameEnum.START_PIPELINE_EXECUTION,
             {
                 pipelineId,
+                forceExecute,
             } satisfies JobDataType<QueueNameEnum.START_PIPELINE_EXECUTION>,
             {
-                deduplication: {
-                    id: String(pipelineId),
-                },
                 delay: 500,
+                attempts: 1,
             },
         );
     }
@@ -90,6 +91,7 @@ export class PipelineExecutionService {
         pipelineId: number,
         ignoreStatusNodeIdList: number[] = [],
         executeNodeSubtreeId: number | undefined = undefined,
+        forceExecute = false,
     ): Promise<void> {
         const pipelineExecution = await em.findOneOrFail(
             PipelineExecutionEntity,
@@ -100,6 +102,26 @@ export class PipelineExecutionService {
                 populate: ['blueprint', 'executionData.nodeId', 'executionData.executionStatus'],
             },
         );
+
+        if (forceExecute) {
+            if (pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED) {
+                pipelineExecution.executionStatus = PipelineExecutionStatusEnum.WAITING;
+                em.persist(pipelineExecution);
+            }
+
+            for (const executionData of pipelineExecution.executionData) {
+                if (
+                    [PipelineExecutionStatusEnum.ABORTED, PipelineExecutionStatusEnum.FAILED].includes(
+                        executionData.executionStatus,
+                    )
+                ) {
+                    executionData.executionStatus = PipelineExecutionStatusEnum.WAITING;
+                    em.persist(executionData);
+                }
+            }
+
+            await em.flush();
+        }
 
         if (
             pipelineExecution.executionStatus === PipelineExecutionStatusEnum.SUCCESS ||
@@ -127,6 +149,7 @@ export class PipelineExecutionService {
 
         const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
         const executableModuleNodes = findNextExecutableModules();
+        console.log('executableModuleNodes', executableModuleNodes);
 
         if (executableModuleNodes.length) {
             this.logger.debug(
@@ -140,10 +163,15 @@ export class PipelineExecutionService {
                     pipelineId,
                 } satisfies JobDataType<QueueNameEnum.CONTINUE_PIPELINE_EXECUTION>,
                 opts: {
-                    deduplication: {
-                        id: String(pipelineId),
-                    },
+                    /*deduplication: {
+                        id: `${pipelineId}-${executableModuleNodes
+                            .map((n) => n.id)
+                            .sort()
+                            .join(',')}`,
+                    },*/
                     delay: 500,
+                    attempts: 1,
+                    failParentOnFailure: true,
                 },
                 children: executableModuleNodes.map((node) => ({
                     queueName: QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION,
@@ -152,6 +180,10 @@ export class PipelineExecutionService {
                         pipelineId,
                         nodeId: node.id,
                     } satisfies JobDataType<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>,
+                    opts: {
+                        attempts: 1,
+                        failParentOnFailure: true,
+                    },
                 })),
             });
 
@@ -226,7 +258,12 @@ export class PipelineExecutionService {
         }
     }
 
-    public async executeModule(em: EntityManager, pipelineId: number, nodeId: number): Promise<void> {
+    public async executeModule(
+        em: EntityManager,
+        pipelineId: number,
+        nodeId: number,
+        job: QueueConsumerJob<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>,
+    ): Promise<Error | void> {
         // TODO: Optimize to only load necessary execution data
         const pipelineExecution = await em.findOneOrFail(
             PipelineExecutionEntity,
@@ -257,13 +294,15 @@ export class PipelineExecutionService {
                 );
             }
 
-            const outputDataOrHoldExecution = await module.executeModule({
-                em,
-                pipelineExecution,
-                blueprint,
-                currentNode: node,
-                inputData,
-            });
+            const outputDataOrHoldExecution = await em.fork().transactional((em) =>
+                module.executeModule({
+                    em,
+                    pipelineExecution,
+                    blueprint,
+                    currentNode: node,
+                    inputData,
+                }),
+            );
 
             if (outputDataOrHoldExecution instanceof CreateHoldExecutionDto) {
                 this.holdModuleExecution(em, pipelineExecution, node, outputDataOrHoldExecution);
@@ -308,6 +347,8 @@ export class PipelineExecutionService {
             );
 
             await em.flush();
+
+            return error as Error;
         }
     }
 
@@ -331,11 +372,11 @@ export class PipelineExecutionService {
         const executionLog = em.create(PipelineExecutionLogEntity, {
             pipelineExecution,
             nodeId: node.id,
-            message: executionLogData?.message ?? '',
+            message: executionLogData?.message?.slice(0, 255) ?? '',
             data: {
                 statusCode: executionLogData?.statusCode ?? 500,
                 data: executionLogData?.data,
-                error: executionLogData?.error,
+                error: executionLogData?.error ? serializeError(executionLogData?.error) : undefined,
             },
         });
         pipelineExecution.executionLogs.add(executionLog);

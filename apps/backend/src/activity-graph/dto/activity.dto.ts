@@ -9,6 +9,10 @@ export class ActivityDto implements ASObject {
     @Items('string')
     public '@secondaryTypes'?: ASObjectType[];
 
+    @Optional()
+    @Items('string')
+    public stableKeys?: string[];
+
     @Required()
     @Type('object')
     public actor!: ObjectOrLink | ObjectOrLink[];

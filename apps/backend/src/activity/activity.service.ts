@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type ASObject, type ASObjectType, createUnknownASType, type Person } from '@bytebunker/event-schema';
+import { type ASObject, type ASObjectType, createUnknownASType } from '@bytebunker/event-schema';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { UserService } from '../user/user.service.js';
 import { hashStableKey } from '../util/stable-key-hash.util.js';
@@ -23,7 +23,7 @@ export class ActivityService {
     }
 
     public createActivityStableKey(
-        type: ASObjectType,
+        primaryNodeType: ASObjectType,
         data: ActivityStableKeyCommonDataInterface & Record<string, unknown>,
         precisionOptions: { locationPrecision?: number; dateTimePrecision?: DateTimeUnit } = {},
     ): string {
@@ -34,7 +34,7 @@ export class ActivityService {
             precisionOptions.dateTimePrecision ?? (eventUniqueDateTimePrecisionSetting as DateTimeUnit);
 
         return hashStableKey([
-            type,
+            primaryNodeType,
             {
                 ...data,
                 ...(data.lat ? { lat: data.lat.toFixed(locationPrecision) } : {}),
@@ -47,7 +47,7 @@ export class ActivityService {
     }
 
     public createASObjectStableKey(
-        type: ASObjectType,
+        primaryNodeType: ASObjectType,
         data: ASObjectStableKeyCommonDataInterface & Record<string, unknown>,
         precisionOptions: { locationPrecision?: number } = {},
     ): string {
@@ -56,7 +56,7 @@ export class ActivityService {
         const locationPrecision = precisionOptions.locationPrecision ?? eventUniqueLocationPrecisionSetting;
 
         return hashStableKey([
-            type,
+            primaryNodeType,
             {
                 ...data,
                 ...(data.lat ? { lat: data.lat.toFixed(locationPrecision) } : {}),
