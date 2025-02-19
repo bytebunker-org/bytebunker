@@ -74,5 +74,8 @@
 		"valibot": "1.0.0-beta.14",
 		"vite": "^6.1.0",
 		"vitest": "^3.0.5"
+	},
+	"dependencies": {
+		"remeda": "^2.20.1"
 	}
 }

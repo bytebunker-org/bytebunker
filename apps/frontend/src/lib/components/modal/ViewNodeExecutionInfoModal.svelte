@@ -12,6 +12,10 @@
 	import { toHeaderCase } from 'js-convert-case';
 	import PipelineStatusBadge from '$lib/components/pipeline/PipelineStatusBadge.svelte';
 	import CodeEditor from '$lib/components/monaco/CodeEditor.svelte';
+	import { createQuery } from '@tanstack/svelte-query';
+	import type { FindAllDto } from '@bytebunker/backend';
+	import { PipelineExecutionLogApi } from '$lib/api/PipelineExecutionLogApi.js';
+	import { DateTime } from 'luxon';
 
 	let { options }: ModalProps<ModalTypeEnum.VIEW_NODE_EXECUTION_INFO> = $props();
 	console.log('options', options);
@@ -19,17 +23,20 @@
 	let node = $derived<BlueprintNodeDto>(options.blueprintNode);
 	let module = $derived<PipelineModuleDto>(options.module);
 	let executionData = $derived<PipelineExecutionDataDto>(options.executionData);
-	let executionLogs = $derived<PipelineExecutionLogDto[]>(options.executionLogs);
 	let moduleId = $derived(deconstructPipelineModuleIdentifier(node.moduleId));
 
-	// TODO: Load execution logs
-	/*const pipelineExecutionLogsQuery = createQuery(() => ({
+	const pipelineExecutionLogsQuery = createQuery(() => ({
 		queryKey: [
 			'pipeline-execution-log',
-			{} satisfies FindAllDto<PipelineExecutionLogDto>
+			{
+				where: {
+					nodeId: node.id
+				}
+			} satisfies FindAllDto<PipelineExecutionLogDto>
 		],
-		queryFn: ({ queryKey }) => PipExA.findOne(queryKey[1])
-	}));*/
+		queryFn: ({ queryKey }) =>
+			PipelineExecutionLogApi.findAll(options.executionData.pipelineExecution.id, queryKey[1])
+	}));
 </script>
 
 <div class="flex flex-col gap-4 p-3">
@@ -63,35 +70,62 @@
 			<span class="label-text">Ausführungslogs</span>
 		</div>
 
-		{#if executionLogs.length}
-			<div class="overflow-x-auto">
-				<table class="table-xs table">
-					<thead>
-						<tr>
-							<th></th>
-							<th>Message</th>
-							<th>Status Code</th>
-							<th>Data</th>
-							<th>Error</th>
-							<th>Time</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each executionLogs as log}
-							<tr>
-								<th>{log.id}</th>
-								<td>{log.message}</td>
-								<td>{log.data?.statusCode}</td>
-								<td>{log.data?.data}</td>
-								<td>{log.data?.error}</td>
-								<td>{log.createdAt}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+		{#if pipelineExecutionLogsQuery.data?.length}
+			<div class="join join-vertical bg-base-100">
+				{#each pipelineExecutionLogsQuery.data as log, i}
+					<div class="collapse-arrow join-item border-base-300 collapse overflow-hidden border">
+						<input type="radio" name="execution-log-radio" checked={i === 0 ? 'checked' : ''} />
+						<div class="collapse-title w-fit font-semibold">
+							<div class="flex gap-4">
+								<span>{log.message?.slice(0, 50)}{log.message?.length > 50 ? '...' : ''}</span>
+								<span class="text-neutral-500"
+									>{DateTime.fromISO(log.createdAt).toLocaleString(DateTime.DATETIME_SHORT)}</span
+								>
+							</div>
+						</div>
+						<div class="collapse-content text-sm">
+							<pre><code>{JSON.stringify(log.data, null, 2)}</code></pre>
+						</div>
+					</div>
+				{/each}
 			</div>
+
+			<!--<div class="w-full">
+					<div class="collapse-arrow bg-base-200 collapse mb-2">
+						<input type="checkbox" />
+						<div class="collapse-title text-xl font-medium">
+							Log ID: {log.id}
+						</div>
+						<div class="collapse-content">
+							<table class="table w-full">
+								<tbody>
+									<tr>
+										<td class="font-bold">Message</td>
+										<td>{log.message}</td>
+									</tr>
+									<tr>
+										<td class="font-bold">Status Code</td>
+										<td>{log.data?.statusCode}</td>
+									</tr>
+									<tr>
+										<td class="font-bold">Data</td>
+										<td>{log.data?.data}</td>
+									</tr>
+									<tr>
+										<td class="font-bold">Error</td>
+										<td>{log.data?.error}</td>
+									</tr>
+									<tr>
+										<td class="font-bold">Time</td>
+										<td>{log.createdAt}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+			</div>-->
 		{:else}
-			Keine Daten vorhanden
+			<div class="py-4 text-center">Keine Daten vorhanden</div>
 		{/if}
 	</label>
 </div>

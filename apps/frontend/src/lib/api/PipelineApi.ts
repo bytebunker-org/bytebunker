@@ -40,4 +40,8 @@ export class PipelineApi extends ApiBase {
 	): Promise<PipelineExecutionDto> {
 		return ApiBase.get(fetchImpl, `/pipelines/${id}`, { params });
 	}
+
+	public static scheduleExecution(id: number, fetchImpl?: typeof fetch): Promise<void> {
+		return ApiBase.post(fetchImpl, `/pipelines/${id}/schedule-execution`);
+	}
 }

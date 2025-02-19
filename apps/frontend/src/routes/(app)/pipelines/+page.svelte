@@ -65,6 +65,12 @@
 				dateFormat: DateTime.DATETIME_SHORT
 			}
 		},
+		forcedSearchQuery: {
+			orderBy: {
+				column: 'createdAt',
+				order: 'desc'
+			}
+		},
 		dataUniquePropertyKey: 'id',
 		messageFormatter: format,
 		searchParser: new AdvancedSearchParser(),

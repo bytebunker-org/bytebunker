@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Component, Snippet } from 'svelte';
 	import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical';
-	import { Button, Breadcrumb, BreadcrumbItem } from '@bytebunker/daisyui-components';
+	import { Breadcrumb, BreadcrumbItem } from '@bytebunker/daisyui-components';
 	import MainMenu from '$lib/components/MainMenu.svelte';
 
 	interface Props {
@@ -61,7 +61,7 @@
 				{title}
 			</h1>
 			{#if toolbar}
-				<div class="card border border-neutral-200 shadow">
+				<div class="card flex flex-row border border-neutral-200 shadow">
 					{@render toolbar()}
 				</div>
 			{/if}
