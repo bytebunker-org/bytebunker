@@ -221,19 +221,22 @@ export class PipelineExecutionService {
         }
     }
 
-    public createExecutionData(
+    public async createExecutionData(
         em: EntityManager,
         pipelineExecution: PipelineExecutionEntity,
         nodeId: number,
         outputData: unknown | undefined,
         executionStatus = PipelineExecutionStatusEnum.SUCCESS,
-    ): void {
-        const executionData = em.create(PipelineExecutionDataEntity, {
-            pipelineExecution,
-            nodeId,
-            executionStatus,
-            data: outputData,
-        });
+    ): Promise<void> {
+        const executionData = await em.upsert(
+            PipelineExecutionDataEntity,
+            em.create(PipelineExecutionDataEntity, {
+                pipelineExecution,
+                nodeId,
+                executionStatus,
+                data: outputData,
+            }),
+        );
         pipelineExecution.executionData.add(executionData);
 
         /*await em
@@ -305,9 +308,9 @@ export class PipelineExecutionService {
             );
 
             if (outputDataOrHoldExecution instanceof CreateHoldExecutionDto) {
-                this.holdModuleExecution(em, pipelineExecution, node, outputDataOrHoldExecution);
+                await this.holdModuleExecution(em, pipelineExecution, node, outputDataOrHoldExecution);
             } else {
-                this.createExecutionData(em, pipelineExecution, node.id, outputDataOrHoldExecution);
+                await this.createExecutionData(em, pipelineExecution, node.id, outputDataOrHoldExecution);
             }
 
             await em.flush();
@@ -331,7 +334,7 @@ export class PipelineExecutionService {
                 }
             }
 
-            this.holdModuleExecution(
+            await this.holdModuleExecution(
                 em,
                 pipelineExecution,
                 node,
@@ -352,12 +355,12 @@ export class PipelineExecutionService {
         }
     }
 
-    private holdModuleExecution(
+    private async holdModuleExecution(
         em: EntityManager,
         pipelineExecution: Loaded<PipelineExecutionEntity, 'blueprint' | 'executionData'>,
         node: BlueprintNodeDto,
         data: CreateHoldExecutionDto,
-    ): void {
+    ): Promise<void> {
         this.logger.debug(`Holding module execution in pipeline execution ${pipelineExecution.id}`, {
             pipelineExecutionId: pipelineExecution.id,
             moduleId: node.moduleId,
@@ -379,6 +382,7 @@ export class PipelineExecutionService {
                 error: executionLogData?.error ? serializeError(executionLogData?.error) : undefined,
             },
         });
+        em.persist(executionLog);
         pipelineExecution.executionLogs.add(executionLog);
 
         if (isUnexpectedError) {
@@ -391,14 +395,16 @@ export class PipelineExecutionService {
             pipelineExecution.executionStatus = PipelineExecutionStatusEnum.ABORTED;
         }
 
-        const executionData = em.create(PipelineExecutionDataEntity, {
-            pipelineExecution,
-            nodeId: node.id,
-            executionStatus: isUnexpectedError
-                ? PipelineExecutionStatusEnum.FAILED
-                : PipelineExecutionStatusEnum.ABORTED,
-            data: undefined,
-        });
+        const executionData = await em.upsert(
+            em.create(PipelineExecutionDataEntity, {
+                pipelineExecution,
+                nodeId: node.id,
+                executionStatus: isUnexpectedError
+                    ? PipelineExecutionStatusEnum.FAILED
+                    : PipelineExecutionStatusEnum.ABORTED,
+                data: undefined,
+            }),
+        );
         pipelineExecution.executionData.add(executionData);
 
         if (

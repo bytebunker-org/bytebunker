@@ -4,11 +4,19 @@ import { EntityManager } from '@mikro-orm/postgresql';
 import { UserEntity } from '../user/entity/user.entity.js';
 import { UserModule } from '../user/user.module.js';
 import { GraphDatabaseModule } from './graph-database/graph-database.module.js';
+import { ActivityStableKeyService } from './activity-stable-key.service.js';
+import { ActivityGraphNodeService } from './activity-graph-node.service.js';
+import { ActivityGraphPersisterService } from './activity-graph-persister.service.js';
 
 @Module({
     imports: [UserModule, GraphDatabaseModule],
-    providers: [ActivityGraphService],
-    exports: [ActivityGraphService],
+    providers: [
+        ActivityGraphService,
+        ActivityGraphPersisterService,
+        ActivityStableKeyService,
+        ActivityGraphNodeService,
+    ],
+    exports: [ActivityGraphService, ActivityGraphPersisterService, ActivityStableKeyService, ActivityGraphNodeService],
 })
 export class ActivityGraphModule implements OnApplicationBootstrap {
     private readonly logger = new Logger(ActivityGraphModule.name);

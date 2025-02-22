@@ -15,16 +15,17 @@ import type {
     SemanticLocationHistory,
 } from '@bytebunker/event-schema/extension/google';
 import { PlaceConfidenceEnum } from '@bytebunker/event-schema/extension/google';
-import type { Arrive, Move, Place } from '@bytebunker/event-schema';
+import type { Arrive, ASObject, Move, Place } from '@bytebunker/event-schema';
 import { createUnknownASType } from '@bytebunker/event-schema';
 import { Logger } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import type { GooglePlaceObjectInterface } from '../type/google-place-object.interface.js';
 import type { GoogleTimelineActivityInterface } from '../type/google-timeline-activity.interface.js';
 import { hasOwn } from '../../../../util/util.js';
-import { ActivityService } from '../../../../activity/activity.service.js';
+import { ActivityStableKeyService } from '../../../../activity-graph/activity-stable-key.service.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
+import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
 
 @PipelineModuleJsonSchema()
 export class TransformSemanticLocationHistoryInput {
@@ -55,15 +56,18 @@ export class TransformSemanticLocationHistoryPipelineModule
 
     constructor(
         private readonly assetService: AssetService,
-        private readonly activityService: ActivityService,
+        private readonly activityService: ActivityStableKeyService,
         private readonly activityGraphService: ActivityGraphService,
+        private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
 
     public async executeModule({
         em,
         inputData,
     }: PipelineModuleExecutionContext<TransformSemanticLocationHistoryInput>): Promise<TransformSemanticLocationHistoryOutput> {
-        const { rawJson: rawJsonAsset, minPlaceConfidence = PlaceConfidenceEnum.HIGH_CONFIDENCE } = inputData;
+        const { rawJson: rawJsonAsset, minPlaceConfidence = PlaceConfidenceEnum.MEDIUM_CONFIDENCE } = inputData;
+
+        const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, GOOGLE_EXTENSION_ID);
 
         const rawJson = await this.assetService.getAssetString(em, rawJsonAsset);
         const rawLocations = JSON.parse(rawJson) as SemanticLocationHistory;
@@ -75,11 +79,13 @@ export class TransformSemanticLocationHistoryPipelineModule
                 .map((timelineObject) => {
                     if (hasOwn(timelineObject, 'activitySegment')) {
                         return this.transformActivitySegment(
+                            generatorExtensionObject,
                             timelineObject.activitySegment as ActivitySegment,
                             ownerActor.get('id')!,
                         );
                     } else if (hasOwn(timelineObject, 'placeVisit')) {
                         return this.transformPlaceVisit({
+                            generatorExtensionObject,
                             visit: timelineObject.placeVisit as PlaceVisit,
                             actorId: ownerActor.get('id')!,
                             minPlaceConfidence,
@@ -95,6 +101,7 @@ export class TransformSemanticLocationHistoryPipelineModule
     }
 
     private transformActivitySegment(
+        generatorExtensionObject: ASObject,
         activity: ActivitySegment,
         actorId: string,
     ): (Move & GoogleTimelineActivityInterface) | undefined {
@@ -122,7 +129,16 @@ export class TransformSemanticLocationHistoryPipelineModule
         return {
             '@type': 'Move',
             '@secondaryTypes': [createUnknownASType('GoogleTimelineActivity')],
-            generator: this.activityService.getExtension(GOOGLE_EXTENSION_ID),
+            generator: generatorExtensionObject,
+            stableKeys: [
+                this.activityService.createActivityStableKey(
+                    'Move',
+                    {
+                        start: startDateTime,
+                    },
+                    { dateTimePrecision: 'minute' },
+                ),
+            ],
             actor: {
                 '@id': actorId,
                 '@type': 'Person',
@@ -138,16 +154,23 @@ export class TransformSemanticLocationHistoryPipelineModule
     }
 
     private parseDateTime(timestamp: string | undefined): DateTime<true> | undefined {
-        const dateTime = timestamp ? DateTime.fromMillis(Number.parseInt(timestamp)) : undefined;
+        if (!timestamp) {
+            return undefined;
+        }
 
-        return dateTime?.isValid ? dateTime : undefined;
+        const dateTimeFromIso = DateTime.fromISO(timestamp);
+        const dateTimeFromMillis = DateTime.fromMillis(Number(timestamp));
+
+        return dateTimeFromIso.isValid ? dateTimeFromIso : dateTimeFromMillis.isValid ? dateTimeFromMillis : undefined;
     }
 
     private transformPlaceVisit({
+        generatorExtensionObject,
         visit,
         actorId,
         minPlaceConfidence,
     }: {
+        generatorExtensionObject: ASObject;
         visit: PlaceVisit;
         actorId: string;
         minPlaceConfidence: PlaceConfidenceEnum;
@@ -173,7 +196,7 @@ export class TransformSemanticLocationHistoryPipelineModule
 
         return {
             '@type': 'Arrive',
-            generator: this.activityService.getExtension(GOOGLE_EXTENSION_ID),
+            generator: generatorExtensionObject,
             stableKeys: [
                 this.activityService.createActivityStableKey(
                     'Arrive',

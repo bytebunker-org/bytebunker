@@ -6,7 +6,7 @@ import { CORE_EXTENSION_NAME } from '../../../../extension/extension.constant.js
 import { PipelineModuleJsonSchema } from '../decorator/pipeline-module-json-schema.decorator.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { AssetService } from '../../../asset/asset.service.js';
-import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
+import { ActivityGraphPersisterService } from '../../../../activity-graph/activity-graph-persister.service.js';
 
 @PipelineModuleJsonSchema()
 export class StoreActivityInput {
@@ -36,13 +36,13 @@ export class StoreActivityPipelineModule implements IPipelineModule<StoreActivit
 
     constructor(
         private readonly assetService: AssetService,
-        private readonly activityGraphService: ActivityGraphService,
+        private readonly activityGraphPersisterService: ActivityGraphPersisterService,
     ) {}
 
     public executeModule({
         em,
         inputData,
     }: PipelineModuleExecutionContext<StoreActivityInput>): Promise<StoreActivityOutput> {
-        return this.activityGraphService.createActivityGraph(em, inputData.activities);
+        return this.activityGraphPersisterService.createActivityGraph(em, inputData.activities);
     }
 }

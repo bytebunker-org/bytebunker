@@ -1,6 +1,6 @@
 import { BaseEntity, type Opt, Property } from '@mikro-orm/core';
 import { DateTime } from 'luxon';
-import { DateTimeDatabaseType } from './date-time-database.type.js';
+import { DateTimeDatabaseType } from './date-time-database.util.js';
 
 export abstract class TimestampEntity extends BaseEntity {
     @Property({

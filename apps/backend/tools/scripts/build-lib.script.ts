@@ -30,7 +30,7 @@ const rewrittenImportNames = new Set([
     'FilterQuery',
     'CountOptions',
 ]);
-const preventIndexImportRegexes: RegExp[] = [/dto-ref.type/, /dto-collection.type/];
+const preventIndexImportRegexes: RegExp[] = [/dto-ref.type/, /dto-collection.type/, /.schema/];
 
 function rewriteDtoImports(project: Project) {
     const dtoFiles = project.getSourceFiles('src/**/*.dto.ts');
@@ -140,7 +140,19 @@ function generateIndexFiles(project: Project) {
     const indexFile = project.createSourceFile('src/index.ts');
 
     const exportedFiles = project.getSourceFiles().filter((file) => {
+        if (file.getBaseName().endsWith('.json')) {
+            console.info('Skipping index file export of json file', file.getBaseName());
+
+            return false;
+        }
+
         const path = indexFile.getRelativePathAsModuleSpecifierTo(file) + '.js';
+
+        if (path.startsWith('..')) {
+            console.info(`Not re-exporting external file ${path}`);
+
+            return false;
+        }
 
         for (const regex of preventIndexImportRegexes) {
             if (regex.test(path)) {

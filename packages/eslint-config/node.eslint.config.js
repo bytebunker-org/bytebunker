@@ -55,8 +55,8 @@ export default tseslint.config(
             'unicorn/no-await-expression-member': 'off',
             'unicorn/prefer-switch': 'off',
             'unicorn/switch-case-braces': 'off',
-            'unicorn/ no-useless-undefined': 'off',
             // conflicts with prettier
+            'unicorn/no-useless-undefined': 'off',
             'unicorn/no-nested-ternary': 'off',
             'unicorn/prevent-abbreviations': 'off',
             'unicorn/filename-case': [

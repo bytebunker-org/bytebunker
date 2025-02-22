@@ -67,7 +67,7 @@ export class SettingService {
     public async storeSettings(
         em: EntityManager,
         updatedSettingValues: StoreSettingValueDto[],
-        userId?: number,
+        userId?: string,
     ): Promise<void> {
         const settingInfoList = await em.find(SettingEntity, {
             key: {
@@ -144,7 +144,7 @@ export class SettingService {
         }
     }
 
-    public async getSettings(em: EntityManager, categoryKey: string, userId?: number): Promise<GetSettingsReturnType> {
+    public async getSettings(em: EntityManager, categoryKey: string, userId?: string): Promise<GetSettingsReturnType> {
         const settings = await em.find(
             SettingEntity,
             {
@@ -169,7 +169,7 @@ export class SettingService {
     public async getSettingValues<SK extends SettingKeys>(
         em: EntityManager,
         settingKeys: SK[],
-        userId?: number,
+        userId?: string,
         ignoreCache = false,
     ): Promise<GetSettingValuesReturnType<SK>> {
         let cachedSettings: SettingEntity<SK>[] = [];
@@ -260,11 +260,11 @@ export class SettingService {
         // this.eventEmitter.emit(ReloadGlobalSettingsEvent.TYPE, new ReloadGlobalSettingsEvent());
     }
 
-    private buildCacheKey(settingKey: string, userId: number | undefined) {
+    private buildCacheKey(settingKey: string, userId: string | undefined) {
         return 'setting-' + settingKey + (userId ? '-' + userId : '');
     }
 
-    private buildSettingValueFilters(userId: number | undefined): ObjectQuery<SettingEntity> {
+    private buildSettingValueFilters(userId: string | undefined): ObjectQuery<SettingEntity> {
         return {
             $or: [
                 {

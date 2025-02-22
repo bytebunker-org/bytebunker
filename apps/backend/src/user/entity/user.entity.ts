@@ -12,13 +12,14 @@ import {
     types,
 } from '@mikro-orm/core';
 import { StoredUserSessionEntity } from '../../auth/entity/stored-user-session.entity.js';
+import { v7 as uuidV7 } from 'uuid';
 
 @Entity()
 export class UserEntity extends TimestampEntity implements UserDto {
     [PrimaryKeyProp]?: 'id';
 
-    @PrimaryKey({ autoincrement: true })
-    public id!: number;
+    @PrimaryKey({ type: types.uuid })
+    public id = uuidV7();
 
     @Property({ unique: true })
     public username!: string;

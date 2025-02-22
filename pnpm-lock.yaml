@@ -404,6 +404,9 @@ importers:
       '@bytebunker/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@bytebunker/event-schema':
+        specifier: workspace:^
+        version: link:../../packages/event-schema
       '@bytebunker/qs-esm':
         specifier: workspace:^
         version: link:../../packages/qs-esm
@@ -478,13 +481,16 @@ importers:
         version: 2.1.2(rollup@4.34.6)(svelte@5.19.9)
       autoprefixer:
         specifier: ^10.4.20
-        version: 10.4.20(postcss@8.5.1)
+        version: 10.4.20(postcss@8.4.49)
       bits-ui:
         specifier: ^0.22.0
         version: 0.22.0(svelte@5.19.9)
       daisyui:
         specifier: 5.0.0-beta.6
         version: 5.0.0-beta.6
+      es-toolkit:
+        specifier: ^1.32.0
+        version: 1.32.0
       eslint:
         specifier: ^9.20.0
         version: 9.20.0(jiti@2.4.2)
@@ -5343,6 +5349,9 @@ packages:
   es-object-atoms@1.1.1:
     resolution: {integrity: sha512-FGgH2h8zKNim9ljj7dankFPcICIK9Cp5bm+c2gQSYePhpaG5+esrLODihIorn+Pe6FGJzWhXQotPv73jTaldXA==}
     engines: {node: '>= 0.4'}
+
+  es-toolkit@1.32.0:
+    resolution: {integrity: sha512-ZfSfHP1l6ubgW/B/FRtqb9bYdMvI6jizbOSfbwwJNcOQ1QE6TFsC3jpQkZ900uUPSR3t3SU5Ds7UWKnYz+uP8Q==}
 
   es5-ext@0.10.64:
     resolution: {integrity: sha512-p2snDhiLaXe6dahss1LddxqEm+SkuDvV8dnIQG0MWjyHpcMNfXKPE+/Cc0y+PhxJX3A4xGNeFCj5oc0BUh6deg==}
@@ -13910,14 +13919,14 @@ snapshots:
 
   atomic-sleep@1.0.0: {}
 
-  autoprefixer@10.4.20(postcss@8.5.1):
+  autoprefixer@10.4.20(postcss@8.4.49):
     dependencies:
       browserslist: 4.24.4
       caniuse-lite: 1.0.30001698
       fraction.js: 4.3.7
       normalize-range: 0.1.2
       picocolors: 1.1.1
-      postcss: 8.5.1
+      postcss: 8.4.49
       postcss-value-parser: 4.2.0
 
   available-typed-arrays@1.0.7:
@@ -14969,6 +14978,8 @@ snapshots:
   es-object-atoms@1.1.1:
     dependencies:
       es-errors: 1.3.0
+
+  es-toolkit@1.32.0: {}
 
   es5-ext@0.10.64:
     dependencies:

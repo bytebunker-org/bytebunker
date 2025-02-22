@@ -1,4 +1,4 @@
-import { Type, type EntityProperty, ValidationError, DateTimeType } from '@mikro-orm/core';
+import { Type, type EntityProperty, ValidationError } from '@mikro-orm/core';
 import { DateTime } from 'luxon';
 
 type Maybe<T> = T | null | undefined;

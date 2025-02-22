@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Delete,
+    Get,
+    HttpCode,
+    Param,
+    ParseIntPipe,
+    ParseUUIDPipe,
+    Patch,
+    Post,
+    Query,
+} from '@nestjs/common';
 import { UserService } from './user.service.js';
 import { UserEntity } from './entity/user.entity.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -53,14 +65,14 @@ export class UserController {
 
     @Get(':id')
     @ApiFindOneMethod(UserDto)
-    public findOne(@Param('id', ParseIntPipe) id: number, @Query() query: FindOneDto<UserEntity>): Promise<UserDto> {
+    public findOne(@Param('id', ParseUUIDPipe) id: string, @Query() query: FindOneDto<UserEntity>): Promise<UserDto> {
         return this.findRestApiService.findOne(UserEntity, { id }, query);
     }
 
     @Delete(':id')
     @ApiOperation({ summary: 'Delete a user' })
     @ApiResponse({ status: 204, description: 'User deleted' })
-    public async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    public async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
         await this.em.nativeDelete(UserEntity, { id });
     }
 }

@@ -1,6 +1,16 @@
 import { TimestampDto } from '../../database/util/timestamp.dto.js';
 import type { DateTime } from 'luxon';
-import { IsArray, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import {
+    IsArray,
+    IsInt,
+    IsNotEmpty,
+    IsObject,
+    IsOptional,
+    IsString,
+    IsUUID,
+    MaxLength,
+    ValidateNested,
+} from 'class-validator';
 import { IsDateTime } from '../../util/custom-validator.util.js';
 import { PrimaryKeyProp } from '@mikro-orm/core';
 import { Type } from 'class-transformer';
@@ -11,8 +21,8 @@ import { ApiHideProperty } from '@nestjs/swagger';
 export class UserDto extends TimestampDto {
     [PrimaryKeyProp]?: 'id';
 
-    @IsInt()
-    public id!: number;
+    @IsUUID()
+    public id!: string;
 
     @IsString()
     @IsNotEmpty()

@@ -25,6 +25,7 @@ import { RedisModule } from './shared/redis/redis.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { ActivityGraphModule } from './activity-graph/activity-graph.module.js';
 import { GraphDatabaseModule } from './activity-graph/graph-database/graph-database.module.js';
+import { ActivityGraphSearchModule } from './activity-graph/search/activity-graph-search.module.js';
 
 @Module({
     imports: [
@@ -51,6 +52,7 @@ import { GraphDatabaseModule } from './activity-graph/graph-database/graph-datab
         UserModule,
         GraphDatabaseModule,
         ActivityGraphModule,
+        ActivityGraphSearchModule,
     ],
     providers: [
         {
