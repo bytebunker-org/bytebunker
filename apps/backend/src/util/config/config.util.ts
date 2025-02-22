@@ -16,6 +16,7 @@ export function buildTypedConfigModuleOptions(
             }),
             dotenvLoader({
                 separator: '__',
+                keyTransformer: convertMacroToCamelCase,
             }),
         ],
         normalize: (config) => normalizeConfig(AppConfig, config),
@@ -30,7 +31,10 @@ function convertMacroToCamelCase(value: string) {
     if (value.includes('_') || /^[A-Z]+$/.test(value)) {
         return value
             .toLowerCase()
-            .replaceAll(/([_-][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
+            .replaceAll(
+                /([^_])([_-][a-z])/g,
+                (_, ignoredLetter, group) => ignoredLetter + group.toUpperCase().replace('-', '').replace('_', ''),
+            );
     } else {
         return value;
     }
@@ -49,13 +53,10 @@ export function normalizeConfig(
     }
 
     for (const [key, value] of Object.entries(config)) {
-        const convertedKey = convertMacroToCamelCase(key);
-        const expectedType = configClass
-            ? Reflect.getMetadata('design:type', configClass.prototype, convertedKey)
-            : undefined;
+        const expectedType = configClass ? Reflect.getMetadata('design:type', configClass.prototype, key) : undefined;
 
         if (Array.isArray(value)) {
-            resultObject[convertedKey] = value.map((item) => {
+            resultObject[key] = value.map((item) => {
                 if (item && typeof item === 'object') {
                     return normalizeConfig(expectedType, item, depth + 1);
                 } else {
@@ -71,20 +72,20 @@ export function normalizeConfig(
             const normalizedObject = normalizeConfig(expectedType, value, depth + 1);
 
             // Object.assign(resultObject, resultObject[convertedKey]);
-            resultObject[convertedKey] = {
-                ...resultObject[convertedKey],
+            resultObject[key] = {
+                ...resultObject[key],
                 ...normalizedObject,
             };
         } else if (typeof value === 'string') {
             if (expectedType === Number) {
-                resultObject[convertedKey] = Number.parseFloat(value);
+                resultObject[key] = Number.parseFloat(value);
             } else if (expectedType === Boolean) {
-                resultObject[convertedKey] = /^true|1|ye?s?$/i.test(value);
+                resultObject[key] = /^true|1|ye?s?$/i.test(value);
             } else {
-                resultObject[convertedKey] = value;
+                resultObject[key] = value;
             }
         } else {
-            resultObject[convertedKey] = value;
+            resultObject[key] = value;
         }
     }
 
