@@ -43,6 +43,7 @@ export function normalizeConfig(
 ): Record<string, any> {
     const resultObject: Record<string, any> = {};
 
+    console.log('normalizing config', config);
     if (Array.isArray(config)) {
         return config;
     }
@@ -69,8 +70,11 @@ export function normalizeConfig(
         if (typeof value === 'object' && expectedType !== Array) {
             const normalizedObject = normalizeConfig(expectedType, value, depth + 1);
 
-            Object.assign(resultObject, resultObject[convertedKey]);
-            resultObject[convertedKey] = normalizedObject;
+            // Object.assign(resultObject, resultObject[convertedKey]);
+            resultObject[convertedKey] = {
+                ...resultObject[convertedKey],
+                ...normalizedObject,
+            };
         } else if (typeof value === 'string') {
             if (expectedType === Number) {
                 resultObject[convertedKey] = Number.parseFloat(value);
