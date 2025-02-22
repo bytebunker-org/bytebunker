@@ -1,4 +1,4 @@
-import type { SchemaObject, InferGraphEntityType } from '../../../../../../neode/lib/types/index.js';
+import type { InferGraphEntityType, SchemaObject } from '@bytebunker/neode/types';
 
 export const ExtensionNodeLabel = 'Extension';
 

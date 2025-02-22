@@ -1,6 +1,6 @@
-import type { InferGraphEntityType, SchemaObject } from '../../../../../../../neode/lib/types/index.js';
 import type { StringSchema } from 'joi';
 import type { ASObjectNodeType } from '../as-object.schema.js';
+import type { InferGraphEntityType, SchemaObject } from '@bytebunker/neode/types';
 
 export const PlaceSchema = {
     accuracy: 'float',

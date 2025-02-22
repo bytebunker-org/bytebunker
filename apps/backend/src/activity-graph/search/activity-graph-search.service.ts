@@ -93,8 +93,6 @@ export class ActivityGraphSearchService {
         let dayStartFillerRequest: Promise<ExecuteSearchReturnType> | undefined;
         let dayEndFillerRequest: Promise<ExecuteSearchReturnType> | undefined;
 
-        console.log('Found normally from', dt(firstEntryDateTime), 'to', dt(lastEntryDateTime));
-
         if (!isFullDateRange) {
             if (data.cursorStart && lastEntryDateTime) {
                 dayEndFillerRequest = this.executeSearch(em, data, lastEntryDateTime, lastEntryDateTime.startOf('day'));
@@ -113,13 +111,6 @@ export class ActivityGraphSearchService {
             dayStartFillerRequest,
             dayEndFillerRequest,
         ]);
-
-        console.log(
-            'filling at day start',
-            dayStartFillerResult?.activityNodes?.length,
-            'filling at day end',
-            dayEndFillerResult?.activityNodes?.length,
-        );
 
         // TODO: Change lastEntryDateTime to actually fetched last entry
         const timeRangeStart = isFullDateRange
@@ -221,7 +212,6 @@ export class ActivityGraphSearchService {
 
         const orderDirection = endDateTime && !startDateTime ? OrderDirectionEnum.ASC : OrderDirectionEnum.DESC;
         this.applyCursorToQuery(builder, startDateTime, endDateTime, orderDirection);
-        console.log(`EXECUTE SEARCH ${orderDirection} ${dt(startDateTime)} -> ${dt(endDateTime)}`);
 
         const { query, params } = builder.build();
 
@@ -251,7 +241,6 @@ export class ActivityGraphSearchService {
 
         // Reverse graph again (because we reverse the sorting direction if endTime is set in applyCursorToQuery)
         if (orderDirection === OrderDirectionEnum.ASC) {
-            console.log('REVERSING ARRAY AGAIN');
             activityNodes.reverse();
         }
 

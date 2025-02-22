@@ -1,5 +1,5 @@
-import type { InferGraphEntityType, SchemaObject } from '../../../../../../../neode/lib/types/index.js';
 import type { PlaceNodeType } from './place.schema.js';
+import type { InferGraphEntityType, SchemaObject } from '@bytebunker/neode/types';
 
 export const GooglePlaceSchema = {
     placeId: 'string',
