@@ -98,5 +98,6 @@ export function normalizeConfig(
         return resultObjectInstance;
     }
 
+    console.log('resultObject', resultObject);
     return resultObject;
 }
