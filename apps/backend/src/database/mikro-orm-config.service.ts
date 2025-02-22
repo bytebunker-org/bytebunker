@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { MikroOrmModuleOptions, MikroOrmOptionsFactory } from '@mikro-orm/nestjs/typings.js';
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { GeneratedCacheAdapter, PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { NotFoundError } from '../util/rest-error.js';
 import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
 import { AppConfig, NodeEnvironment } from '../util/config/app.config.js';
@@ -15,6 +15,9 @@ export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlD
     ) {}
 
     createMikroOrmOptions(): MikroOrmModuleOptions<PostgreSqlDriver> {
+        const isDevelopment = this.appConfig.nodeEnv === NodeEnvironment.DEVELOPMENT;
+        const isProduction = this.appConfig.nodeEnv !== NodeEnvironment.DEVELOPMENT;
+
         return {
             driver: PostgreSqlDriver,
             dbName: this.config.database,
@@ -25,9 +28,14 @@ export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlD
             entities: this.config.entities,
             entitiesTs: this.config.entitiesTs,
             debug: this.config.logging ?? false,
-            metadataProvider:
-                this.appConfig.nodeEnv === NodeEnvironment.DEVELOPMENT ? TsMorphMetadataProvider : undefined, // TODO: Use cached metadata file for production
+            metadataProvider: isDevelopment ? TsMorphMetadataProvider : undefined, // TODO: Use cached metadata file for production
             metadataCache: {
+                ...(isProduction
+                    ? {
+                          enabled: true,
+                          adapter: GeneratedCacheAdapter,
+                      }
+                    : {}),
                 options: {
                     cacheDir: './temp/mikro-orm-cache',
                 },

@@ -4,17 +4,25 @@
     "tasks": {
         "build:generate-metadata": {
             "inputs": ["src/**/*.ts"],
+            "dependsOn": ["^build:lib"],
             "outputs": ["src/metadata.ts"],
+            "outputLogs": "new-only"
+        },
+        "build:mikro-orm-cache": {
+            "inputs": ["src/**/*.ts"],
+            "dependsOn": ["^build:lib"],
+            "outputs": ["temp/mikro-orm-cache/**"],
             "outputLogs": "new-only"
         },
         "build:lib": {
             "inputs": ["src/**/*.ts"],
+            "dependsOn": ["^build:lib"],
             "outputs": ["lib/**"],
             "outputLogs": "new-only"
         },
         "build": {
             "inputs": ["src/**"],
-            "dependsOn": ["build:generate-metadata", "^build:lib"],
+            "dependsOn": ["build:generate-metadata", "build:mikro-orm-cache", "^build:lib"],
             "outputs": ["dist/**"],
             "outputLogs": "new-only"
         }

@@ -2,7 +2,7 @@ import { selectConfig, TypedConfigModule } from 'nest-typed-config';
 import { IsObject, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { buildTypedConfigModuleOptions } from './util/config/config.util.js';
-import { defineConfig } from '@mikro-orm/postgresql';
+import { defineConfig, GeneratedCacheAdapter } from '@mikro-orm/postgresql';
 import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
 import { NotFoundError } from './util/rest-error.js';
 import { MikroOrmConfig } from './util/config/mikro-orm.config.js';
@@ -22,26 +22,53 @@ class AppConfig {
     public readonly mikroOrm!: MikroOrmConfig;
 }
 
-export const ConfigModule = TypedConfigModule.forRoot(buildTypedConfigModuleOptions(AppConfig, basename));
+const isProduction = process.env['NODE_ENV'] !== 'development';
+const isBuildingMetadata = process.env['BUILD_MIKRO_ORM_METADATA'] === '1';
 
-export const config = selectConfig(ConfigModule, MikroOrmConfig);
+function buildMikroOrmConfig() {
+    const ConfigModule = TypedConfigModule.forRoot(buildTypedConfigModuleOptions(AppConfig, basename));
 
-export default defineConfig({
-    dbName: config.database,
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    entities: config.entities,
-    entitiesTs: config.entitiesTs,
-    debug: config.logging ?? false,
-    metadataProvider: TsMorphMetadataProvider,
-    metadataCache: {
-        options: {
-            cacheDir: './temp/mikro-orm-cache',
+    const config = selectConfig(ConfigModule, MikroOrmConfig);
+
+    return defineConfig({
+        dbName: config.database,
+        host: config.host,
+        port: config.port,
+        user: config.user,
+        password: config.password,
+        entities: config.entities,
+        entitiesTs: config.entitiesTs,
+        debug: config.logging ?? false,
+        metadataProvider: TsMorphMetadataProvider,
+        metadataCache: {
+            ...(isProduction
+                ? {
+                      enabled: true,
+                      adapter: GeneratedCacheAdapter,
+                  }
+                : {}),
+            options: {
+                cacheDir: './temp/mikro-orm-cache',
+            },
         },
-    },
-    namingStrategy: UnderscoreNamingStrategy,
-    ignoreUndefinedInQuery: true,
-    findOneOrFailHandler: (entityName: string) => new NotFoundError(`${entityName} not found!`),
-});
+        namingStrategy: UnderscoreNamingStrategy,
+        ignoreUndefinedInQuery: true,
+        findOneOrFailHandler: (entityName: string) => new NotFoundError(`${entityName} not found!`),
+    });
+}
+
+function buildMetadataBuildingConfig() {
+    return defineConfig({
+        dbName: 'bytebunker',
+        entities: ['./src/**/*.entity.ts'],
+        entitiesTs: ['./src/**/*.entity.ts'],
+        metadataProvider: TsMorphMetadataProvider,
+        metadataCache: {
+            options: {
+                cacheDir: './temp/mikro-orm-cache',
+            },
+        },
+    });
+}
+
+export default isBuildingMetadata ? buildMetadataBuildingConfig() : buildMikroOrmConfig();
