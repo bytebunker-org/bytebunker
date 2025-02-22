@@ -46,7 +46,7 @@ COPY --from=cleaned-repo /cleaned-repo/out/json/ .
 # COPY --from=build /opt/app/pnpm-lock.yaml .
 # COPY --from=build  /opt/app/apps/backend/package.json ./apps/backend/package.json
 
-RUN npm install -g corepack@latest && corepack enable && pnpm install -r --prod --reporter=append-only
+RUN npm install -g corepack@latest && corepack enable && pnpm install --prod --reporter=append-only
 
 WORKDIR /opt/app/apps/backend
 
