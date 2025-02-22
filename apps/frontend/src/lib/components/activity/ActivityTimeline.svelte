@@ -43,7 +43,10 @@
 					? { cursorEnd: pageParam[1].toISO() as unknown as DateTime }
 					: {})
 			}),
-		initialPageParam: ['cursorStart', filter.filters.start.endOf('day')],
+		initialPageParam: [
+			'cursorStart',
+			filter.filters.start?.endOf('day') ?? DateTime.now().endOf('day')
+		],
 		getPreviousPageParam: (firstPage: ActivityGraphSearchResponseDto) =>
 			firstPage.hasPreviousPage ? ['cursorEnd', firstPage.previousPageEndCursor!] : undefined,
 		getNextPageParam: (lastPage: ActivityGraphSearchResponseDto) =>

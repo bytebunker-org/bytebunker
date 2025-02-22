@@ -41,7 +41,7 @@
 	let innerHeight = $state(0);
 	let earliestYear = $derived(data?.at(-1)?.date.year);
 	let latestYear = $derived(data?.at(0)?.date.year);
-	let highestCount = $derived(Math.max(...data?.map((d) => d.count)));
+	let highestCount = $derived(data ? Math.max(...data?.map((d) => d.count)) : 0);
 
 	let earliestMillis = $derived(
 		DateTime.fromObject({ year: earliestYear }).startOf('year').toMillis()
