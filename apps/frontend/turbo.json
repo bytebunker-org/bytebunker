@@ -1,0 +1,20 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			"inputs": [
+				"src/**",
+				"static/**",
+				".env.*",
+				"svelte.config.js",
+				"tailwind.config.ts",
+				"vite.config.ts"
+			],
+			"env": ["PUBLIC_*"],
+			"dependsOn": ["^build:lib"],
+			"outputs": [".svelte-kit/**"],
+			"outputLogs": "new-only"
+		}
+	}
+}
