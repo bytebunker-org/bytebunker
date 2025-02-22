@@ -1,6 +1,10 @@
 import type { Load, LoadEvent } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
-import type { FetchQueryOptions, QueryClient } from '@tanstack/svelte-query';
+import type {
+	FetchQueryOptions,
+	FetchInfiniteQueryOptions,
+	QueryClient
+} from '@tanstack/svelte-query';
 import { hasOwnProperty } from '$lib/util/util.js';
 import type { PaginatedListRequestDto, PaginatedListResponseDto } from '@bytebunker/backend';
 
@@ -18,28 +22,47 @@ export function prefetchQueries<
 		loadEvent: LoadEvent<Params, InputData, ParentData>
 	) =>
 		| FetchQueryOptions<any, unknown, any, any>[]
-		| Promise<FetchQueryOptions<any, unknown, any, any>[]>
+		| Promise<FetchQueryOptions<any, unknown, any, any>[]>,
+	infiniteQueryOptions: (
+		loadEvent: LoadEvent<Params, InputData, ParentData>
+	) =>
+		| FetchInfiniteQueryOptions<any, unknown, any, any>[]
+		| Promise<FetchInfiniteQueryOptions<any, unknown, any, any>[]>
 ): Load<Params, InputData, ParentData> {
 	return async (event) => {
 		const { parent } = event;
 		const parentData = await parent();
 		const { queryClient } = parentData;
 
-		const queryOptionsList = await queryOptions({
-			...event,
-			parent: () => Promise.resolve(parentData)
-		});
+		const [queryOptionsList, infiniteQueryOptionsList] = await Promise.all([
+			queryOptions({
+				...event,
+				parent: () => Promise.resolve(parentData)
+			}),
+			infiniteQueryOptions({
+				...event,
+				parent: () => Promise.resolve(parentData)
+			})
+		]);
 
-		await Promise.allSettled(
-			queryOptionsList
+		await Promise.allSettled([
+			...queryOptionsList
 				.filter(
 					(options) =>
 						!hasOwnProperty(options, 'enabled') ||
 						typeof options.enabled !== 'boolean' ||
 						options.enabled
 				)
-				.map((options) => queryClient.prefetchQuery(options))
-		);
+				.map((options) => queryClient.prefetchQuery(options)),
+			...infiniteQueryOptionsList
+				.filter(
+					(options) =>
+						!hasOwnProperty(options, 'enabled') ||
+						typeof options.enabled !== 'boolean' ||
+						options.enabled
+				)
+				.map((options) => queryClient.prefetchInfiniteQuery(options))
+		]);
 
 		for (const query of queryOptionsList) {
 			if (query.queryKey) {

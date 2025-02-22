@@ -6,7 +6,7 @@
 	import { Avatar, DropdownMenu } from 'bits-ui';
 	import LucideList from '~icons/lucide/list';
 	import LucideLock from '~icons/lucide/lock';
-	import LucideHouse from '~icons/lucide/house';
+	import LucideSquareActivity from '~icons/lucide/square-activity';
 	import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical';
 	import LucideWorkflow from '~icons/lucide/workflow';
 	import LucideCircuitBoard from '~icons/lucide/circuit-board';
@@ -52,8 +52,8 @@
 		<ul class="menu flex w-full">
 			<li>
 				<a href="/" class:menu-active={page.route.id === '/(app)'}>
-					<LucideHouse />
-					Home
+					<LucideSquareActivity />
+					Activities
 				</a>
 			</li>
 			<li>

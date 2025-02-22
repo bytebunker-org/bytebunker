@@ -1,1 +1,46 @@
-{}
+{
+	"activity": {
+		"move": {
+			"activityType": {
+				"BOATING": "sailed",
+				"CATCHING_POKEMON": "caught Pokémon",
+				"CYCLING": "cycled",
+				"FLYING": "flown",
+				"HIKING": "hiked",
+				"HORSEBACK_RIDING": "rode",
+				"IN_BUS": "driven in bus",
+				"IN_CABLECAR": "ridden the cable car",
+				"IN_FERRY": "driven in ferry",
+				"IN_FUNICULAR": "ridden the funicular",
+				"IN_GONDOLA_LIFT": "ridden the gondola lift",
+				"IN_PASSENGER_VEHICLE": "driven",
+				"IN_SUBWAY": "driven by subway",
+				"IN_TAXI": "driven by taxi",
+				"IN_TRAIN": "driven by train",
+				"IN_TRAM": "driven by tram",
+				"IN_VEHICLE": "driven",
+				"IN_WHEELCHAIR": "rode in a wheelchair",
+				"KAYAKING": "kayaked",
+				"KITESURFING": "kitesurfed",
+				"MOTORCYCLING": "ridden a motorcycle",
+				"PARAGLIDING": "paraglided",
+				"ROWING": "rowed",
+				"RUNNING": "run",
+				"SAILING": "sailed",
+				"SKATEBOARDING": "skateboarded",
+				"SKATING": "skated",
+				"SKIING": "skied",
+				"SLEDDING": "sledded",
+				"SNOWBOARDING": "snowboarded",
+				"SNOWMOBILE": "rode a snowmobile",
+				"SNOWSHOEING": "snowshoed",
+				"STILL": "stood still",
+				"SURFING": "surfed",
+				"SWIMMING": "swum",
+				"UNKNOWN_ACTIVITY_TYPE": "moved",
+				"WALKING": "walked",
+				"WALKING_NORDIC": "did Nordic walking"
+			}
+		}
+	}
+}

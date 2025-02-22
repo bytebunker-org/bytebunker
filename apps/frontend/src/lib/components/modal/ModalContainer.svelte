@@ -73,7 +73,7 @@
 		<Dialog.Content
 			transition={flyAndScale}
 			class={[
-				'rounded-box bg-base-100 fixed top-[50%] left-[50%] z-50 translate-x-[-50%] translate-y-[-50%] border border-neutral-300 drop-shadow-2xl outline-none',
+				'rounded-box bg-base-100 fixed top-[50%] left-[50%] z-50 max-h-[90vh] translate-x-[-50%] translate-y-[-50%] overflow-y-scroll border border-neutral-300 drop-shadow-2xl outline-none',
 				{
 					'w-full max-w-[94%] sm:max-w-[490px]': modalTypeInfo?.size === 'sm',
 					'w-full max-w-[94%] md:max-w-sm': modalTypeInfo?.size === 'md' || !modalTypeInfo?.size,

@@ -122,3 +122,30 @@ export async function copyText(text: string) {
 		document.body.removeChild(element);
 	}
 }
+
+/**
+ * Maps a value from one range to another.
+ *
+ * @param value - The input value to be mapped.
+ * @param inRangeMin - The minimum of the input range.
+ * @param inRangeMax - The maximum of the input range.
+ * @param outRangeMin - The minimum of the output range.
+ * @param outRangeMax - The maximum of the output range.
+ * @returns The mapped value in the output range.
+ *
+ * @example
+ * ```ts
+ * const result = mapRange(0.5, 0, 1, 0.2, 0.8); // 0.5 maps to 0.5
+ * ```
+ */
+export function mapRange(
+	value: number,
+	inRangeMin: number,
+	inRangeMax: number,
+	outRangeMin: number,
+	outRangeMax: number
+): number {
+	return (
+		((value - inRangeMin) * (outRangeMax - outRangeMin)) / (inRangeMax - inRangeMin) + outRangeMin
+	);
+}

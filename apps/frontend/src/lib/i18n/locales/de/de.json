@@ -1,1 +1,46 @@
-{}
+{
+	"activity": {
+		"move": {
+			"activityType": {
+				"BOATING": "geboxt",
+				"CATCHING_POKEMON": "Pokémon gefangen",
+				"CYCLING": "gefahren",
+				"FLYING": "geflogen",
+				"HIKING": "gewandert",
+				"HORSEBACK_RIDING": "geritten",
+				"IN_BUS": "im Bus gefahren",
+				"IN_CABLECAR": "mit der Seilbahn gefahren",
+				"IN_FERRY": "mit der Fähre gefahren",
+				"IN_FUNICULAR": "mit der Standseilbahn gefahren",
+				"IN_GONDOLA_LIFT": "mit der Gondel gefahren",
+				"IN_PASSENGER_VEHICLE": "gefahren",
+				"IN_SUBWAY": "mit der U-Bahn gefahren",
+				"IN_TAXI": "mit dem Taxi gefahren",
+				"IN_TRAIN": "mit dem Zug gefahren",
+				"IN_TRAM": "mit der Straßenbahn gefahren",
+				"IN_VEHICLE": "gefahren",
+				"IN_WHEELCHAIR": "mit dem Rollstuhl gefahren",
+				"KAYAKING": "Kajak gefahren",
+				"KITESURFING": "Kitesurfen gemacht",
+				"MOTORCYCLING": "Motorrad gefahren",
+				"PARAGLIDING": "geflogen",
+				"ROWING": "gerudert",
+				"RUNNING": "gelaufen",
+				"SAILING": "gesegelt",
+				"SKATEBOARDING": "Skateboard gefahren",
+				"SKATING": "Eislaufen gemacht",
+				"SKIING": "Skifahren gemacht",
+				"SLEDDING": "Schlitten gefahren",
+				"SNOWBOARDING": "Snowboard gefahren",
+				"SNOWMOBILE": "mit dem Schneemobil gefahren",
+				"SNOWSHOEING": "mit Schneeschuhen gewandert",
+				"STILL": "stillgehalten",
+				"SURFING": "gesurft",
+				"SWIMMING": "geschwommen",
+				"UNKNOWN_ACTIVITY_TYPE": "sich bewegt",
+				"WALKING": "gegangen",
+				"WALKING_NORDIC": "Nordic Walking gemacht"
+			}
+		}
+	}
+}
