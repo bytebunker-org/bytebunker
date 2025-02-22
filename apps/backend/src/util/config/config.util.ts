@@ -47,7 +47,6 @@ export function normalizeConfig(
 ): Record<string, any> {
     const resultObject: Record<string, any> = {};
 
-    console.log('normalizing config', config);
     if (Array.isArray(config)) {
         return config;
     }
@@ -99,6 +98,5 @@ export function normalizeConfig(
         return resultObjectInstance;
     }
 
-    console.log('resultObject', resultObject);
     return resultObject;
 }
