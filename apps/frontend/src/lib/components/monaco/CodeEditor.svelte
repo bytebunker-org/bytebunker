@@ -4,6 +4,8 @@
 	import { onDestroy, onMount } from 'svelte';
 	import type { JSONSchema7 } from 'json-schema';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import pipelineScriptContext from '$lib/components/monaco/pipelineScriptContext.d.ts.txt?raw';
+	import pipelineActivityStreamsContext from '$lib/components/monaco/pipelineActivityStreamsContext.d.ts.txt?raw';
 
 	let editor: Monaco.editor.IStandaloneCodeEditor;
 	let monaco: typeof Monaco;
@@ -32,13 +34,23 @@
 			// Remove the next two lines to load the monaco editor from a CDN
 			// see https://www.npmjs.com/package/@monaco-editor/loader#config
 			const monacoEditor = await import('monaco-editor');
-			loader.config({ monaco: monacoEditor.default });
+			loader.config({
+				monaco: monacoEditor.default
+			});
 
 			monaco = await loader.init();
 
 			monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
 
-			const modelUri = monaco.Uri.parse(`a://example/editor-file.${language}`); // a made up unique URI for our model
+			const fileExtension = language === 'typescript' ? 'ts' : language;
+
+			let modelUri: Monaco.Uri; // a made up unique URI for our model
+
+			if (language === 'typescript') {
+				modelUri = monaco.Uri.parse(`ts:pipeline-temp/editor-file.ts`);
+			} else {
+				modelUri = monaco.Uri.parse(`a://pipeline-temp/editor-file.${fileExtension}`);
+			}
 
 			if (jsonSchema) {
 				monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
@@ -55,6 +67,21 @@
 						}
 					]
 				});
+			}
+			if (language === 'typescript') {
+				monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+					target: monaco.languages.typescript.ScriptTarget.ES2020,
+					allowNonTsExtensions: true,
+					module: monaco.languages.typescript.ModuleKind.ESNext,
+					moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+					noLib: true,
+					strict: true
+				});
+
+				const libSource = [pipelineScriptContext, pipelineActivityStreamsContext].join('\n');
+				const libUri = 'ts:pipeline-temp/pipelineScriptContext.d.ts';
+				monaco.languages.typescript.javascriptDefaults.addExtraLib(libSource, libUri);
+				monaco.editor.createModel(libSource, 'typescript', monaco.Uri.parse(libUri));
 			}
 
 			const model = monaco.editor.createModel(value, language, modelUri);

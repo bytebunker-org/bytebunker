@@ -9,7 +9,7 @@
 	import { deconstructPipelineModuleIdentifier } from '@bytebunker/backend';
 	import { toHeaderCase } from 'js-convert-case';
 	import BlueprintHandle from '$lib/components/pipeline/BlueprintHandle.svelte';
-	import type { JsonSchemaDto, PipelineExecutionDataDto } from '@bytebunker/backend';
+	import type { PipelineExecutionDataDto } from '@bytebunker/backend';
 	import type { JSONSchema7 } from 'json-schema';
 	import { getPipelineModuleNodeInfo } from '$lib/components/pipeline/pipelineModuleNodeRegistry.js';
 	import LucidePencil from '~icons/lucide/pencil';
@@ -34,27 +34,45 @@
 	);
 	let maxHandleAmount = $derived(
 		Math.max(
-			Object.keys(module.inputTypeSchema?.jsonSchema?.properties ?? {}).length,
-			Object.keys(module.outputTypeSchema?.jsonSchema?.properties ?? {}).length
+			getHandles('input', module.inputTypeSchema).length,
+			getHandles('output', module.outputTypeSchema).length
 		)
 	);
 
 	let blueprintNodeInfo = $derived(getPipelineModuleNodeInfo(data.moduleId));
 	let Icon = $derived(blueprintNodeInfo.icon);
 
-	function getHandles(schema: JsonSchemaDto | undefined): [string, JSONSchema7][] {
+	function getHandles(
+		type: 'input' | 'output',
+		schema: { jsonSchema?: JSONSchema7 } | undefined
+	): [string, JSONSchema7][] {
 		if (!schema) {
 			return [];
 		}
 
+		const hiddenHandles = ['code', 'customInputParameters', 'customOutputParameters'];
+
 		const entries = Object.entries(schema.jsonSchema?.properties ?? {}) as [string, JSONSchema7][];
 
-		return entries.sort((a, b) => {
-			const aIsSpecialHandle = Number(specialHandleNames.includes(a[0]));
-			const bIsSpecialHandle = Number(specialHandleNames.includes(b[0]));
+		if (moduleId.moduleName === 'execute-code') {
+			const customHandles =
+				(data.constantInputData?.[
+					type === 'input' ? 'customInputParameters' : 'customOutputParameters'
+				] as string[]) ?? [];
 
-			return aIsSpecialHandle - bIsSpecialHandle || a[0].localeCompare(b[0]);
-		});
+			for (const customHandle of customHandles) {
+				entries.push([customHandle, { type: 'null' }]);
+			}
+		}
+
+		return entries
+			.filter(([key]) => !hiddenHandles.includes(key))
+			.sort((a, b) => {
+				const aIsSpecialHandle = Number(specialHandleNames.includes(a[0]));
+				const bIsSpecialHandle = Number(specialHandleNames.includes(b[0]));
+
+				return aIsSpecialHandle - bIsSpecialHandle || a[0].localeCompare(b[0]);
+			});
 	}
 
 	const viewport = useViewport();
@@ -127,7 +145,7 @@
 				>
 					{#if executionData}
 						<LucideFileText />
-					{:else}
+					{:else if editorContext.allowEdit}
 						<LucidePencil />
 					{/if}
 				</button>
@@ -155,7 +173,7 @@
 	</div>
 	<div class="node-handles flex flex-row justify-between gap-2">
 		<div class="relative flex flex-col">
-			{#each getHandles(module.inputTypeSchema) as [handleName, handleType], i (handleName)}
+			{#each getHandles('input', module.inputTypeSchema) as [handleName, handleType], i (handleName)}
 				<BlueprintHandle
 					nodeData={data}
 					type="input"
@@ -167,7 +185,7 @@
 			{/each}
 		</div>
 		<div class="relative flex flex-col">
-			{#each getHandles(module.outputTypeSchema) as [handleName, handleType], i (handleName)}
+			{#each getHandles('output', module.outputTypeSchema) as [handleName, handleType], i (handleName)}
 				<BlueprintHandle
 					nodeData={data}
 					type="output"

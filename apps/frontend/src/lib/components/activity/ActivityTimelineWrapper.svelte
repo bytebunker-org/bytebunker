@@ -30,7 +30,7 @@
 		);
 
 		location.href = filter.buildFilterUrl({
-			start: startDate
+			start: startDate.startOf('month')
 		});
 	}
 	let intersectingHeaders = new SvelteSet<HTMLDivElement>();

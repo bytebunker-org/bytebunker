@@ -14,7 +14,6 @@
 	import { browser } from '$app/environment';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { type ActivityTimelineFilterQueryUtil } from '$lib/components/activity/activityTimelineFilterDefinition.js';
-	import { blur } from 'svelte/transition';
 
 	interface Props {
 		searchRequest: ActivityGraphSearchRequestDto;
@@ -25,8 +24,6 @@
 	}
 
 	let { searchRequest, filter, initialPageParam }: Props = $props();
-
-	console.log('rerendering with', initialPageParam[1].toLocaleString(DateTime.DATE_SHORT));
 
 	const activitySearchQuery = createInfiniteQuery<
 		ActivityGraphSearchResponseDto,

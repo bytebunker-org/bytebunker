@@ -153,13 +153,13 @@
 		150ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
 }
 
-body.hide-scrollbar,
-body.hide-scrollbar main {
+.hide-scrollbar,
+.hide-scrollbar main {
 	-ms-overflow-style: none; /* Internet Explorer 10+ */
 	scrollbar-width: none; /* Firefox */
 }
 
-body.hide-scrollbar::-webkit-scrollbar,
-body.hide-scrollbar main::-webkit-scrollbar {
+.hide-scrollbar::-webkit-scrollbar,
+.hide-scrollbar main::-webkit-scrollbar {
 	display: none; /* Safari and Chrome */
 }

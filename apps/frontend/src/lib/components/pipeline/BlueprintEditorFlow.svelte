@@ -45,7 +45,7 @@
 	);
 	let allowEdit = $derived(editorContext.allowEdit);
 
-	let maxNodeId = $derived(Math.max(...nodes.map((n) => Number.parseInt(n.id))));
+	let maxNodeId = $derived(Math.max(0, ...nodes.map((n) => Number.parseInt(n.id))));
 
 	const { screenToFlowPosition } = $derived(useSvelteFlow());
 

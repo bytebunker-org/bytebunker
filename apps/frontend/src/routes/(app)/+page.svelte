@@ -5,10 +5,10 @@
 	import { onMount } from 'svelte';
 
 	onMount(() => {
-		document.body.classList.add('hide-scrollbar');
+		document.documentElement.classList.add('hide-scrollbar');
 
 		return () => {
-			document.body.classList.remove('hide-scrollbar');
+			document.documentElement.classList.remove('hide-scrollbar');
 		};
 	});
 </script>
