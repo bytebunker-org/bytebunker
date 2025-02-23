@@ -14,6 +14,7 @@
 	import type { PipelineExecutionDto } from '@bytebunker/backend';
 	import { enumValues, PipelineExecutionStatusEnum } from '@bytebunker/backend';
 	import PipelineStatusBadge from '$lib/components/pipeline/PipelineStatusBadge.svelte';
+	import { browser } from '$app/environment';
 
 	interface Props {
 		blueprint: Blueprint;
@@ -59,7 +60,7 @@
 	<Card class="bg-base-100 border-base-300 rounded-box border shadow">
 		<CardBody class="overflow-hidden p-0">
 			<div style:height="500px" class="rounded-box relative overflow-hidden">
-				{#if blueprint && pipelineModules}
+				{#if browser && blueprint && pipelineModules}
 					<SvelteFlowProvider>
 						<BlueprintEditorFlow />
 					</SvelteFlowProvider>
