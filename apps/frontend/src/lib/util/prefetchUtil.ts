@@ -23,7 +23,7 @@ export function prefetchQueries<
 	) =>
 		| FetchQueryOptions<any, unknown, any, any>[]
 		| Promise<FetchQueryOptions<any, unknown, any, any>[]>,
-	infiniteQueryOptions: (
+	infiniteQueryOptions?: (
 		loadEvent: LoadEvent<Params, InputData, ParentData>
 	) =>
 		| FetchInfiniteQueryOptions<any, unknown, any, any>[]
@@ -39,10 +39,12 @@ export function prefetchQueries<
 				...event,
 				parent: () => Promise.resolve(parentData)
 			}),
-			infiniteQueryOptions({
-				...event,
-				parent: () => Promise.resolve(parentData)
-			})
+			infiniteQueryOptions
+				? infiniteQueryOptions({
+						...event,
+						parent: () => Promise.resolve(parentData)
+					})
+				: undefined
 		]);
 
 		await Promise.allSettled([
@@ -54,7 +56,7 @@ export function prefetchQueries<
 						options.enabled
 				)
 				.map((options) => queryClient.prefetchQuery(options)),
-			...infiniteQueryOptionsList
+			...(infiniteQueryOptionsList ?? [])
 				.filter(
 					(options) =>
 						!hasOwnProperty(options, 'enabled') ||
