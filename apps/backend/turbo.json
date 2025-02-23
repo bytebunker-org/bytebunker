@@ -11,7 +11,7 @@
         "build:mikro-orm-cache": {
             "inputs": ["src/**/*.ts"],
             "dependsOn": ["^build:lib"],
-            "outputs": ["temp/mikro-orm-cache/**"],
+            "outputs": ["src/util/generated/mikro-orm-cache/**"],
             "outputLogs": "new-only"
         },
         "build:lib": {
