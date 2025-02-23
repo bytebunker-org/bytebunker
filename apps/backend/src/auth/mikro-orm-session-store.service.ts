@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { type SessionData, Store } from 'express-session';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { StoredUserSessionEntity } from './entity/stored-user-session.entity.js';
@@ -9,6 +9,8 @@ import { buildQueryCacheKey, cacheQuery } from '../database/util/query-cache.uti
 
 @Injectable()
 export class MikroOrmSessionStoreService extends Store {
+    private readonly logger = new Logger(MikroOrmSessionStoreService.name);
+
     constructor(
         private readonly em: EntityManager,
         private readonly sessionConfig: SessionConfig,
@@ -31,6 +33,8 @@ export class MikroOrmSessionStoreService extends Store {
 
             callback?.(null, session?.data);
         } catch (error) {
+            this.logger.error('Error while getting session', error);
+
             callback(error);
         }
     }
@@ -54,6 +58,8 @@ export class MikroOrmSessionStoreService extends Store {
 
             callback?.(null);
         } catch (error) {
+            this.logger.error('Error while setting session', error);
+
             callback?.(error);
         }
     }
@@ -78,6 +84,8 @@ export class MikroOrmSessionStoreService extends Store {
 
             callback?.(null);
         } catch (error) {
+            this.logger.error('Error while destroying session', error);
+
             callback?.(error);
         }
     }
