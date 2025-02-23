@@ -39,7 +39,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 };
 
 export const handleFetch: HandleFetch = async ({ event, request, fetch }) => {
-	if (request.url.includes('192.168.') || request.url.includes('127.')) {
+	// TODO: Insecure handling of fetches to public urls
+	if (
+		request.url.includes('192.168.') ||
+		request.url.includes('127.') ||
+		request.url.includes('bytebunker')
+	) {
 		const cookieHeader = event.request.headers.get('cookie');
 
 		if (cookieHeader) {
