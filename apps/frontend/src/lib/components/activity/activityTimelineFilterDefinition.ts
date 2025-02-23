@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 export const activityTimelineFilterDefinition = {
 	start: {
 		type: 'date',
-		default: DateTime.now().toISODate()
+		default: DateTime.now().endOf('day')
 	},
 	end: {
 		type: 'date'

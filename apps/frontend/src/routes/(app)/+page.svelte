@@ -1,10 +1,18 @@
 <script lang="ts">
-	import { Card, CardBody } from '@bytebunker/daisyui-components';
 	import MainLayout from '$lib/components/MainLayout.svelte';
 	import LucideSquareActivity from '~icons/lucide/square-activity';
-	import ActivityTimeline from '$lib/components/activity/ActivityTimeline.svelte';
+	import ActivityTimelineWrapper from '$lib/components/activity/ActivityTimelineWrapper.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		document.body.classList.add('hide-scrollbar');
+
+		return () => {
+			document.body.classList.remove('hide-scrollbar');
+		};
+	});
 </script>
 
 <MainLayout icon={LucideSquareActivity} title="Activities" isHome>
-	<ActivityTimeline searchRequest={{}} />
+	<ActivityTimelineWrapper searchRequest={{}} />
 </MainLayout>

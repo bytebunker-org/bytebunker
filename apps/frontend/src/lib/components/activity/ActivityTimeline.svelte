@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createInfiniteQuery } from '@tanstack/svelte-query';
+	import { createInfiniteQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { ActivityGraphSearchApi } from '$lib/api/ActivityGraphSearchApi.js';
 	import { DateTime } from 'luxon';
 	import { fly } from 'svelte/transition';
@@ -13,17 +13,20 @@
 	import { onMount, tick } from 'svelte';
 	import { browser } from '$app/environment';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { FilterQueryUtil } from '$lib/util/filterQueryUtil.svelte.js';
-	import { activityTimelineFilterDefinition } from '$lib/components/activity/activityTimelineFilterDefinition.js';
-	import ActivityScrollbar from '$lib/components/activity/ActivityScrollbar.svelte';
+	import { type ActivityTimelineFilterQueryUtil } from '$lib/components/activity/activityTimelineFilterDefinition.js';
+	import { blur } from 'svelte/transition';
 
 	interface Props {
 		searchRequest: ActivityGraphSearchRequestDto;
+
+		filter: ActivityTimelineFilterQueryUtil;
+
+		initialPageParam: ['cursorStart' | 'cursorEnd', DateTime];
 	}
 
-	let { searchRequest }: Props = $props();
+	let { searchRequest, filter, initialPageParam }: Props = $props();
 
-	const filter = new FilterQueryUtil(activityTimelineFilterDefinition);
+	console.log('rerendering with', initialPageParam[1].toLocaleString(DateTime.DATE_SHORT));
 
 	const activitySearchQuery = createInfiniteQuery<
 		ActivityGraphSearchResponseDto,
@@ -43,10 +46,7 @@
 					? { cursorEnd: pageParam[1].toISO() as unknown as DateTime }
 					: {})
 			}),
-		initialPageParam: [
-			'cursorStart',
-			filter.filters.start?.endOf('day') ?? DateTime.now().endOf('day')
-		],
+		initialPageParam,
 		getPreviousPageParam: (firstPage: ActivityGraphSearchResponseDto) =>
 			firstPage.hasPreviousPage ? ['cursorEnd', firstPage.previousPageEndCursor!] : undefined,
 		getNextPageParam: (lastPage: ActivityGraphSearchResponseDto) =>
@@ -189,48 +189,44 @@
 
 <svelte:window onscroll={onScroll} />
 
-<ActivityScrollbar {searchRequest} {currentScrollDate} />
-
-<div bind:this={activityTimelineContainer}>
-	{#each activitySearchQuery.data?.pages ?? [] as page}
-		<div class="mx-auto flex w-[60vw] flex-row flex-wrap p-2" transition:fly={{ duration: 300 }}>
-			{#each groupActivities(page.activities) as dayGroup (dayGroup.date.toISO())}
-				<div class="mt-4">
-					<div
-						class="timeline-day-header from-base-100 sticky top-0 z-20 flex items-center gap-8 bg-gradient-to-b from-70% to-transparent"
-						data-date={dayGroup.date.toISODate()}
-					>
-						<h2 class="py-4 text-xl font-bold">
-							{dayGroup.date.toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)}
-						</h2>
-						<div class="h-[1px] w-[30vw] border-t border-t-neutral-300"></div>
-					</div>
-					<div class="flex flex-col gap-4 pl-16">
-						{#each dayGroup.activities as activity, i (activity['@id'])}
-							{@const ActivityComponent = activityComponentMap[activity['@type']]}
-
-							{#if ActivityComponent}
-								<ActivityComponent
-									{activity}
-									displaySize="md"
-									isFirstInGroup={i === 0}
-									isLastInGroup={dayGroup.activities.length - 1 === i}
-								/>
-							{/if}
-						{/each}
-					</div>
+{#each activitySearchQuery.data?.pages ?? [] as page}
+	<div class="mx-auto flex w-[60vw] flex-row flex-wrap p-2" transition:fly={{ duration: 300 }}>
+		{#each groupActivities(page.activities) as dayGroup (dayGroup.date.toISO())}
+			<div class="mt-4">
+				<div
+					class="timeline-day-header from-base-100 sticky top-0 z-20 flex items-center gap-8 bg-gradient-to-b from-70% to-transparent"
+					data-date={dayGroup.date.toISODate()}
+				>
+					<h2 class="py-4 text-xl font-bold">
+						{dayGroup.date.toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)}
+					</h2>
+					<div class="h-[1px] w-[30vw] border-t border-t-neutral-300"></div>
 				</div>
-			{/each}
-		</div>
-	{/each}
+				<div class="flex flex-col gap-4 pl-16">
+					{#each dayGroup.activities as activity, i (activity['@id'])}
+						{@const ActivityComponent = activityComponentMap[activity['@type']]}
 
-	<div class="flex w-full items-center justify-center p-8">
-		{#if activitySearchQuery.hasNextPage}
-			<span class="loading loading-ring text-primary size-16"></span>
-		{:else}
-			<span class="text-neutral-500">Keine weiteren Aktivitäten gefunden</span>
-		{/if}
+						{#if ActivityComponent}
+							<ActivityComponent
+								{activity}
+								displaySize="md"
+								isFirstInGroup={i === 0}
+								isLastInGroup={dayGroup.activities.length - 1 === i}
+							/>
+						{/if}
+					{/each}
+				</div>
+			</div>
+		{/each}
 	</div>
+{/each}
+
+<div class="flex w-full items-center justify-center p-8">
+	{#if !browser || activitySearchQuery.isLoading || activitySearchQuery.hasNextPage}
+		<span class="loading loading-ring text-primary size-16"></span>
+	{:else}
+		<span class="text-neutral-500">Keine weiteren Aktivitäten gefunden</span>
+	{/if}
 </div>
 
 <style>
