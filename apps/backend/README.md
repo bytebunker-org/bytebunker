@@ -25,7 +25,7 @@ $ pnpm run start:prod
 
 ```shell
 # Test docker image locally
-docker run --rm -it --mount type=bind,source=$(pwd)/.env.development.toml,target=/opt/app/apps/backend/.env.development.toml --entrypoint sh bytebunker-backend
+docker run --rm -it --mount type=bind,source=$(pwd)/.env.development.toml,target=/opt/app/apps/backend/.env.development.toml --network host --entrypoint sh bytebunker-backend
 ```
 
 ## Test

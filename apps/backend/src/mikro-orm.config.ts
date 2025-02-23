@@ -7,6 +7,7 @@ import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
 import { NotFoundError } from './util/rest-error.js';
 import { MikroOrmConfig } from './util/config/mikro-orm.config.js';
 import { UnderscoreNamingStrategy } from '@mikro-orm/core';
+import metadataCache from './util/generated/mikro-orm-cache/metadata.json' with { type: 'json' };
 
 // TODO We use toml.
 if (!process.env['NODE_ENV']) {
@@ -45,11 +46,13 @@ function buildMikroOrmConfig() {
                 ? {
                       enabled: true,
                       adapter: GeneratedCacheAdapter,
+                      options: { data: metadataCache },
                   }
-                : {}),
-            options: {
-                cacheDir: './temp/mikro-orm-cache',
-            },
+                : {
+                      options: {
+                          cacheDir: './src/util/generated/mikro-orm-cache',
+                      },
+                  }),
         },
         namingStrategy: UnderscoreNamingStrategy,
         ignoreUndefinedInQuery: true,
@@ -65,7 +68,7 @@ function buildMetadataBuildingConfig() {
         metadataProvider: TsMorphMetadataProvider,
         metadataCache: {
             options: {
-                cacheDir: './temp/mikro-orm-cache',
+                cacheDir: './src/util/generated/mikro-orm-cache',
             },
         },
     });

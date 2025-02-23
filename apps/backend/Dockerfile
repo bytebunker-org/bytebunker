@@ -56,7 +56,6 @@ COPY --from=build /opt/app/packages/qs-esm/lib /opt/app/packages/qs-esm/lib
 COPY --from=build /opt/app/packages/event-schema/lib /opt/app/packages/event-schema/lib
 # COPY --from=build /opt/app/apps/backend/resources ./resources
 COPY --from=build /opt/app/apps/backend/.env.production.toml ./.env.production.toml
-COPY --from=build /opt/app/apps/backend/temp/mikro-orm-cache ./temp/mikro-orm-cache
 COPY --from=build /opt/app/apps/backend/dist ./dist
 
 CMD node ./dist/main.js

@@ -6,6 +6,7 @@ import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
 import { AppConfig, NodeEnvironment } from '../util/config/app.config.js';
 import { MikroOrmConfig } from '../util/config/mikro-orm.config.js';
 import { UnderscoreNamingStrategy } from '@mikro-orm/core';
+import metadataCache from '../util/generated/mikro-orm-cache/metadata.json' with { type: 'json' };
 
 @Injectable()
 export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlDriver> {
@@ -34,11 +35,13 @@ export class MikroOrmConfigService implements MikroOrmOptionsFactory<PostgreSqlD
                     ? {
                           enabled: true,
                           adapter: GeneratedCacheAdapter,
+                          options: { data: metadataCache },
                       }
-                    : {}),
-                options: {
-                    cacheDir: './temp/mikro-orm-cache',
-                },
+                    : {
+                          options: {
+                              cacheDir: './src/util/generated/mikro-orm-cache',
+                          },
+                      }),
             },
             serialization: {
                 forceObject: true,

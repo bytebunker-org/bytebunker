@@ -13,7 +13,7 @@
     "scripts": {
         "build": "nest build --path ./tsconfig.build.json",
         "build:generate-metadata": "rm -f ./src/metadata.ts && tsx --tsconfig tsconfig.lib.json ./tools/scripts/generate-metadata.ts",
-        "build:mikro-orm-cache": "cross-env BUILD_MIKRO_ORM_METADATA=1 mikro-orm-esm cache:generate --combined",
+        "build:mikro-orm-cache": "mkdir -p ./src/util/generated/mikro-orm-cache && echo '{}' > ./src/util/generated/mikro-orm-cache/metadata.json && cross-env BUILD_MIKRO_ORM_METADATA=1 mikro-orm-esm cache:generate --combined",
         "build:lib": "tsx --tsconfig tsconfig.lib.json ./tools/scripts/build-lib.script.ts",
         "dev": "cross-env NODE_ENV=development TZ=UTC nest start --watch",
         "mikro-orm": "mikro-orm-esm",

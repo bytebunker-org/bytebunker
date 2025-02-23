@@ -1,6 +1,8 @@
 temp
 temp-dirs
 src/metadata.ts
+src/util/generated
+!src/util/generated/mikro-orm-cache/.gitkeep
 
 # compiled output
 /dist
