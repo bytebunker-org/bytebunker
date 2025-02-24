@@ -9,7 +9,7 @@
 	import { onMount } from 'svelte';
 	import { Button } from '@bytebunker/daisyui-components';
 	import type { JSONSchema7 } from 'json-schema';
-	import pipelineScriptTemplate from '$lib/components/monaco/pipelineScriptTemplate.ts.txt?raw';
+	import pipelineScriptTemplate from '$lib/components/monaco/typescriptContext/pipelineScript/pipelineScriptTemplate.js?raw';
 
 	let { options, close }: ModalProps<ModalTypeEnum.EDIT_BLUEPRINT_NODE> = $props();
 

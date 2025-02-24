@@ -4,17 +4,16 @@
 	import { onDestroy, onMount } from 'svelte';
 	import type { JSONSchema7 } from 'json-schema';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import pipelineScriptContext from '$lib/components/monaco/pipelineScriptContext.d.ts.txt?raw';
-	import pipelineActivityStreamsContext from '$lib/components/monaco/pipelineActivityStreamsContext.d.ts.txt?raw';
+	import { configureMonacoEditor } from '$lib/components/monaco/configureMonacoEditor.js';
 
-	let editor: Monaco.editor.IStandaloneCodeEditor;
+	let editor: Monaco.editor.IStandaloneCodeEditor | undefined = undefined;
 	let monaco: typeof Monaco;
 	let editorContainer: HTMLElement;
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		value: string;
 
-		language?: string;
+		language?: 'json' | 'typescript';
 
 		jsonSchema?: JSONSchema7;
 
@@ -40,62 +39,12 @@
 
 			monaco = await loader.init();
 
-			monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
-
-			const fileExtension = language === 'typescript' ? 'ts' : language;
-
-			let modelUri: Monaco.Uri; // a made up unique URI for our model
-
-			if (language === 'typescript') {
-				modelUri = monaco.Uri.parse(`ts:pipeline-temp/editor-file.ts`);
-			} else {
-				modelUri = monaco.Uri.parse(`a://pipeline-temp/editor-file.${fileExtension}`);
-			}
-
-			if (jsonSchema) {
-				monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-					validate: !readOnly,
-					schemaValidation: readOnly ? 'ignore' : 'warning',
-					allowComments: false,
-					trailingCommas: readOnly ? 'ignore' : 'error',
-					comments: readOnly ? 'ignore' : 'error',
-					schemas: [
-						{
-							uri: jsonSchema.$id ?? 'http://example.com/unknown-schema.json',
-							fileMatch: [modelUri.toString()], // associate with our model
-							schema: JSON.parse(JSON.stringify(jsonSchema))
-						}
-					]
-				});
-			}
-			if (language === 'typescript') {
-				monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-					target: monaco.languages.typescript.ScriptTarget.ES2020,
-					allowNonTsExtensions: true,
-					module: monaco.languages.typescript.ModuleKind.ESNext,
-					moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-					noLib: true,
-					strict: true
-				});
-
-				const libSource = [pipelineScriptContext, pipelineActivityStreamsContext].join('\n');
-				const libUri = 'ts:pipeline-temp/pipelineScriptContext.d.ts';
-				monaco.languages.typescript.javascriptDefaults.addExtraLib(libSource, libUri);
-				monaco.editor.createModel(libSource, 'typescript', monaco.Uri.parse(libUri));
-			}
-
-			const model = monaco.editor.createModel(value, language, modelUri);
-			const darkMode =
-				window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-			editor = monaco.editor.create(editorContainer, {
-				value,
-				model,
-				theme: darkMode ? 'vs-dark' : 'vs',
-				automaticLayout: true,
-				overviewRulerLanes: 0,
-				overviewRulerBorder: false,
-				wordWrap: 'on',
+			editor = configureMonacoEditor({
+				monaco,
+				editorContainer,
+				initialValue: value,
+				language,
+				jsonSchema,
 				readOnly
 			});
 
