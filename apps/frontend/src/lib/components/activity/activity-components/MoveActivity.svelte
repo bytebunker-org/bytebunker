@@ -59,7 +59,14 @@
 
 		let waypoints: { lat: number; lng: number }[] = [];
 		let rawWaypoints: { lat: number; lng: number }[] = [];
-		let startAndEnd: { lat: number; lng: number }[] = [];
+		const startAndEnd: { lat: number; lng: number }[] = [
+			activity.origin.latitude && activity.origin.longitude
+				? { lat: activity.origin.latitude, lng: activity.origin.longitude }
+				: undefined,
+			activity.target.latitude && activity.target.longitude
+				? { lat: activity.target.latitude, lng: activity.target.longitude }
+				: undefined
+		].filter(Boolean);
 
 		if (Array.isArray(activity.waypointPath?.waypoints)) {
 			waypoints = activity.waypointPath.waypoints.map((waypoint) => {
@@ -78,7 +85,12 @@
 			});
 		}
 
-		const waypointsToUse = waypoints.length > rawWaypoints.length ? waypoints : rawWaypoints;
+		const waypointsToUse =
+			waypoints.length > rawWaypoints.length
+				? startAndEnd.length > waypoints.length
+					? startAndEnd
+					: waypoints
+				: rawWaypoints;
 
 		if (!waypointsToUse?.length) {
 			return undefined;
@@ -170,8 +182,10 @@
 				size="sm"
 				href={googleMapsDirectionsUrl}
 				target="_blank"
-				rel="external"><LucideMap /></Button
+				rel="external"
 			>
+				<LucideMap />
+			</Button>
 		{/if}
 	{/snippet}
 </ActivityCard>
