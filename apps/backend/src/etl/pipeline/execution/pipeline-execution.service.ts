@@ -155,7 +155,7 @@ export class PipelineExecutionService {
                 `Scheduling nodes for execution ${executableModuleNodes.map((n) => n.moduleId).join(', ')}`,
             );
 
-            const job = await this.pipelineExecutionFlowProducer.add({
+            await this.pipelineExecutionFlowProducer.add({
                 name: QueueFlowNameEnum.PIPELINE_EXECUTION_FLOW,
                 queueName: QueueNameEnum.CONTINUE_PIPELINE_EXECUTION,
                 data: {
@@ -185,14 +185,6 @@ export class PipelineExecutionService {
                     },
                 })),
             });
-
-            console.log('Flow Job', JSON.stringify(job));
-
-            const flowTree = await this.pipelineExecutionFlowProducer.getFlow({
-                id: job.job.id!,
-                queueName: QueueNameEnum.CONTINUE_PIPELINE_EXECUTION,
-            });
-            console.log('created flow, tree:', JSON.stringify(flowTree));
         } else {
             const executionDataList = await em.find(
                 PipelineExecutionDataEntity,

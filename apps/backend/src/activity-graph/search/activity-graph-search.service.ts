@@ -133,15 +133,6 @@ export class ActivityGraphSearchService {
             ...(dayEndFillerResult?.activityNodes ?? []),
         ];
 
-        console.log('SEARCH', {
-            cursorStart: data.cursorStart,
-            cursorEnd: data.cursorEnd,
-            timeRangeStart,
-            timeRangeEnd,
-            hasPreviousPage,
-            hasNextPage,
-        });
-
         return {
             activities: filledActivityNodes,
             cursorType: data.cursorStart ? 'startCursor' : 'endCursor',
