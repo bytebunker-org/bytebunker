@@ -11,7 +11,6 @@ export class ActivityGraphSearchApi extends ApiBase {
 		params: ActivityGraphSearchRequestDto,
 		fetchImpl?: typeof fetch
 	): Promise<ActivityGraphSearchResponseDto> {
-		console.log('search with', params);
 		return ApiBase.get(fetchImpl, '/activities/search', { params });
 	}
 

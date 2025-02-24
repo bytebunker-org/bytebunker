@@ -7,6 +7,7 @@
 	import ActivitySummary from '$lib/components/activity/ActivitySummary.svelte';
 	import { getActivityTypeData } from '$lib/components/activity/activityTypeRegistry.js';
 	import { Button } from '@bytebunker/daisyui-components';
+	import { slide } from 'svelte/transition';
 
 	interface Props {
 		activities: ASActivity[];
@@ -46,20 +47,23 @@
 	/>
 {:else}
 	<div
-		class="group relative flex cursor-pointer"
+		class="group relative flex"
 		style="--activity-bg-color: {isSingleType
 			? firstTypeData.backgroundColor
 			: 'var(--color-neutral-400)'}; --activity-fg-color: {isSingleType
 			? firstTypeData.color
 			: 'white'}"
-		onclick={() => (isExpanded = true)}
-		tabindex="0"
-		onkeydown={() => (isExpanded = true)}
 	>
-		<div class="mr-2 w-[50px] text-neutral-500">
+		<div class="mt-[6px] -mr-[4px] ml-[12px] w-[50px] text-neutral-500">
 			{activities[0].startTime?.toLocaleString(DateTime.TIME_24_SIMPLE)}
 		</div>
-		<div class="activity-card-icon rounded-box relative mr-4 size-9 p-2">
+		<div
+			class="activity-card-icon rounded-box relative mr-4 size-9 cursor-pointer p-2"
+			onclick={() => (isExpanded = !isExpanded)}
+			tabindex="0"
+			onkeydown={() => (isExpanded = !isExpanded)}
+			role="button"
+		>
 			<Icon class="z-10 size-5" />
 			<div
 				class="absolute left-[calc(50%-1px)] z-[-1] w-[1px] border-l-2 border-neutral-300"
@@ -68,30 +72,32 @@
 					: 0}px"
 			></div>
 		</div>
-		{#if isExpanded}
-			<div class="flex flex-col gap-4 overflow-hidden">
-				{#each activities as activity, i (activity['@id'])}
-					{@const activityTypeData = getActivityTypeData(activity['@type'])}
-					{@const ActivityComponent = activityTypeData.component}
+		<div class="relative">
+			{#if isExpanded}
+				<div class="flex flex-col gap-4 overflow-hidden py-2" transition:slide>
+					{#each activities as activity, i (activity['@id'])}
+						{@const activityTypeData = getActivityTypeData(activity['@type'])}
+						{@const ActivityComponent = activityTypeData.component}
 
-					{#if ActivityComponent}
-						<ActivityComponent
-							{activity}
-							nestedActivities={[]}
-							cardSize="sm"
-							index={i}
-							isFirstInGroup={i === 0}
-							isLastInGroup={activities.length - 1 === i}
-							hideIcon
-						/>
-					{/if}
-				{/each}
-			</div>
-		{:else}
-			<div class="card rounded-box bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
-				<ActivitySummary {activities} hideIcon />
-			</div>
-		{/if}
+						{#if ActivityComponent}
+							<ActivityComponent
+								{activity}
+								nestedActivities={[]}
+								cardSize="sm"
+								index={i}
+								isFirstInGroup={i === 0}
+								isLastInGroup={activities.length - 1 === i}
+								hideIcon
+							/>
+						{/if}
+					{/each}
+				</div>
+			{:else}
+				<div class="card rounded-box absolute bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
+					<ActivitySummary {activities} hideIcon />
+				</div>
+			{/if}
+		</div>
 		<Button
 			btnStyle="outline"
 			color="primary"
@@ -102,7 +108,7 @@
 			}}
 			class="btn-circle absolute top-0 {!isExpanded
 				? 'right-[-10%] opacity-0'
-				: 'right-0'} transition-opacity duration-150 group-hover:opacity-100"
+				: 'right-0'} transition-opacity duration-100 group-hover:opacity-100"
 		>
 			{#if isExpanded}
 				<LucideChevronUp class="size-6" />

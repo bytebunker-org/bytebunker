@@ -52,3 +52,59 @@ export const shortEnglishDuration = humanizeDuration.humanizer({
 	round: true,
 	largest: 2
 });
+
+export function buildSpotifyOpenUrl(spotifyIdentifier: string): string | undefined {
+	let type = 'track';
+	let id = spotifyIdentifier;
+
+	const uriMatch = spotifyIdentifier ? /spotify:(\w+):(.+)/.exec(spotifyIdentifier) : undefined;
+
+	if (uriMatch) {
+		type = uriMatch[1];
+		id = uriMatch[2];
+	}
+
+	return id ? `https://open.spotify.com/${type}/${id}` : undefined;
+}
+
+export function buildGoogleMapsPlaceUrl(
+	location: { lat: number | undefined; lng: number | undefined },
+	placeId: string | undefined
+) {
+	if (!location.lat || !location.lng) {
+		return;
+	}
+
+	const params = new URLSearchParams();
+	params.set('api', '1');
+	params.set('query', `${location.lat},${location.lng}`);
+	if (placeId) {
+		params.set('query_place_id', placeId);
+	}
+
+	return `https://www.google.com/maps/search/?${params.toString()}`;
+}
+
+export function buildGoogleMapsDirectionsUrl(
+	origin: { lat: number | undefined; lng: number | undefined },
+	originPlaceId: string | undefined,
+	target: { lat: number | undefined; lng: number | undefined },
+	targetPlaceId: string | undefined
+): string | undefined {
+	if (!origin.lat || !origin.lng || !target.lat || !target.lng) {
+		return;
+	}
+
+	const params = new URLSearchParams();
+	params.set('api', '1');
+	params.set('origin', `${origin.lat},${origin.lng}`);
+	if (originPlaceId) {
+		params.set('origin_place_id', originPlaceId);
+	}
+	params.set('destination', `${target.lat},${target.lng}`);
+	if (targetPlaceId) {
+		params.set('destination_place_id', targetPlaceId);
+	}
+
+	return `https://www.google.com/maps/dir/?${params.toString()}`;
+}

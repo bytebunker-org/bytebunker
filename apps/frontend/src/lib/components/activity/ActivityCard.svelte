@@ -6,9 +6,12 @@
 	import ActivitySummary from '$lib/components/activity/ActivitySummary.svelte';
 	import LucideCornerDownRight from '~icons/lucide/corner-down-right';
 	import { getActivityTypeData } from '$lib/components/activity/activityTypeRegistry.js';
+	import type { ClassValue } from 'svelte/elements';
 
 	interface Props extends ActivityPropsInterface<ASActivity> {
 		children?: Snippet;
+
+		class?: ClassValue;
 
 		type: ActivityType | string;
 
@@ -19,10 +22,13 @@
 		noCardStyles?: boolean;
 
 		hideIcon?: boolean;
+
+		afterCardButtons?: Snippet;
 	}
 
 	let {
 		activity,
+		class: classes = [],
 		type,
 		cardSize,
 		nestedActivities,
@@ -32,7 +38,8 @@
 		isLastInGroup,
 		maxCardHeight,
 		noCardStyles,
-		hideIcon = false
+		hideIcon = false,
+		afterCardButtons
 	}: Props = $props();
 
 	let activityTypeData = $derived(getActivityTypeData((type as ActivityType) ?? activity['@type']));
@@ -45,7 +52,11 @@
 </script>
 
 <div
-	class="flex items-center {cardSize !== 'sm' ? 'my-1' : 'my-[-5px]'}"
+	class={[
+		'group/activity-card flex items-center',
+		cardSize === 'sm' ? 'my-[-5px]' : 'my-1',
+		...(Array.isArray(classes) ? classes : [classes])
+	]}
 	style="--activity-bg-color: {activityTypeData.backgroundColor}; --activity-fg-color: {activityTypeData.color}"
 >
 	<div class="mr-2 w-[50px] text-right text-neutral-500 {cardSize === 'sm' ? 'text-sm' : ''}">
@@ -105,6 +116,13 @@
 			{/if}
 		{/if}
 	</div>
+	{#if afterCardButtons}
+		<div
+			class="ml-2 opacity-0 transition-opacity duration-150 group-hover/activity-card:opacity-100"
+		>
+			{@render afterCardButtons?.()}
+		</div>
+	{/if}
 </div>
 
 <style>

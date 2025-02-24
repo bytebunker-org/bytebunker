@@ -5,19 +5,22 @@
 	import type { ActivityPropsInterface } from '$lib/components/activity/ActivityPropsInterface.js';
 	import LucideRoute from '~icons/lucide/route';
 	import LucideArrowRight from '~icons/lucide/arrow-right';
+	import LucideMap from '~icons/lucide/map';
 	import { t } from 'svelte-i18n';
 	import ActivityCard from '$lib/components/activity/ActivityCard.svelte';
 	import { googleActivityTypeIconMap } from '$lib/components/activity/activity-components/util/googleActivityTypeIconMap.js';
 	import {
+		buildGoogleMapsDirectionsUrl,
 		calculateActivityDistance,
 		shortEnglishDuration
 	} from '$lib/components/activity/activityUtil.js';
 	import { MapboxApi, type MapboxStyle } from '$lib/api/MapboxApi.js';
 	import LucideTimer from '~icons/lucide/timer';
+	import { Button } from '@bytebunker/daisyui-components';
 
 	interface MoveActivity extends Move, GoogleTimelineActivityInterface {
-		origin: Place;
-		target: Place;
+		origin: Place & { placeId?: string };
+		target: Place & { placeId?: string };
 		activityType: ActivityTypeEnum;
 	}
 
@@ -56,6 +59,7 @@
 
 		let waypoints: { lat: number; lng: number }[] = [];
 		let rawWaypoints: { lat: number; lng: number }[] = [];
+		let startAndEnd: { lat: number; lng: number }[] = [];
 
 		if (Array.isArray(activity.waypointPath?.waypoints)) {
 			waypoints = activity.waypointPath.waypoints.map((waypoint) => {
@@ -90,6 +94,15 @@
 
 	let duration = $derived(
 		activity.startTime && activity.endTime ? activity.endTime.diff(activity.startTime) : undefined
+	);
+
+	let googleMapsDirectionsUrl = $derived(
+		buildGoogleMapsDirectionsUrl(
+			{ lat: activity.origin.latitude, lng: activity.origin.longitude },
+			activity.origin.placeId,
+			{ lat: activity.target.latitude, lng: activity.target.longitude },
+			activity.target.placeId
+		)
 	);
 </script>
 
@@ -126,7 +139,11 @@
 	{:else}
 		{@const mapboxStaticTileUrl = buildMapboxStaticTileUrl()}
 		<div class="flex flex-col">
-			<div class="bg-base-200 rounded-t-box flex items-center justify-between px-4 py-3">
+			<div
+				class="bg-base-200 {mapboxStaticTileUrl
+					? 'rounded-t-box'
+					: 'rounded-box'} flex items-center justify-between gap-4 px-4 py-3"
+			>
 				<div class="flex items-center">
 					<LucideRoute />
 					<span class="mx-1 font-bold">{movedDistanceString}</span><span
@@ -145,4 +162,16 @@
 			{/if}
 		</div>
 	{/if}
+	{#snippet afterCardButtons()}
+		{#if googleMapsDirectionsUrl}
+			<Button
+				btnStyle="ghost"
+				class="btn-circle"
+				size="sm"
+				href={googleMapsDirectionsUrl}
+				target="_blank"
+				rel="external"><LucideMap /></Button
+			>
+		{/if}
+	{/snippet}
 </ActivityCard>

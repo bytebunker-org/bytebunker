@@ -134,9 +134,9 @@ registerActivityType('Move', {
 
 		const hasPlaceNames = hasOwn(activity.origin, 'name') && hasOwn(activity.target, 'name');
 
-		if (movedDistanceKm > 10 && hasPlaceNames) {
+		if (movedDistanceKm > 5 && hasPlaceNames) {
 			return 'md';
-		} else if (movedDistanceKm > 10) {
+		} else if (movedDistanceKm > 5) {
 			return 'lg';
 		}
 
