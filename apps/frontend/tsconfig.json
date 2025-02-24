@@ -1,4 +1,4 @@
 {
 	"extends": ["@bytebunker/tsconfig/svelte.json", "./.svelte-kit/tsconfig.json"],
-	"exclude": ["./src/lib/components/monaco/typescriptContext"]
+	"exclude": ["./src/lib/components/monaco/typescriptContext/**/*.d.ts"]
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createInfiniteQuery, useQueryClient } from '@tanstack/svelte-query';
+	import { createInfiniteQuery } from '@tanstack/svelte-query';
 	import { ActivityGraphSearchApi } from '$lib/api/ActivityGraphSearchApi.js';
 	import { DateTime } from 'luxon';
 	import { fly } from 'svelte/transition';
@@ -7,13 +7,15 @@
 		ActivityGraphSearchRequestDto,
 		ActivityGraphSearchResponseDto
 	} from '@bytebunker/backend';
-	import { activityComponentMap } from '$lib/components/activity/activityComponentMap.js';
+	import { getActivityTypeData } from '$lib/components/activity/activityTypeRegistry.js';
 	import type { ASActivity } from '@bytebunker/event-schema';
 	import { throttle } from 'es-toolkit';
 	import { onMount, tick } from 'svelte';
 	import { browser } from '$app/environment';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { type ActivityTimelineFilterQueryUtil } from '$lib/components/activity/activityTimelineFilterDefinition.js';
+	import { processActivityTimelineDay } from '$lib/components/activity/activityTimelineUtil.js';
+	import ActivityCollection from '$lib/components/activity/ActivityCollection.svelte';
 
 	interface Props {
 		searchRequest: ActivityGraphSearchRequestDto;
@@ -115,6 +117,12 @@
 		)[0]
 	);
 
+	onMount(() => {
+		let intervalId = setInterval(onScroll, 2000);
+
+		return () => clearInterval(intervalId);
+	});
+
 	const dayHeaderIntersectionObserver = browser
 		? new IntersectionObserver((entries) => {
 				for (const entry of entries) {
@@ -161,12 +169,6 @@
 				}
 
 				if (lastTimelineContainerHeight) {
-					console.log(
-						'lastTimelineContainerHeight',
-						lastTimelineContainerHeight,
-						'current',
-						activityTimelineContainer.getBoundingClientRect().height
-					);
 					lastTimelineContainerHeight = undefined;
 				}
 			})();
@@ -174,8 +176,6 @@
 			dayHeaderIntersectionObserver?.disconnect();
 		}
 	});
-
-	$inspect('lastTimelineContainerHeight', lastTimelineContainerHeight);
 
 	onMount(() => {
 		window.scrollTo({
@@ -200,13 +200,25 @@
 					<div class="h-[1px] w-[30vw] border-t border-t-neutral-300"></div>
 				</div>
 				<div class="flex flex-col gap-4 pl-16">
-					{#each dayGroup.activities as activity, i (activity['@id'])}
-						{@const ActivityComponent = activityComponentMap[activity['@type']]}
+					{#each processActivityTimelineDay(dayGroup.activities) as timelineEntry, i}
+						{#if timelineEntry.type === 'activity'}
+							{@const activityTypeData = getActivityTypeData(timelineEntry.activity['@type'])}
+							{@const ActivityComponent = activityTypeData.component}
 
-						{#if ActivityComponent}
-							<ActivityComponent
-								{activity}
-								displaySize="md"
+							{#if ActivityComponent}
+								<ActivityComponent
+									activity={timelineEntry.activity}
+									nestedActivities={timelineEntry.nestedActivities}
+									cardSize={activityTypeData.getCardSize(timelineEntry, i)}
+									index={i}
+									isFirstInGroup={i === 0}
+									isLastInGroup={dayGroup.activities.length - 1 === i}
+								/>
+							{/if}
+						{:else if timelineEntry.type === 'collection'}
+							<ActivityCollection
+								activities={timelineEntry.activities}
+								index={i}
 								isFirstInGroup={i === 0}
 								isLastInGroup={dayGroup.activities.length - 1 === i}
 							/>

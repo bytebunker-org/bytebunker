@@ -91,7 +91,6 @@ function configureTypescript({
 
 	monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
 		target: monaco.languages.typescript.ScriptTarget.ES2020,
-		allowNonTsExtensions: true,
 		module: monaco.languages.typescript.ModuleKind.ESNext,
 		moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
 		noLib: true,

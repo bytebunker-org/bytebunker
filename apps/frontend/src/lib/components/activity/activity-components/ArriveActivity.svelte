@@ -25,7 +25,7 @@
 	{/if}
 {/snippet}
 
-<ActivityCard {...props} icon={LucideMapPin}>
+<ActivityCard {...props} icon={LucideMapPin} type="Arrive">
 	<div class="flex items-center">
 		Bei {@render placeName(activity.target)} angekommen
 	</div>

@@ -5,7 +5,7 @@ import type {
 	FetchInfiniteQueryOptions,
 	QueryClient
 } from '@tanstack/svelte-query';
-import { hasOwnProperty } from '$lib/util/util.js';
+import { hasOwn } from '$lib/util/util.js';
 import type { PaginatedListRequestDto, PaginatedListResponseDto } from '@bytebunker/backend';
 
 export function prefetchQueries<
@@ -51,17 +51,13 @@ export function prefetchQueries<
 			...queryOptionsList
 				.filter(
 					(options) =>
-						!hasOwnProperty(options, 'enabled') ||
-						typeof options.enabled !== 'boolean' ||
-						options.enabled
+						!hasOwn(options, 'enabled') || typeof options.enabled !== 'boolean' || options.enabled
 				)
 				.map((options) => queryClient.prefetchQuery(options)),
 			...(infiniteQueryOptionsList ?? [])
 				.filter(
 					(options) =>
-						!hasOwnProperty(options, 'enabled') ||
-						typeof options.enabled !== 'boolean' ||
-						options.enabled
+						!hasOwn(options, 'enabled') || typeof options.enabled !== 'boolean' || options.enabled
 				)
 				.map((options) => queryClient.prefetchInfiniteQuery(options))
 		]);

@@ -1,20 +1,30 @@
-import type { BlueprintNodeDto, PipelineModuleDto } from '@bytebunker/backend';
+import type {
+	BlueprintNodeDto,
+	PipelineExecutionDataDto,
+	PipelineExecutionLogDto,
+	PipelineModuleDto
+} from '@bytebunker/backend';
 import type { Component } from 'svelte';
 import EditBlueprintNodeModal from '$lib/components/modal/EditBlueprintNodeModal.svelte';
 import { ModalTypeEnum } from '$lib/components/modal/modalTypeEnum.js';
 import ViewNodeExecutionInfoModal from '$lib/components/modal/ViewNodeExecutionInfoModal.svelte';
-import type { PipelineExecutionDataDto, PipelineExecutionLogDto } from '@bytebunker/backend';
 
 interface ModalRegistryOptions {
 	component: Component<ModalProps<ModalTypeEnum>>;
 
 	size: 'sm' | 'md' | 'lg';
+
+	closeOnOutsideClick?: boolean;
+
+	closeOnEscape?: boolean;
 }
 
 export const modalRegistry = {
 	[ModalTypeEnum.EDIT_BLUEPRINT_NODE]: {
 		component: EditBlueprintNodeModal,
-		size: 'lg'
+		size: 'lg',
+		closeOnOutsideClick: false,
+		closeOnEscape: false
 	},
 	[ModalTypeEnum.VIEW_NODE_EXECUTION_INFO]: {
 		component: ViewNodeExecutionInfoModal,

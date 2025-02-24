@@ -37,6 +37,17 @@
 		queryFn: ({ queryKey }) =>
 			PipelineExecutionLogApi.findAll(options.executionData.pipelineExecution.id, queryKey[1])
 	}));
+
+	function reduceDataSize(executionData: Record<string, unknown>): Record<string, unknown> {
+		for (const [key, value] of Object.entries(executionData)) {
+			if (Array.isArray(value) && value.length > 50) {
+				console.log('found array with len', value.length);
+				executionData[key] = value.slice(0, 50).push('Data reduced to prevent lag');
+			}
+		}
+
+		return executionData;
+	}
 </script>
 
 <div class="flex flex-col gap-4 p-3">
@@ -55,7 +66,10 @@
 		{#if executionData.data}
 			<CodeEditor
 				class="input h-[50vh] w-full !outline-transparent"
-				value={JSON.stringify(executionData.data, null, 4)}
+				value={JSON.stringify(reduceDataSize($state.snapshot(executionData.data)), null, 4).slice(
+					0,
+					5000
+				)}
 				language="json"
 				jsonSchema={module.outputTypeSchema?.jsonSchema}
 				readOnly
@@ -84,46 +98,46 @@
 							</div>
 						</div>
 						<div class="collapse-content text-sm">
-							<pre><code>{JSON.stringify(log.data, null, 2)}</code></pre>
+							<pre><code>{JSON.stringify(log.data, null, 2).slice(0, 5000)}</code></pre>
 						</div>
 					</div>
 				{/each}
 			</div>
 
 			<!--<div class="w-full">
-					<div class="collapse-arrow bg-base-200 collapse mb-2">
-						<input type="checkbox" />
-						<div class="collapse-title text-xl font-medium">
-							Log ID: {log.id}
-						</div>
-						<div class="collapse-content">
-							<table class="table w-full">
-								<tbody>
-									<tr>
-										<td class="font-bold">Message</td>
-										<td>{log.message}</td>
-									</tr>
-									<tr>
-										<td class="font-bold">Status Code</td>
-										<td>{log.data?.statusCode}</td>
-									</tr>
-									<tr>
-										<td class="font-bold">Data</td>
-										<td>{log.data?.data}</td>
-									</tr>
-									<tr>
-										<td class="font-bold">Error</td>
-										<td>{log.data?.error}</td>
-									</tr>
-									<tr>
-										<td class="font-bold">Time</td>
-										<td>{log.createdAt}</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-			</div>-->
+                    <div class="collapse-arrow bg-base-200 collapse mb-2">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-xl font-medium">
+                            Log ID: {log.id}
+                        </div>
+                        <div class="collapse-content">
+                            <table class="table w-full">
+                                <tbody>
+                                    <tr>
+                                        <td class="font-bold">Message</td>
+                                        <td>{log.message}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-bold">Status Code</td>
+                                        <td>{log.data?.statusCode}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-bold">Data</td>
+                                        <td>{log.data?.data}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-bold">Error</td>
+                                        <td>{log.data?.error}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-bold">Time</td>
+                                        <td>{log.createdAt}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+            </div>-->
 		{:else}
 			<div class="py-4 text-center">Keine Daten vorhanden</div>
 		{/if}

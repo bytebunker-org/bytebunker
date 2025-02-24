@@ -1,139 +1,180 @@
-declare class DateTime {
-
-}
-
 declare interface Logger {
-    /**
-     * Write an 'error' level log.
-     */
-    error(message: any, stack?: string, context?: string): void;
+	/**
+	 * Write an 'error' level log.
+	 */
+	error(message: any, stack?: string, context?: string): void;
 
-    error(message: any, ...optionalParams: [...any, string?, string?]): void;
+	error(message: any, ...optionalParams: [...any, string?, string?]): void;
 
-    /**
-     * Write a 'log' level log.
-     */
-    log(message: any, context?: string): void;
+	/**
+	 * Write a 'log' level log.
+	 */
+	log(message: any, context?: string): void;
 
-    log(message: any, ...optionalParams: [...any, string?]): void;
+	log(message: any, ...optionalParams: [...any, string?]): void;
 
-    /**
-     * Write a 'warn' level log.
-     */
-    warn(message: any, context?: string): void;
+	/**
+	 * Write a 'warn' level log.
+	 */
+	warn(message: any, context?: string): void;
 
-    warn(message: any, ...optionalParams: [...any, string?]): void;
+	warn(message: any, ...optionalParams: [...any, string?]): void;
 
-    /**
-     * Write a 'debug' level log.
-     */
-    debug(message: any, context?: string): void;
+	/**
+	 * Write a 'debug' level log.
+	 */
+	debug(message: any, context?: string): void;
 
-    debug(message: any, ...optionalParams: [...any, string?]): void;
+	debug(message: any, ...optionalParams: [...any, string?]): void;
 
-    /**
-     * Write a 'verbose' level log.
-     */
-    verbose(message: any, context?: string): void;
+	/**
+	 * Write a 'verbose' level log.
+	 */
+	verbose(message: any, context?: string): void;
 
-    verbose(message: any, ...optionalParams: [...any, string?]): void;
+	verbose(message: any, ...optionalParams: [...any, string?]): void;
 
-    /**
-     * Write a 'fatal' level log.
-     */
-    fatal(message: any, context?: string): void;
+	/**
+	 * Write a 'fatal' level log.
+	 */
+	fatal(message: any, context?: string): void;
 
-    fatal(message: any, ...optionalParams: [...any, string?]): void;
+	fatal(message: any, ...optionalParams: [...any, string?]): void;
 }
 
-declare class EntityManager {
-
-}
+declare class EntityManager {}
 
 declare class TimestampDto {
-    createdAt: DateTime;
-    updatedAt: DateTime;
+	createdAt: DateTime;
+	updatedAt: DateTime;
 }
 
-type AssetTypeEnum = 'primary' | 'sidecar' | 'pipeline'
+type AssetTypeEnum = 'primary' | 'sidecar' | 'pipeline';
 
 declare interface CommonMetadata {
-    'Content-Type'?: string;
+	'Content-Type'?: string;
 
-    'Original-File-Path'?: string;
+	'Original-File-Path'?: string;
 }
 
 declare class AssetDto extends TimestampDto {
-    id: string;
-    type: AssetTypeEnum;
-    // hash: Buffer;
-    storagePath: string;
-    textAssetPreview?: string;
-    metadata: CommonMetadata & Record<string, unknown>;
-    parentAsset?: AssetDto;
-    sidecarAssets: AssetDto[];
+	id: string;
+	type: AssetTypeEnum;
+	// hash: Buffer;
+	storagePath: string;
+	textAssetPreview?: string;
+	metadata: CommonMetadata & Record<string, unknown>;
+	parentAsset?: AssetDto;
+	sidecarAssets: AssetDto[];
 }
 
 declare class CreateAssetDto {
-    type: AssetTypeEnum;
-    metadata: CommonMetadata & Record<string, unknown>;
-    parentAssetId?: string;
-    originalFilePath?: string;
-    size?: number;
+	type: AssetTypeEnum;
+	metadata: CommonMetadata & Record<string, unknown>;
+	parentAssetId?: string;
+	originalFilePath?: string;
+	size?: number;
 }
 
 declare class AssetService {
-    storeAsset(em: EntityManager, data: string, options: CreateAssetDto & {
-        fullOriginalFilePath?: string;
-    }): Promise<AssetDto>;
+	storeAsset(
+		em: EntityManager,
+		data: string,
+		options: CreateAssetDto & {
+			fullOriginalFilePath?: string;
+		}
+	): Promise<AssetDto>;
 
-    getAssetString(em: EntityManager, assetOrId: AssetDto | string): Promise<string>;
+	getAssetString(em: EntityManager, assetOrId: AssetDto | string): Promise<string>;
 }
 
 declare interface ASObjectStableKeyCommonDataInterface {
-    lat?: number;
+	lat?: number;
 
-    lng?: number;
+	lng?: number;
 }
 
-declare interface ActivityStableKeyCommonDataInterface extends ASObjectStableKeyCommonDataInterface{
-    start?: DateTime;
+declare interface ActivityStableKeyCommonDataInterface
+	extends ASObjectStableKeyCommonDataInterface {
+	start?: DateTime;
 
-    end?: DateTime;
+	end?: DateTime;
 }
 
-declare type DateTimeUnit = "year" | "quarter" | "month" | "week" | "day" | "hour" | "minute" | "second" | "millisecond";
+declare class ActivityDto implements ASObject {
+	public '@type': ASObjectType;
 
+	public '@secondaryTypes'?: ASObjectType[];
+
+	public stableKeys?: string[];
+
+	public actor: ObjectOrLink | ObjectOrLink[];
+}
+
+declare type ActivityDataType = ActivityDto & ASObject;
 
 declare class ActivityStableKeyService {
-    createActivityStableKey(primaryNodeType: ASObjectType, data: ActivityStableKeyCommonDataInterface & Record<string, unknown>, precisionOptions?: {
-        locationPrecision?: number;
-        dateTimePrecision?: DateTimeUnit;
-    }): string;
-    stabilizeLatitudeLongitude(latitudeOrLongitude: number, precisionOptions?: {
-        locationPrecision?: number;
-    }): string;
-    stabilizeDateTime(dateTime: DateTime, precisionOptions?: {
-        dateTimePrecision?: DateTimeUnit;
-    }): string;
-    createASObjectStableKey(primaryNodeType: ASObjectType, data: ASObjectStableKeyCommonDataInterface & Record<string, unknown>, precisionOptions?: {
-        locationPrecision?: number;
-    }): string;
+	createActivityStableKey(
+		primaryNodeType: ASObjectType,
+		data: ActivityStableKeyCommonDataInterface & Record<string, unknown>,
+		precisionOptions?: {
+			locationPrecision?: number;
+			dateTimePrecision?: DateTimeUnit;
+		}
+	): string;
+
+	stabilizeLatitudeLongitude(
+		latitudeOrLongitude: number,
+		precisionOptions?: {
+			locationPrecision?: number;
+		}
+	): string;
+
+	stabilizeDateTime(
+		dateTime: DateTime,
+		precisionOptions?: {
+			dateTimePrecision?: DateTimeUnit;
+		}
+	): string;
+
+	createASObjectStableKey(
+		primaryNodeType: ASObjectType,
+		data: ASObjectStableKeyCommonDataInterface & Record<string, unknown>,
+		precisionOptions?: {
+			locationPrecision?: number;
+		}
+	): string;
+}
+
+declare class Node {
+	get(value: 'id' | string): string;
+}
+
+declare class ActivityGraphService {
+	getOwnerActor(em: EntityManager): Promise<Node>;
 }
 
 declare interface PipelineModuleExecutionContext<Input = Record<string, unknown>> {
-    // em: EntityManager;
-    // pipelineExecution: Loaded<PipelineExecutionEntity, 'blueprint' | 'executionData'>;
-    // blueprint: Blueprint;
-    // currentNode: BlueprintNodeDto;
+	// em: EntityManager;
+	// pipelineExecution: Loaded<PipelineExecutionEntity, 'blueprint' | 'executionData'>;
+	// blueprint: Blueprint;
+	// currentNode: BlueprintNodeDto;
 
-    inputData: Input;
+	inputData: Input;
 
-    em: EntityManager;
+	em: EntityManager;
 
-    logger: Logger;
+	logger: Logger;
 
-    assetService: AssetService;
+	assetService: AssetService;
+	activityStableKeyService: ActivityStableKeyService;
+	activityGraphService: ActivityGraphService;
 
-    activityStableKeyService: ActivityStableKeyService
+	generatorExtensionObject: ASObject;
+	ownerActor: ASLink;
+
+	/*DateTime: typeof DateTime;
+	Interval: typeof Interval;
+	Duration: typeof Duration;
+	Zone: typeof Zone;*/
 }

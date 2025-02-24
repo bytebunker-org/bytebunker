@@ -3,7 +3,7 @@ import { toastManager } from '$lib/util/toastManager.svelte.js';
 
 export const slugRegex = /^[a-z0-9-]{0,61}$/;
 
-export function hasOwnProperty<X, Y extends PropertyKey>(
+export function hasOwn<X, Y extends PropertyKey>(
 	obj: X,
 	prop: Y
 ): obj is NonNullable<X> & Record<Y, unknown> {
@@ -148,4 +148,44 @@ export function mapRange(
 	return (
 		((value - inRangeMin) * (outRangeMax - outRangeMin)) / (inRangeMax - inRangeMin) + outRangeMin
 	);
+}
+
+export function groupByKey<T, KeyType extends string | number | symbol = string>(
+	array: T[],
+	key: keyof T
+): Record<KeyType, T[]> {
+	// @ts-ignore
+	return array.reduce((hash, object) => {
+		if (object[key] === undefined) {
+			return hash;
+		}
+
+		// @ts-ignore
+		return Object.assign(hash, { [object[key]]: [...(hash[object[key]] || []), object] });
+	}, {});
+}
+
+function deg2rad(deg: number): number {
+	return deg * (Math.PI / 180);
+}
+
+/**
+ * Calculates the distance between two points on a sphere in kilometers
+ *
+ * @param lat1
+ * @param lon1
+ * @param lat2
+ * @param lon2
+ * @return the distance in kilometers
+ */
+export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+	const R = 6371; // Radius of the earth in km
+	const dLat = deg2rad(lat2 - lat1); // deg2rad below
+	const dLon = deg2rad(lon2 - lon1);
+	const a =
+		Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+		Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+	return R * c; // Distance in km
 }

@@ -36,8 +36,6 @@
 		currentOptions = options;
 		isOpen = true;
 
-		console.log('opening', type);
-
 		return new Promise((resolve) => {
 			currentCloseCallback = ((value?: ModalReturnType<T>) => {
 				isOpen = false;
@@ -63,7 +61,12 @@
 
 {@render children()}
 
-<Dialog.Root bind:open={isOpen} {onOpenChange}>
+<Dialog.Root
+	bind:open={isOpen}
+	{onOpenChange}
+	closeOnEscape={modalTypeInfo?.closeOnEscape ?? false}
+	closeOnOutsideClick={modalTypeInfo?.closeOnOutsideClick ?? false}
+>
 	<Dialog.Portal>
 		<Dialog.Overlay
 			transition={fade}
