@@ -11,6 +11,9 @@ import { ActivityGraphNodeService } from '../../../../activity-graph/activity-gr
 import { ActivityStableKeyService } from '../../../../activity-graph/activity-stable-key.service.js';
 import { transpile } from 'typescript';
 import { AssetService } from '../../../asset/asset.service.js';
+import { DateTime, Duration, IANAZone, Interval, Zone } from 'luxon';
+import { PIPELINE_SCRIPT_EXTENSION_ID } from '../../../../extension/extensions/local-extension.constant.js';
+import type { ASLink } from '@bytebunker/event-schema';
 
 @PipelineModuleJsonSchema()
 export class ExecuteCodeInput {
@@ -45,20 +48,36 @@ export class ExecuteCodePipelineModule implements IPipelineModule<ExecuteCodeInp
         private readonly assetService: AssetService,
     ) {}
 
-    public executeModule(
+    public async executeModule(
         executionContext: PipelineModuleExecutionContext<ExecuteCodeInput>,
-    ): ExecuteCodeOutput | Promise<ExecuteCodeOutput> {
+    ): Promise<ExecuteCodeOutput> {
         const scriptLogger = new Logger(
             `Pipeline ${executionContext.pipelineExecution.id}/${executionContext.currentNode.id} Script`,
         );
+
+        const { em } = executionContext;
+        const [generatorExtensionObject, ownerActor] = await Promise.all([
+            this.activityGraphNodeService.getExtension(em, PIPELINE_SCRIPT_EXTENSION_ID),
+            this.activityGraphService.getOwnerActor(em),
+        ]);
+
         const scriptExecutionContext = {
             logger: scriptLogger,
             activityGraphService: this.activityGraphService,
             activityGraphNodeService: this.activityGraphNodeService,
             activityStableKeyService: this.activityStableKeyService,
             assetService: this.assetService,
+            generatorExtensionObject,
+            ownerActor: { '@id': ownerActor.get('id') } as ASLink,
         };
-        const scriptSandboxContext = {};
+
+        const scriptSandboxContext = {
+            DateTime,
+            Interval,
+            Duration,
+            Zone,
+            IANAZone,
+        };
 
         const transpiledCode = transpile(executionContext.inputData.code);
         const script = new Script(transpiledCode, {

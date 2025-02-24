@@ -4,6 +4,7 @@ import { BaseEntity, Entity, PrimaryKey, Property } from '@mikro-orm/core';
 export class NodeStableKeyEntity extends BaseEntity {
     @PrimaryKey({
         type: 'string',
+        length: 512,
     })
     public stableKey!: string;
 

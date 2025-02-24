@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type {
     RequiredActivityGraphInterface,
     RequiredActivityGraphObjectInterface,
@@ -18,6 +18,8 @@ import { groupByKeySingle } from '../util/util.js';
 
 @Injectable()
 export class ActivityGraphPersisterService {
+    private readonly logger = new Logger(ActivityGraphPersisterService.name);
+
     constructor(@Inject(NEODE_PROVIDER) private readonly neode: Neode) {}
 
     public async createActivityGraph(
@@ -25,6 +27,8 @@ export class ActivityGraphPersisterService {
         activities: ActivityDto[],
     ): Promise<{ createdCount: number; existingCount: number }> {
         const stableKeys = new Set(activities.flatMap((a) => a.stableKeys).filter(Boolean));
+
+        const activityType = activities[0]?.['@type'] ?? 'unknown';
 
         const existingStableKeys = await em.findAll(NodeStableKeyEntity, {
             fields: ['stableKey'],
@@ -39,6 +43,11 @@ export class ActivityGraphPersisterService {
         const newActivities = activities.filter(
             (activity) => !activity.stableKeys?.some((stableKey) => existingActivityStableKeys.has(stableKey)),
         );
+
+        this.logger.log(
+            `Storing ${newActivities.length} ${activityType} activity node graphs, found ${activities.length - newActivities.length} duplicates.`,
+        );
+
         const newActivityNodes = this.processActivitiesToNodes(newActivities);
         const newActivityStableKeys = new Set(newActivityNodes.flatMap((a) => a.requiredStableKeys).filter(Boolean));
 
@@ -51,11 +60,19 @@ export class ActivityGraphPersisterService {
         });
         const existingASObjectStableKeyMap = groupByKeySingle(existingASObjectStableKeys, 'stableKey');
 
+        let i = 0;
         for (const newActivityNode of newActivityNodes) {
             await em.fork().transactional(async (em) => {
                 await this.insertActivityNodes(em, existingASObjectStableKeyMap, newActivityNode);
+                i++;
+
+                if (i % 100 === 0) {
+                    this.logger.log(`Stored ${i}/${newActivities.length} ${activityType} activity graphs...`);
+                }
             });
         }
+
+        this.logger.log(`Done storing ${newActivities.length} ${activityType} activity graphs!`);
 
         return {
             createdCount: newActivities.length,
@@ -124,7 +141,7 @@ export class ActivityGraphPersisterService {
                         em.create(
                             NodeStableKeyEntity,
                             {
-                                stableKey,
+                                stableKey: stableKey.slice(0, 512),
                                 nodeId: newNodeId,
                             },
                             { persist: false },
@@ -175,7 +192,7 @@ export class ActivityGraphPersisterService {
                 em.create(
                     NodeStableKeyEntity,
                     {
-                        stableKey,
+                        stableKey: stableKey.slice(0, 512),
                         nodeId: newActivityNodeId,
                     },
                     { persist: false },

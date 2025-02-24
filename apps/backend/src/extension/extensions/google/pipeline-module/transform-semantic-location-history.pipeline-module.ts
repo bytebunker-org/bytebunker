@@ -56,7 +56,7 @@ export class TransformSemanticLocationHistoryPipelineModule
 
     constructor(
         private readonly assetService: AssetService,
-        private readonly activityService: ActivityStableKeyService,
+        private readonly activityStableKeyService: ActivityStableKeyService,
         private readonly activityGraphService: ActivityGraphService,
         private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
@@ -131,7 +131,7 @@ export class TransformSemanticLocationHistoryPipelineModule
             '@secondaryTypes': [createUnknownASType('GoogleTimelineActivity')],
             generator: generatorExtensionObject,
             stableKeys: [
-                this.activityService.createActivityStableKey(
+                this.activityStableKeyService.createActivityStableKey(
                     'Move',
                     {
                         start: startDateTime,
@@ -198,7 +198,7 @@ export class TransformSemanticLocationHistoryPipelineModule
             '@type': 'Arrive',
             generator: generatorExtensionObject,
             stableKeys: [
-                this.activityService.createActivityStableKey(
+                this.activityStableKeyService.createActivityStableKey(
                     'Arrive',
                     {
                         start: startDateTime,
@@ -244,12 +244,12 @@ export class TransformSemanticLocationHistoryPipelineModule
             '@type': 'Place',
             '@secondaryTypes': [createUnknownASType('GooglePlace')],
             stableKeys: [
-                this.activityService.createASObjectStableKey('Place', {
+                this.activityStableKeyService.createASObjectStableKey('Place', {
                     lat: latitude,
                     lng: longitude,
                 }),
                 usePlaceDetails && location?.placeId
-                    ? this.activityService.createASObjectStableKey('Place', { placeId: location?.placeId })
+                    ? this.activityStableKeyService.createASObjectStableKey('Place', { placeId: location?.placeId })
                     : undefined,
             ].filter(Boolean),
             latitude,

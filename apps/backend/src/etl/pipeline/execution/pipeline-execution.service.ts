@@ -149,7 +149,6 @@ export class PipelineExecutionService {
 
         const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
         const executableModuleNodes = findNextExecutableModules();
-        console.log('executableModuleNodes', executableModuleNodes);
 
         if (executableModuleNodes.length) {
             this.logger.debug(

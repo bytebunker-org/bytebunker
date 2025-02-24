@@ -17,6 +17,7 @@ export const ASObjectSchema = {
         direction: RelationshipDirectionEnum.OUT,
     },
     name: 'string',
+    identifier: 'string',
     summary: 'string',
     published: {
         type: 'datetime',

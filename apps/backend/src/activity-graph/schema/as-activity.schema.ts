@@ -10,6 +10,9 @@ export const ASActivitySchema = {
         required: true,
         indexed: true,
     },
+    summary: {
+        type: 'string',
+    },
     actor: {
         type: 'relationship',
         relationship: RelationshipLabelEnum.ACTED_IN,
@@ -34,6 +37,12 @@ export const ASActivitySchema = {
     target: {
         type: 'relationship',
         relationship: RelationshipLabelEnum.TO,
+        target: NodeLabelEnum.AS_OBJECT,
+        direction: RelationshipDirectionEnum.OUT,
+    },
+    object: {
+        type: 'relationship',
+        relationship: RelationshipLabelEnum.INVOLVES,
         target: NodeLabelEnum.AS_OBJECT,
         direction: RelationshipDirectionEnum.OUT,
     },

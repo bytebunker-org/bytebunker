@@ -3,4 +3,5 @@ export enum RelationshipLabelEnum {
     GENERATED_BY = 'GENERATED_BY',
     FROM = 'FROM',
     TO = 'TO',
+    INVOLVES = 'INVOLVES',
 }
