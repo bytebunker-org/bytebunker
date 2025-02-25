@@ -1,0 +1,30 @@
+graph LR
+    Person[Person]
+    Activity[Activity]
+    Move[Move]
+    Listen[Listen]
+    GoogleTimelineActivity[GoogleTimelineActivity]
+    Place[Place]
+    GooglePlace[GooglePlace]
+    Song[Song]
+
+    Person -->|PERFORMING| Activity
+    Activity -.->|is a| Move
+    Activity -.->|is a| Listen
+    Activity -.->|is a| GoogleTimelineActivity
+    Move -.->|can be| GoogleTimelineActivity
+    Listen -.->|can be| GoogleTimelineActivity
+    Place -.->|can be| GooglePlace
+
+    Move -->|ORIGINATING_FROM| Place
+    Move -->|TARGETING| Place
+    Listen -->|OCCURRING_AT| Place
+    Listen -->|INVOLVING| Song
+
+    classDef default fill:#f9f,stroke:#333,color:#333,stroke-width:2px;
+    classDef activity fill:#bbf,stroke:#333,color:#333,stroke-width:2px;
+    classDef place fill:#bfb,stroke:#333,color:#333,stroke-width:2px;
+    classDef object fill:#fbb,stroke:#333,color:#333,stroke-width:2px;
+    class Activity,Move,Listen,GoogleTimelineActivity activity;
+    class Place,GooglePlace place;
+    class Song object;

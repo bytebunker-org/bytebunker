@@ -1,0 +1,25 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+SetDefaultLegendEntries("")
+SHOW_LEGEND()
+
+Person(user, "Benutzer", "")
+
+System_Boundary(bytebunker, "ByteBunker System") {
+  Container(frontend, "Frontend", "TypeScript, Svelte", "UI zum Erkunden, Suchen und Visualisieren.")
+  Container(backend, "Backend", "TypeScript, NestJS", "ETL-System, API und Interaktion mit Graphdatenbank.")
+  ContainerDb(postgres, "Datenbank", "PostgreSQL Datenbank", "Speichert verschiedene Systemdaten, z. B. für ETL-Prozesse.")
+  ContainerDb(neo4j, "Neo4j", "Graphdatenbank", "Speichert Aktivitäten als Graph.")
+  ContainerDb(keydb, "KeyDB", "Redis-kompatible Datenbank", "Speichert temporäre Daten und verwaltet BullMQ Jobs.")
+  Container(storage, "MinIO", "S3-kompatibler Storage", "Speichert Assets und Dateien.")
+}
+
+Rel(user, frontend, "", "HTTPS")
+Rel(frontend, backend, "", "REST API")
+Rel(backend, postgres, "", "SQL / Mikro-ORM")
+Rel(backend, neo4j, "", "Cypher / Neode OGM")
+Rel(backend, keydb, "", "Redis API / BullMQ")
+Rel(backend, storage, "", "S3 API")
+
+@enduml

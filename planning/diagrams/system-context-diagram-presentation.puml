@@ -1,0 +1,34 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+SetDefaultLegendEntries("")
+SHOW_LEGEND()
+
+Person(user, "Benutzer")
+
+Enterprise_Boundary(bytebunker_boundary, "ByteBunker System") {
+  System(bytebunker_pipeline, "Pipeline System", "ETL-Prozesse")
+  System(bytebunker_activity_graph, "Aktivitäten in Graphdatenbank")
+  System(bytebunker_analysis, "Visualisierung & Analyse")
+  System(bytebunker_search, "Suche")
+  System(bytebunker_statistics, "Statistiken")
+}
+
+System_Ext(google, "Google Takeout", "Standortverlauf, YouTube-Verlauf, Google Fit-Daten usw")
+System_Ext(spotify, "Spotify Datenexport", "Musikhörverläufe und Präferenzen")
+System_Ext(photos, "Fotosammlung", "Persönliche Fotos")
+System_Ext(browser, "Browser History", "Web-Verlauf")
+
+Rel(user, bytebunker_pipeline, "")
+Rel(google, "Datenquellen", "")
+Rel(spotify, "Datenquellen", "")
+Rel(photos, "Datenquellen", "")
+Rel(browser, "Datenquellen", "")
+Rel("Datenquellen", bytebunker_pipeline, "")
+
+Rel(bytebunker_pipeline, bytebunker_activity_graph, "")
+Rel(bytebunker_activity_graph, bytebunker_analysis, "")
+Rel(bytebunker_activity_graph, bytebunker_search, "")
+Rel(bytebunker_activity_graph, bytebunker_statistics, "")
+
+@enduml
