@@ -1,0 +1,35 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_LANDSCAPE()
+
+Container_Boundary(backend, "Backend (NestJS)") {
+    Component(pipelineSystem, "Pipeline System", "", "Extrahieren, Transformieren und Laden der Aktivitätsdaten")
+    Component(assetSystem, "Asset System", "", "Verwaltet hochgeladene Dateien und temporäre Datenspeicherung während der Pipeline-Ausführung")
+
+    Component(activityGraphModule, "Aktivitätengraph Modul", "", "Speicherung von Aktivitäten in Graphdatenbank für weitere Analyse")
+    Component(activitySearchModule, "Aktivitäten Suche Modul", "", "Ermöglicht das gezielte Finden von Aktivitäten und Daten in einer durchsuchbaren Timeline")
+
+    Component(databaseModule, "SQL-Datenbank Modul", "", "Verbindung zur PostgreSQL Datenbank für Systemdaten und Pipeline-Konfigurationen")
+    Component(authUserModule, "Authentifikation/Benutzer Modul", "", "Authentifizierung und Benutzerverwaltung für Systemzugriff")
+
+    Component(extensionSystem, "Extension System", "", "Verwaltet Erweiterungen für zusätzliche Datenquellen und Analysefunktionen")
+    Component(settingsModule, "Einstellungen Modul", "", "Dynamisches Einstellungsmanagement für System- und Benutzereinstellungen")
+
+    Component(sharedModules, "Geteilte Module", "", "Verschiedene projektübergreifend genutzte Module")
+
+    Rel(pipelineSystem, activityGraphModule, "Verwendet")
+    Rel(pipelineSystem, assetSystem, "Verwendet")
+    Rel(pipelineSystem, databaseModule, "Verwendet")
+
+    Rel(activitySearchModule, activityGraphModule, "Verwendet")
+
+    Rel(extensionSystem, pipelineSystem, "Erweitert")
+    Rel_U(extensionSystem, activityGraphModule, "Erweitert")
+
+    Rel(settingsModule, databaseModule, "Verwendet")
+    Rel(activityGraphModule, authUserModule, "Verwendet")
+}
+
+SHOW_LEGEND()
+@enduml
