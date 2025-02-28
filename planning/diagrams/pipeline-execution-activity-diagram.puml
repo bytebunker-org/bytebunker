@@ -1,0 +1,45 @@
+@startuml
+start
+
+:LocalFileTriggerService überwacht Ordner;
+if (Neue Datei erkannt?) then (ja)
+  :executeBlueprintFromTrigger();
+else (nein)
+  stop
+endif
+
+:continuePipelineExecution() wird ausgelöst;
+if (Status) is (Erfolgreich oder Abgebrochen) then
+  stop
+endif
+
+while (Ausführbare Knoten vorhanden?) is (ja)
+  :Finde ausführbare Knoten;
+
+  if (Knoten gefunden?) then (nein)
+    :Keine weiteren Module ausführbar;
+    if (Alle Knoten) is (Erfolgreich) then
+      :Markiere Pipeline-Ausführung als Erfolgreich;
+    endif
+    break
+  else (ja)
+    :Erstelle einen Job pro Knoten und
+    einen abhängigen continuePipelineExecution Job;
+    fork
+      :executeModule() abgesichert ausführen;
+      note left: für jeden einzelnen Knoten
+      if (Ausführung erfolgreich?) then (ja)
+        :Knoten und Job
+        als erfolgreich markieren;
+      else (nein)
+        :Knoten und Job als fehlgeschlagen markieren,
+        Job erneut ausführen;
+      endif
+    end fork
+    :Warte auf Abschluss aller Knoten-Jobs;
+    :Pipeline-Ausführung rekursiv fortsetzen;
+  endif
+endwhile
+
+stop
+@enduml
