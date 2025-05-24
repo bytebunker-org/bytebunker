@@ -37,19 +37,6 @@
         ...rest
     }: Props = $props();
 
-    /*export let group = undefined;
-    export let id = undefined;
-    export let inline = false;
-    export let inner = undefined;
-    export let invalid = false;
-    export let label = '';
-    export let name = '';
-    export let reverse = false;
-    export let size = '';
-    export let type = 'checkbox';
-    export let valid = false;
-    export let value = undefined;*/
-
     let classes = $derived(classnames(className, type, {
         'checkbox-primary': type === 'checkbox' && color === 'primary',
         'checkbox-secondary': type === 'checkbox' && color === 'secondary',

@@ -4,22 +4,22 @@
 LAYOUT_LANDSCAPE()
 
 Container_Boundary(backend, "Backend (NestJS)") {
-    Component(pipelineSystem, "Pipeline System", "", "Extrahieren, Transformieren und Laden der Aktivitätsdaten")
-    Component(assetSystem, "Asset System", "", "Verwaltet hochgeladene Dateien und temporäre Datenspeicherung während der Pipeline-Ausführung")
+    Component(pipelineSystem, "Pipeline System", "", "")
+    Component(assetModule, "Asset", "Modul", "")
 
-    Component(activityGraphModule, "Aktivitätengraph Modul", "", "Speicherung von Aktivitäten in Graphdatenbank für weitere Analyse")
-    Component(activitySearchModule, "Aktivitäten Suche Modul", "", "Ermöglicht das gezielte Finden von Aktivitäten und Daten in einer durchsuchbaren Timeline")
+    Component(activityGraphModule, "Aktivitätengraph", "Modul", "")
+    Component(activitySearchModule, "Aktivitätensuche", "Modul", "")
 
-    Component(databaseModule, "SQL-Datenbank Modul", "", "Verbindung zur PostgreSQL Datenbank für Systemdaten und Pipeline-Konfigurationen")
-    Component(authUserModule, "Authentifikation/Benutzer Modul", "", "Authentifizierung und Benutzerverwaltung für Systemzugriff")
+    Component(databaseModule, "SQL-Datenbank", "Modul", "")
+    Component(authUserModule, "Authentifikation/Benutzer", "Module", "")
 
-    Component(extensionSystem, "Extension System", "", "Verwaltet Erweiterungen für zusätzliche Datenquellen und Analysefunktionen")
-    Component(settingsModule, "Einstellungen Modul", "", "Dynamisches Einstellungsmanagement für System- und Benutzereinstellungen")
+    Component(extensionSystem, "Extension System", "", "")
+    Component(settingsModule, "Einstellungen", "Modul", "")
 
-    Component(sharedModules, "Geteilte Module", "", "Verschiedene projektübergreifend genutzte Module")
+    Component(sharedModules, "Geteilte Module", "", "")
 
     Rel(pipelineSystem, activityGraphModule, "Verwendet")
-    Rel(pipelineSystem, assetSystem, "Verwendet")
+    Rel(pipelineSystem, assetModule, "Verwendet")
     Rel(pipelineSystem, databaseModule, "Verwendet")
 
     Rel(activitySearchModule, activityGraphModule, "Verwendet")

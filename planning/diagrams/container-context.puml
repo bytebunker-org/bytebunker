@@ -1,26 +1,42 @@
 @startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
-LAYOUT_WITH_LEGEND()
+LAYOUT_LANDSCAPE()
 
 title Container Diagram für das ByteBunker System
 
 Person(user, "Benutzer", "Interagiert mit dem System über das Frontend.")
 
 System_Boundary(bytebunker, "ByteBunker System") {
-  Container(frontend, "Frontend", "TypeScript, Svelte", "UI für den Benutzer zum Erkunden, Suchen und Visualisieren.")
-  Container(backend, "Backend", "TypeScript, NestJS", "ETL-System, API und Interaktion mit Graphdatenbank.")
-  ContainerDb(postgres, "Datenbank", "PostgreSQL Datenbank", "Speichert verschiedene Systemdaten, z. B. für ETL-Prozesse.")
-  ContainerDb(neo4j, "Neo4j", "Graphdatenbank", "Speichert Aktivitäten als Graph.")
-  ContainerDb(keydb, "KeyDB", "Redis-kompatible Datenbank", "Speichert temporäre Daten und verwaltet BullMQ Jobs.")
-  Container(storage, "MinIO", "S3-kompatibler Storage", "Speichert Assets und Dateien.")
+    together {
+      Container(frontend, "Frontend", "TypeScript, Svelte", "UI für den Benutzer zum Erkunden, Suchen und Visualisieren.")
+      Container(backend, "Backend", "TypeScript, NestJS", "ETL-System, API und Interaktion mit Graphdatenbank.")
+    }
+
+    together {
+        ContainerDb(postgres, "Datenbank", "PostgreSQL Datenbank", "Speichert verschiedene Systemdaten, z. B. für ETL-Prozesse.")
+        ContainerDb(neo4j, "Neo4j", "Graphdatenbank", "Speichert Aktivitäten als Graph.")
+        ContainerDb(keydb, "KeyDB", "Redis-kompatible Datenbank", "Speichert temporäre Daten und verwaltet BullMQ Jobs.")
+        Container(storage, "MinIO", "S3-kompatibler Storage", "Speichert Assets und Dateien.")
+    }
 }
 
-Rel(user, frontend, "Verwendet", "HTTPS")
-Rel(frontend, backend, "Kommuniziert mit", "REST API")
+System_Ext(google, "Google Takeout", "Exportierte Daten wie Standortverlauf, YouTube-Verlauf, Google Fit-Daten usw.")
+System_Ext(spotify, "Spotify Datenexport", "Gespeicherte Musikhörverläufe und Präferenzen.")
+System_Ext(photos, "Fotosammlung", "Gespeicherte persönliche Fotos zur Analyse und Erinnerung.")
+System_Ext(browser, "Browser History", "Gespeicherter Web-Verlauf.")
+
+Rel_Up(user, frontend, "Verwendet", "HTTPS")
+Rel_Up(frontend, backend, "Kommuniziert mit", "REST API")
 Rel(backend, postgres, "Liest und schreibt", "SQL / Mikro-ORM")
 Rel(backend, neo4j, "Liest und schreibt", "Cypher / Neode OGM")
 Rel(backend, keydb, "Liest und schreibt", "Redis API / BullMQ")
 Rel(backend, storage, "Speichert und liest Assets", "S3 API")
 
+Rel(google, backend, "Datenquelle", "FTP File Upload")
+Rel(spotify, backend, "Datenquelle", "FTP File Upload")
+Rel(photos, backend, "Datenquelle", "REST API")
+Rel(browser, backend, "Datenquelle", "Firefox Extension/REST API")
+
+SHOW_LEGEND()
 @enduml

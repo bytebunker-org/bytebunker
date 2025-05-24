@@ -1,7 +1,6 @@
 @startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
-LAYOUT_WITH_LEGEND()
 
 title System Context Diagram für das ByteBunker System
 
@@ -10,7 +9,7 @@ Person(user, "Benutzer", "Interagiert mit dem System, lädt Daten hoch, verwende
 Enterprise_Boundary(bytebunker_boundary, "ByteBunker System") {
   System(bytebunker_pipeline, "Pipeline System", "ETL-Prozesse für Datenextraktion und -aggregation, Transformation und Speicherung.")
   System(bytebunker_activity_graph, "Aktivitäten in Graphdatenbank", "Speicherung für weitere Analyse")
-  System(bytebunker_analysis, "Visualisierung & Analyse", "Erstellt Diagramme, Dashboards und Trends.")
+  System(bytebunker_analysis, "Visualisierung & Analyse", "Visualisierung durch Diagramme, Timeline und mehr.")
   System(bytebunker_search, "Suche", "Ermöglicht das gezielte Finden von Aktivitäten und Daten.")
   System(bytebunker_statistics, "Statistiken", "Zeigt analytische Auswertungen der gesammelten Daten.")
 }
@@ -30,5 +29,7 @@ Rel(bytebunker_pipeline, bytebunker_activity_graph, "Speichern in Graphformat")
 Rel(bytebunker_activity_graph, bytebunker_analysis, "Datenbereitstellung zur Analyse")
 Rel(bytebunker_activity_graph, bytebunker_search, "Ermöglicht durchsuchbare Timeline und Inhalte")
 Rel(bytebunker_activity_graph, bytebunker_statistics, "Erstellt statistische Auswertungen")
+
+SHOW_LEGEND()
 
 @enduml

@@ -1,0 +1,34 @@
+@startmindmap
+* Qualität
+    * Zuverlässigkeit
+        * Fehlertoleranz
+            *_ Z01
+        * Datenintegrität
+            *_ Z02
+        * Überwachung
+            *_ Z03
+    * Übertragbarkeit
+        * Langlebige Formate
+            *_ U01
+        * Export-Funktionen
+            *_ U02
+    * Erweiterungsmöglichkeit
+        * Unterstützung von Erweiterungen
+            *_ E01
+        * Gut dokumentierte APIs
+            *_ E02
+        * Flexibles Konfigurationssystem
+            *_ E03
+    * Benutzerfreundlichkeit
+        * Einfache Bereitstellung
+            *_ B01
+        * Intuitives Benutzerinterface
+            *_ B02
+        * Geringer Wartungsaufwand
+            *_ B03
+    * Offene Software-Standards und Bibliotheken
+        * Verwendung Open-Source Bibliotheken und Software
+            *_ O01
+        * Verwendung Open-Source Standards
+            *_ O02
+@endmindmap

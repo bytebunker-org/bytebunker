@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ThemeColor } from '$lib/daisyUiComponents/type/Theme';
+    import type { ThemeColor } from '$lib/type/Theme.js';
     import type { Snippet } from 'svelte';
 
     interface Props {
