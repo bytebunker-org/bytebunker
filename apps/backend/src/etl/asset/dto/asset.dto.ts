@@ -1,10 +1,7 @@
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 import { PrimaryKeyProp } from '@mikro-orm/core';
-import { Allow, IsArray, IsEnum, IsObject, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { Allow, IsBoolean, IsEnum, IsInt, IsObject, IsOptional, IsString, IsUUID, IsUrl } from 'class-validator';
 import { AssetTypeEnum } from '../type/asset-type.enum.js';
-import type { DtoRef } from '../../../util/type/dto-ref.type.js';
-import { Type } from 'class-transformer';
-import type { DtoCollection } from '../../../util/type/dto-collection.type.js';
 import type { CommonMetadata } from '../common-metadata.interface.js';
 import { Required, Enum, Type as SType, Optional } from 'ts-decorator-json-schema-generator';
 
@@ -27,9 +24,29 @@ export class AssetDto extends TimestampDto {
 
     @IsString()
     @Required()
-    public storagePath!: string;
+    public originalFilename!: string;
 
     @IsString()
+    @Required()
+    public mimeType!: string;
+
+    @IsInt()
+    @IsOptional()
+    @Optional()
+    public size?: number | null;
+
+    @IsString()
+    @IsOptional()
+    @Optional()
+    public storagePath?: string | null;
+
+    @IsUrl({ require_tld: false })
+    @IsOptional()
+    @Optional()
+    public externalUrl?: string | null;
+
+    @IsString()
+    @IsOptional()
     @Optional()
     public textAssetPreview?: string;
 
@@ -38,15 +55,8 @@ export class AssetDto extends TimestampDto {
     @SType('object')
     public metadata!: CommonMetadata & Record<string, unknown>;
 
-    @Type(() => AssetDto)
+    @IsString()
     @IsOptional()
-    @IsObject()
-    @ValidateNested()
-    public parentAsset?: DtoRef<AssetDto>;
-
-    @Type(() => AssetDto)
-    @IsArray()
-    @IsObject({ each: true })
-    @ValidateNested({ each: true })
-    public sidecarAssets!: DtoCollection<AssetDto>;
+    @Optional()
+    public publicUrl?: string;
 }

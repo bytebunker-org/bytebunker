@@ -61,11 +61,14 @@ declare class AssetDto extends TimestampDto {
 	id: string;
 	type: AssetTypeEnum;
 	// hash: Buffer;
-	storagePath: string;
+	originalFilename: string;
+	mimeType: string;
+	size?: number | null;
+	storagePath?: string | null;
+	externalUrl?: string | null;
 	textAssetPreview?: string;
 	metadata: CommonMetadata & Record<string, unknown>;
-	parentAsset?: AssetDto;
-	sidecarAssets: AssetDto[];
+	publicUrl: string;
 }
 
 declare class CreateAssetDto {

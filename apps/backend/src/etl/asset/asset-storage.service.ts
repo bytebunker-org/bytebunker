@@ -17,4 +17,10 @@ export abstract class AssetStorageService {
     public abstract retrieveAsset(storagePath: string, encoding?: BufferEncoding): Promise<Buffer>;
 
     public abstract retrieveAssetString(storagePath: string, encoding?: BufferEncoding): Promise<string>;
+
+    public abstract deleteAsset(storagePath: string): Promise<void>;
+
+    public abstract assetExists(storagePath: string): Promise<boolean>;
+
+    public abstract getPublicUrl(storagePath: string): string;
 }

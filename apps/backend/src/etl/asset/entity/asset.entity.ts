@@ -1,16 +1,4 @@
-import {
-    Collection,
-    Entity,
-    Enum,
-    ManyToOne,
-    OneToMany,
-    PrimaryKey,
-    PrimaryKeyProp,
-    Property,
-    type Ref,
-    types,
-    Unique,
-} from '@mikro-orm/core';
+import { Entity, Enum, PrimaryKey, PrimaryKeyProp, Property, types, Unique } from '@mikro-orm/core';
 import { AssetTypeEnum } from '../type/asset-type.enum.js';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
@@ -42,7 +30,19 @@ export class AssetEntity extends TimestampEntity implements AssetDto {
     public hash!: Buffer;
 
     @Property()
-    public storagePath!: string;
+    public originalFilename!: string;
+
+    @Property()
+    public mimeType!: string;
+
+    @Property({ nullable: true })
+    public size?: number | null;
+
+    @Property({ nullable: true })
+    public storagePath?: string | null;
+
+    @Property({ length: 2048, nullable: true })
+    public externalUrl?: string | null;
 
     @Property({
         type: types.text,
@@ -56,14 +56,6 @@ export class AssetEntity extends TimestampEntity implements AssetDto {
     })
     public metadata!: CommonMetadata & Record<string, unknown>;
 
-    @ManyToOne<AssetEntity, AssetEntity>(() => AssetEntity, {
-        nullable: true,
-        updateRule: 'cascade',
-        deleteRule: 'cascade',
-        inversedBy: (asset) => asset.sidecarAssets,
-    })
-    public parentAsset?: Ref<AssetEntity>;
-
-    @OneToMany(() => AssetEntity, (asset) => asset.parentAsset)
-    public sidecarAssets = new Collection<AssetEntity>(this);
+    @Property({ persist: false })
+    public publicUrl?: string;
 }

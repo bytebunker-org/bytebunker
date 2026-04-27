@@ -17,11 +17,19 @@ import { v7 as uuidV7 } from 'uuid';
 import fs from 'node:fs/promises';
 import mmmagic from 'mmmagic';
 import type { Readable } from 'node:stream';
+import { NotFoundError } from '../../util/rest-error.js';
+
+const DEFAULT_MIME_TYPE = 'application/octet-stream';
+
+export interface RegisterExternalAssetOptions {
+    type?: AssetTypeEnum;
+    size?: number | null;
+    metadata?: Record<string, unknown>;
+}
 
 @Injectable()
 export class AssetService implements OnApplicationBootstrap {
     private readonly logger = new Logger(AssetService.name);
-    private readonly assetStorageServiceMap = new Map<AssetTypeEnum, AssetStorageService>();
     private readonly magic = new mmmagic.Magic(mmmagic.MAGIC_MIME_TYPE);
 
     constructor(
@@ -58,40 +66,44 @@ export class AssetService implements OnApplicationBootstrap {
         const hash = await blake3(data);
         const hashBuffer = Buffer.from(hash, 'hex');
 
-        console.log('hashing asset', options, 'to', hash);
         const parsedOriginalPath = options.originalFilePath ? parse(options.originalFilePath) : null;
-        const storagePath = this.buildStoragePath(id, parsedOriginalPath ?? undefined, options);
+        const storagePath = this.buildStoragePath(id, parsedOriginalPath ?? undefined);
 
         const existingAsset = await em.findOne(AssetEntity, {
+            type: options.type,
             hash: hashBuffer,
         });
 
         if (existingAsset) {
-            this.logger.log(`Asset ${options.originalFilePath} already exists with id ${existingAsset.id}`);
+            this.logger.log(`Asset ${options.originalFilePath ?? id} already exists with id ${existingAsset.id}`);
 
-            return existingAsset;
+            return this.enrich(existingAsset);
         }
 
         let mimeType: string | undefined;
         if (options.metadata?.['Content-Type']) {
-            mimeType = options.metadata?.['Content-Type'];
+            mimeType = options.metadata['Content-Type'];
         } else if (options.fullOriginalFilePath) {
             try {
                 mimeType = await this.detectLocalFileMimeType(options.fullOriginalFilePath);
-            } catch (error) {
+            } catch {
                 this.logger.warn(`Failed to detect mimetype for asset ${id}`);
             }
         } else {
             try {
                 mimeType = await this.detectMimeType(data);
-            } catch (error) {
+            } catch {
                 this.logger.warn(`Failed to detect mimetype for asset ${id}`);
             }
         }
 
-        options.metadata = {
+        const resolvedMimeType = mimeType ?? DEFAULT_MIME_TYPE;
+        const originalFilename = parsedOriginalPath?.base ?? id;
+        const size = options.size ?? Buffer.byteLength(data);
+
+        const mergedMetadata = {
             ...options.metadata,
-            ...(mimeType ? { 'Content-Type': mimeType } : undefined),
+            'Content-Type': resolvedMimeType,
             ...(options.originalFilePath ? { 'Original-File-Path': options.originalFilePath } : undefined),
         };
 
@@ -99,25 +111,102 @@ export class AssetService implements OnApplicationBootstrap {
             id,
             type: options.type,
             hash: hashBuffer,
+            originalFilename,
+            mimeType: resolvedMimeType,
+            size,
             storagePath,
-            textAssetPreview: typeof data === 'string' ? data.slice(512) : undefined,
-            metadata: options.metadata,
+            textAssetPreview: typeof data === 'string' ? data.slice(0, 512) : undefined,
+            metadata: mergedMetadata,
         });
         await em.flush();
 
-        await this.getStorageService(options.type).storeAsset(storagePath, data, options.size, options.metadata);
+        await this.getStorageService(options.type).storeAsset(storagePath, data, size, mergedMetadata);
 
         this.logger.log(`Created new asset ${storagePath}`);
 
-        return asset;
+        return this.enrich(asset);
+    }
+
+    public async registerExternalAsset(
+        em: EntityManager,
+        url: string,
+        originalFilename: string,
+        mimeType: string,
+        options: RegisterExternalAssetOptions = {},
+    ): Promise<AssetDto> {
+        const id = uuidV7();
+        const type = options.type ?? AssetTypeEnum.PRIMARY;
+        const hashSource = `external:${url}`;
+        const hashBuffer = Buffer.from(await blake3(hashSource), 'hex');
+
+        const existingAsset = await em.findOne(AssetEntity, { type, hash: hashBuffer });
+        if (existingAsset) {
+            return this.enrich(existingAsset);
+        }
+
+        const asset = em.create(AssetEntity, {
+            id,
+            type,
+            hash: hashBuffer,
+            originalFilename,
+            mimeType,
+            size: options.size ?? null,
+            storagePath: null,
+            externalUrl: url,
+            metadata: {
+                ...options.metadata,
+                'Content-Type': mimeType,
+            },
+        });
+        await em.flush();
+
+        return this.enrich(asset);
+    }
+
+    public async findById(em: EntityManager, id: string): Promise<AssetDto> {
+        const asset = await em.findOne(AssetEntity, { id });
+        if (!asset) {
+            throw new NotFoundError(`Asset ${id} not found`);
+        }
+
+        return this.enrich(asset);
+    }
+
+    public async delete(em: EntityManager, id: string): Promise<void> {
+        const asset = await em.findOne(AssetEntity, { id });
+        if (!asset) {
+            return;
+        }
+
+        if (!this.isExternal(asset) && asset.storagePath) {
+            await this.getStorageService(asset.type).deleteAsset(asset.storagePath);
+        }
+
+        await em.removeAndFlush(asset);
+    }
+
+    public isExternal(asset: AssetDto | AssetEntity): boolean {
+        return Boolean(asset.externalUrl);
+    }
+
+    public buildPublicUrl(asset: AssetDto | AssetEntity): string {
+        if (asset.externalUrl) {
+            return asset.externalUrl;
+        }
+        if (!asset.storagePath) {
+            throw new Error(`Asset ${asset.id} has neither storagePath nor externalUrl`);
+        }
+        return this.getStorageService(asset.type).getPublicUrl(asset.storagePath);
     }
 
     public async getAssetStream(em: EntityManager, assetOrId: AssetDto | string): Promise<Readable> {
         const asset = typeof assetOrId === 'string' ? await em.findOneOrFail(AssetEntity, assetOrId) : assetOrId;
 
-        const assetStorage = this.getStorageService(asset.type);
+        if (this.isExternal(asset)) {
+            throw new Error(`getAssetStream not supported for external asset ${asset.id}`);
+        }
 
-        return assetStorage.retrieveAssetStream(asset.storagePath);
+        return this.getStorageService(asset.type).retrieveAssetStream(asset.storagePath!);
     }
 
     public async getAsset(
@@ -127,9 +216,11 @@ export class AssetService implements OnApplicationBootstrap {
     ): Promise<Buffer> {
         const asset = typeof assetOrId === 'string' ? await em.findOneOrFail(AssetEntity, assetOrId) : assetOrId;
 
-        const assetStorage = this.getStorageService(asset.type);
+        if (this.isExternal(asset)) {
+            throw new Error(`getAsset not supported for external asset ${asset.id}`);
+        }
 
-        return assetStorage.retrieveAsset(asset.storagePath, encoding);
+        return this.getStorageService(asset.type).retrieveAsset(asset.storagePath!, encoding);
     }
 
     public async getAssetString(
@@ -139,15 +230,21 @@ export class AssetService implements OnApplicationBootstrap {
     ): Promise<string> {
         const asset = typeof assetOrId === 'string' ? await em.findOneOrFail(AssetEntity, assetOrId) : assetOrId;
 
-        const assetStorage = this.getStorageService(asset.type);
+        if (this.isExternal(asset)) {
+            throw new Error(`getAssetString not supported for external asset ${asset.id}`);
+        }
 
-        return assetStorage.retrieveAssetString(asset.storagePath, encoding);
+        return this.getStorageService(asset.type).retrieveAssetString(asset.storagePath!, encoding);
     }
 
-    private buildStoragePath(id: string, parsedOriginalPath: ParsedPath | undefined, options: CreateAssetDto): string {
+    private enrich<T extends AssetEntity>(asset: T): T {
+        asset.publicUrl = this.buildPublicUrl(asset);
+        return asset;
+    }
+
+    private buildStoragePath(id: string, parsedOriginalPath: ParsedPath | undefined): string {
         const fileName = parsedOriginalPath?.base;
 
-        // TODO: As a fallback, get file extension from detected mimetype?
         return fileName ? `${id}/${fileName}` : id;
     }
 

@@ -24,4 +24,8 @@ export class AssetConfig {
     @IsString()
     @IsNotEmpty()
     public readonly secretKey!: string;
+
+    @IsString()
+    @IsNotEmpty()
+    public readonly publicBaseUrl!: string;
 }
