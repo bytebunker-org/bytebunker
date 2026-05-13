@@ -698,6 +698,7 @@ export type ActivityType = ASTypeWithFallback<
     | 'Join'
     | 'Leave'
     | 'Like'
+    | 'Event'
     | 'Listen'
     | 'Move'
     | 'Offer'
@@ -899,6 +900,16 @@ export interface Like extends ASActivity {
  */
 export interface Listen extends ASActivity {
     '@type': 'Listen';
+}
+
+/**
+ * A scheduled calendar event the actor is associated with (e.g. imported from .ics).
+ * Note: distinct from the AS-spec `Event` Object — this is the activity occurrence.
+ */
+export interface EventActivity extends ASActivity {
+    '@type': 'Event';
+    summary: string;
+    attendees?: Array<{ name?: string; email: string; status?: string }>;
 }
 
 /**

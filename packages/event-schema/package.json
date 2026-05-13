@@ -27,6 +27,10 @@
             "import": "./lib/extension/google/index.js",
             "types": "./lib/extension/google/index.d.ts"
         },
+        "./extension/youtube": {
+            "import": "./lib/extension/youtube/index.js",
+            "types": "./lib/extension/youtube/index.d.ts"
+        },
         "./package.json": "./package.json"
     },
     "dependencies": {

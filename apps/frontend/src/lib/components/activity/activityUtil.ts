@@ -67,6 +67,37 @@ export function buildSpotifyOpenUrl(spotifyIdentifier: string): string | undefin
 	return id ? `https://open.spotify.com/${type}/${id}` : undefined;
 }
 
+export function buildYouTubeWatchUrl(
+	videoId: string | undefined,
+	options: { music?: boolean } = {}
+): string | undefined {
+	if (!videoId) {
+		return;
+	}
+
+	const host = options.music ? 'music.youtube.com' : 'www.youtube.com';
+
+	return `https://${host}/watch?v=${videoId}`;
+}
+
+/**
+ * Returns an external "open" URL for an Audio object's `identifier` (e.g. `spotify:track:…`,
+ * `youtube:track:…`). Used by ListenActivity to render the play button.
+ */
+export function buildAudioOpenUrl(identifier: string | undefined): string | undefined {
+	if (!identifier) {
+		return;
+	}
+
+	const youtubeMatch = /^youtube:track:(.+)$/.exec(identifier);
+
+	if (youtubeMatch) {
+		return buildYouTubeWatchUrl(youtubeMatch[1], { music: true });
+	}
+
+	return buildSpotifyOpenUrl(identifier);
+}
+
 export function buildGoogleMapsPlaceUrl(
 	location: { lat: number | undefined; lng: number | undefined },
 	placeId: string | undefined

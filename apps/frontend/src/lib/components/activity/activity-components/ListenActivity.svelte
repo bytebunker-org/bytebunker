@@ -5,7 +5,7 @@
 	import LucideMusic from '~icons/lucide/music';
 	import LucidePlay from '~icons/lucide/play';
 	import { Button } from '@bytebunker/daisyui-components';
-	import { buildSpotifyOpenUrl } from '$lib/components/activity/activityUtil.js';
+	import { buildAudioOpenUrl } from '$lib/components/activity/activityUtil.js';
 
 	interface ListenActivity extends Listen {
 		object?: {
@@ -20,7 +20,7 @@
 	let props: ActivityPropsInterface<ListenActivity & ASActivity> = $props();
 	let { activity } = props;
 
-	let spotifyOpenUrl = $derived(buildSpotifyOpenUrl(activity.object?.identifier));
+	let openUrl = $derived(buildAudioOpenUrl(activity.object?.identifier));
 </script>
 
 <ActivityCard {...props} icon={LucideMusic} type="Listen" class="group/spotify-activity">
@@ -36,12 +36,12 @@
 		{activity.summary ?? 'Unknown song'}
 	{/if}
 	{#snippet afterCardButtons()}
-		{#if spotifyOpenUrl}
+		{#if openUrl}
 			<Button
 				btnStyle="ghost"
 				class="btn-circle"
 				size="sm"
-				href={spotifyOpenUrl}
+				href={openUrl}
 				target="_blank"
 				rel="external"><LucidePlay /></Button
 			>

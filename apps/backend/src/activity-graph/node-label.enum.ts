@@ -9,11 +9,16 @@ export enum NodeLabelEnum {
     SPOTIFY_TRACK = 'SpotifyTrack',
     PODCAST_EPISODE = 'PodcastEpisode',
     SPOTIFY_EPISODE = 'SpotifyEpisode',
+    VIDEO = 'Video',
+    YOUTUBE_VIDEO = 'YouTubeVideo',
 
     ACTIVITY = 'Activity',
     GOOGLE_TIMELINE_ACTIVITY = 'GoogleTimelineActivity',
     SPOTIFY_LISTEN_ACTIVITY = 'SpotifyListenActivity',
+    YOUTUBE_VIEW_ACTIVITY = 'YouTubeViewActivity',
     ACTIVITY_ARRIVE = 'Arrive',
     ACTIVITY_MOVE = 'Move',
     ACTIVITY_LISTEN = 'Listen',
+    ACTIVITY_VIEW = 'View',
+    ACTIVITY_EVENT = 'Event',
 }

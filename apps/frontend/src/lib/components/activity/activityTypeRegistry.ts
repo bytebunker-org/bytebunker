@@ -7,9 +7,13 @@ import type { ActivityType, ASActivity, Place } from '@bytebunker/event-schema';
 import MoveActivity from '$lib/components/activity/activity-components/MoveActivity.svelte';
 import ArriveActivity from '$lib/components/activity/activity-components/ArriveActivity.svelte';
 import ListenActivity from '$lib/components/activity/activity-components/ListenActivity.svelte';
+import EventActivity from '$lib/components/activity/activity-components/EventActivity.svelte';
+import ViewActivity from '$lib/components/activity/activity-components/ViewActivity.svelte';
 import LucideRoute from '~icons/lucide/route';
 import LucideMapPin from '~icons/lucide/map-pin';
 import LucideMusic from '~icons/lucide/music';
+import LucideCalendar from '~icons/lucide/calendar';
+import LucideYoutube from '~icons/lucide/youtube';
 import type {
 	MaterialColorName,
 	MaterialColorShade
@@ -151,6 +155,14 @@ registerActivityType('Arrive', {
 	materialColorShade: 800
 });
 
+registerActivityType('Event', {
+	component: EventActivity,
+	defaultIcon: LucideCalendar,
+	materialColor: 'Indigo',
+	materialColorShade: 800,
+	summarize: (activity) => (activity as { summary?: string }).summary ?? 'Event'
+});
+
 registerActivityType('Listen', {
 	component: ListenActivity,
 	defaultIcon: LucideMusic,
@@ -168,6 +180,27 @@ registerActivityType('Listen', {
 		} else {
 			const moreAmount = songNames.length - 2;
 			return `Listened to ${songNames[0]}, ${songNames[1]} and ${moreAmount} more song${moreAmount > 1 ? 's' : ''}`;
+		}
+	}
+});
+
+registerActivityType('View', {
+	component: ViewActivity,
+	defaultIcon: LucideYoutube,
+	materialColor: 'Red',
+	materialColorShade: 800,
+	allowMerging: true,
+	allowNesting: true,
+	summarizeMultiple: (activities) => {
+		const titles = activities.map((s) => s.object?.name).filter(Boolean);
+
+		if (titles.length === 1) {
+			return `Watched ${titles[0]}`;
+		} else if (titles.length === 2) {
+			return `Watched ${titles[0]} and ${titles[1]}`;
+		} else {
+			const moreAmount = titles.length - 2;
+			return `Watched ${titles[0]}, ${titles[1]} and ${moreAmount} more video${moreAmount > 1 ? 's' : ''}`;
 		}
 	}
 });
