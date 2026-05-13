@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Firehose</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; color: #e0e0e0; display: flex; height: 100vh; overflow: hidden; }
+
+    #map { flex: 1; min-width: 0; }
+
+    #sidebar {
+      width: 420px;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      background: #13131f;
+    }
+
+    #sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    #sidebar-header h1 { font-size: 18px; margin-bottom: 4px; }
+    #sidebar-header .subtitle { font-size: 12px; color: #888; }
+
+    .source-toggles {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .source-toggle {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .source-toggle.bluesky { border-color: #0085ff; color: #0085ff; background: transparent; }
+    .source-toggle.bluesky.active { background: #0085ff; color: white; }
+    .source-toggle.mastodon { border-color: #6364ff; color: #6364ff; background: transparent; }
+    .source-toggle.mastodon.active { background: #6364ff; color: white; }
+    .source-toggle.jetstream { border-color: #00c9a7; color: #00c9a7; background: transparent; }
+    .source-toggle.jetstream.active { background: #00c9a7; color: white; }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #666;
+    }
+    .stats span { display: flex; align-items: center; gap: 4px; }
+    .stats .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .stats .dot.live { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    #feed {
+      flex: 1;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+    #feed::-webkit-scrollbar { width: 6px; }
+    #feed::-webkit-scrollbar-track { background: transparent; }
+    #feed::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    .post {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      animation: slideIn 0.3s ease-out;
+      cursor: default;
+      transition: background 0.15s;
+    }
+    .post:hover { background: rgba(255,255,255,0.03); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .post-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #2a2a3a;
+      flex-shrink: 0;
+    }
+    .post-author {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .post-name {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .post-handle {
+      font-size: 11px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .post-source {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .post-source.bluesky { background: rgba(0,133,255,0.2); color: #4da6ff; }
+    .post-source.mastodon { background: rgba(99,100,255,0.2); color: #9d9eff; }
+    .post-source.jetstream { background: rgba(0,201,167,0.2); color: #00c9a7; }
+
+    .post-text {
+      font-size: 13px;
+      line-height: 1.5;
+      word-break: break-word;
+      color: #ccc;
+    }
+    .post-text a { color: #4da6ff; text-decoration: none; }
+    .post-text a:hover { text-decoration: underline; }
+
+    .post-image {
+      margin-top: 8px;
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .post-time {
+      font-size: 11px;
+      color: #555;
+      margin-top: 6px;
+    }
+
+    .post.has-geo { border-left: 3px solid #ff6b6b; }
+
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #555;
+      text-align: center;
+      padding: 20px;
+    }
+    #empty-state .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #333;
+      border-top-color: #0085ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .map-popup-post { max-width: 260px; }
+    .map-popup-post .post-text { font-size: 12px; color: #333; }
+    .map-popup-post .post-name { color: #333; }
+    .map-popup-post .post-handle { color: #888; }
+
+    .leaflet-container { background: #0f0f1a; }
+
+    #location-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    #location-input {
+      flex: 1;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #location-input:focus { border-color: #0085ff; }
+    #location-input::placeholder { color: #555; }
+    #location-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: none;
+      background: #0085ff;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    #location-btn:hover { background: #006acc; }
+    #location-btn:disabled { background: #333; cursor: wait; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1 id="page-title">Social Firehose</h1>
+      <div id="location-bar">
+        <input type="text" id="location-input" placeholder="Enter city name (e.g. Trier, Berlin, Paris...)" />
+        <button id="location-btn" onclick="changeLocation()">Go</button>
+      </div>
+      <div class="subtitle" id="page-subtitle">Live posts mentioning <strong id="query-label">Trier</strong> from the fediverse & Bluesky</div>
+      <div class="source-toggles">
+        <span class="source-toggle bluesky active" data-source="bluesky" onclick="toggleSource(this)">Bluesky Search</span>
+        <span class="source-toggle mastodon active" data-source="mastodon" onclick="toggleSource(this)">Mastodon</span>
+        <span class="source-toggle jetstream active" data-source="jetstream" onclick="toggleSource(this)">Jetstream</span>
+      </div>
+      <div class="stats">
+        <span><span class="dot live" style="background:#0085ff"></span> <span id="count-bluesky">0</span> Bluesky</span>
+        <span><span class="dot live" style="background:#6364ff"></span> <span id="count-mastodon">0</span> Mastodon</span>
+        <span><span class="dot live" style="background:#00c9a7"></span> <span id="count-jetstream">0</span> Jetstream</span>
+        <span style="margin-left:auto;color:#444" id="status-text">Starting...</span>
+      </div>
+    </div>
+    <div id="feed">
+      <div id="empty-state">
+        <div class="spinner"></div>
+        <div>Connecting to feeds...</div>
+        <div style="font-size:12px;margin-top:6px">Searching for posts...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // --- Location config ---
+    let currentLocation = {
+      name: 'Trier',
+      lat: 49.7497,
+      lon: 6.6371,
+    };
+
+    // Read from URL params: ?q=Berlin or ?q=Paris&lat=48.8566&lon=2.3522
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('q')) {
+      currentLocation.name = urlParams.get('q');
+      if (urlParams.get('lat') && urlParams.get('lon')) {
+        currentLocation.lat = parseFloat(urlParams.get('lat'));
+        currentLocation.lon = parseFloat(urlParams.get('lon'));
+      }
+    }
+
+    document.getElementById('location-input').value = currentLocation.name;
+    document.getElementById('query-label').textContent = currentLocation.name;
+    document.title = `${currentLocation.name} Social Firehose`;
+
+    // --- State ---
+    let posts = [];
+    let seenIds = new Set();
+    const MAX_POSTS = 200;
+    const sources = { bluesky: true, mastodon: true, jetstream: true };
+    let counts = { bluesky: 0, mastodon: 0, jetstream: 0 };
+    let jetstreamWs = null;
+    let jetstreamScanned = 0;
+    let jetstreamRegex = buildRegex(currentLocation.name);
+    let pollTimer = null;
+
+    function buildRegex(query) {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, 'i');
+    }
+
+    // --- Map setup ---
+    const map = L.map('map').setView([currentLocation.lat, currentLocation.lon], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    let locationCircle = L.circle([currentLocation.lat, currentLocation.lon], {
+      radius: 5000,
+      color: '#ff6b6b',
+      fillColor: '#ff6b6b',
+      fillOpacity: 0.03,
+      weight: 1,
+      dashArray: '6 4'
+    }).addTo(map);
+
+    const geoMarkers = L.layerGroup().addTo(map);
+
+    // --- Helpers ---
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function linkify(text) {
+      const escaped = escapeHtml(text);
+      return escaped
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+        .replace(/#(\w+)/g, '<a href="https://bsky.app/search?q=%23$1" target="_blank" rel="noopener">#$1</a>');
+    }
+
+    function timeAgo(date) {
+      const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (seconds < 60) return `${seconds}s ago`;
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+      return `${Math.floor(seconds / 86400)}d ago`;
+    }
+
+    function toggleSource(el) {
+      const source = el.dataset.source;
+      sources[source] = !sources[source];
+      el.classList.toggle('active');
+      renderFeed();
+    }
+
+    function updateCounts() {
+      document.getElementById('count-bluesky').textContent = counts.bluesky;
+      document.getElementById('count-mastodon').textContent = counts.mastodon;
+      document.getElementById('count-jetstream').textContent = counts.jetstream;
+    }
+
+    function addPost(post) {
+      if (seenIds.has(post.id)) return;
+      seenIds.add(post.id);
+      counts[post.source]++;
+      posts.unshift(post);
+      if (posts.length > MAX_POSTS) {
+        const removed = posts.pop();
+        seenIds.delete(removed.id);
+      }
+      updateCounts();
+
+      if (post.geo) {
+        const color = post.source === 'bluesky' ? '#0085ff' : post.source === 'mastodon' ? '#6364ff' : '#00c9a7';
+        const marker = L.circleMarker([post.geo.lat, post.geo.lon], {
+          radius: 8, color, fillColor: color, fillOpacity: 0.6, weight: 2
+        }).addTo(geoMarkers);
+        marker.bindPopup(`
+          <div class="map-popup-post">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">${escapeHtml(post.author.name)}</div>
+            <div class="post-text">${linkify(post.text.slice(0, 200))}</div>
+            <div style="font-size:11px;color:#888;margin-top:4px">${post.source} · ${timeAgo(post.date)}</div>
+          </div>
+        `);
+      }
+
+      renderFeed();
+    }
+
+    function renderFeed() {
+      const feed = document.getElementById('feed');
+      const filtered = posts.filter(p => sources[p.source]);
+
+      if (filtered.length === 0) {
+        feed.innerHTML = `<div id="empty-state">
+          <div class="spinner"></div>
+          <div>Waiting for posts...</div>
+          <div style="font-size:12px;margin-top:6px">Searching for posts...</div>
+        </div>`;
+        return;
+      }
+
+      feed.innerHTML = filtered.map(post => `
+        <div class="post ${post.geo ? 'has-geo' : ''}">
+          <div class="post-header">
+            ${post.author.avatar
+              ? `<img class="post-avatar" src="${escapeHtml(post.author.avatar)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+              : `<div class="post-avatar" style="display:flex;align-items:center;justify-content:center;font-size:14px;color:#666">${escapeHtml(post.author.name.charAt(0).toUpperCase())}</div>`
+            }
+            <div class="post-author">
+              <div class="post-name">${escapeHtml(post.author.name)}</div>
+              <div class="post-handle">${escapeHtml(post.author.handle)}</div>
+            </div>
+            <span class="post-source ${post.source}">${post.source === 'jetstream' ? 'BS Live' : post.source === 'bluesky' ? 'BS' : 'Masto'}</span>
+          </div>
+          <div class="post-text">${linkify(post.text)}</div>
+          ${post.image ? `<img class="post-image" src="${escapeHtml(post.image)}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
+          <div class="post-time">${timeAgo(post.date)}${post.geo ? ' · 📍 geotagged' : ''}</div>
+        </div>
+      `).join('');
+    }
+
+    // --- Bluesky Search API (polling) ---
+    async function fetchBlueskySearch() {
+      try {
+        const url = `https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=${encodeURIComponent(currentLocation.name)}&limit=25&sort=latest`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        for (const item of (data.posts || [])) {
+          const record = item.record || {};
+          const author = item.author || {};
+          const thumb = item.embed?.images?.[0]?.thumb || item.embed?.media?.images?.[0]?.thumb || null;
+
+          addPost({
+            id: `bsky-${item.uri}`,
+            source: 'bluesky',
+            text: record.text || '',
+            date: new Date(record.createdAt || item.indexedAt),
+            author: {
+              name: author.displayName || author.handle || 'Unknown',
+              handle: `@${author.handle || 'unknown'}`,
+              avatar: author.avatar || null,
+            },
+            image: thumb,
+            geo: null,
+            url: `https://bsky.app/profile/${author.handle}/post/${item.uri.split('/').pop()}`
+          });
+        }
+      } catch (err) {
+        console.warn('Bluesky search error:', err);
+      }
+    }
+
+    // --- Mastodon Tag Timeline (polling) ---
+    const mastodonInstances = [
+      'https://mastodon.social',
+      'https://chaos.social',
+    ];
+
+    async function fetchMastodonTag(instanceUrl) {
+      try {
+        const tag = currentLocation.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const url = `${instanceUrl}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=20`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const statuses = await res.json();
+
+        for (const status of statuses) {
+          const account = status.account || {};
+          const plainText = status.content.replace(/<[^>]+>/g, '');
+          const img = status.media_attachments?.find(m => m.type === 'image');
+
+          addPost({
+            id: `masto-${status.id}-${new URL(instanceUrl).host}`,
+            source: 'mastodon',
+            text: plainText,
+            date: new Date(status.created_at),
+            author: {
+              name: account.display_name || account.username || 'Unknown',
+              handle: `@${account.acct}@${new URL(instanceUrl).host}`,
+              avatar: account.avatar_static || null,
+            },
+            image: img?.preview_url || null,
+            geo: null,
+            url: status.url
+          });
+        }
+      } catch (err) {
+        console.warn(`Mastodon ${instanceUrl} error:`, err);
+      }
+    }
+
+    // --- Bluesky Jetstream WebSocket (real-time) ---
+    function connectJetstream() {
+      const url = 'wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post';
+
+      try {
+        jetstreamWs = new WebSocket(url);
+      } catch (err) {
+        console.warn('Jetstream connection failed:', err);
+        setTimeout(connectJetstream, 10000);
+        return;
+      }
+
+      jetstreamWs.onopen = () => {
+        console.log('Jetstream connected');
+        document.getElementById('status-text').textContent = 'Jetstream live';
+      };
+
+      jetstreamWs.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          jetstreamScanned++;
+
+          if (jetstreamScanned % 1000 === 0) {
+            document.getElementById('status-text').textContent = `Scanned ${(jetstreamScanned / 1000).toFixed(0)}k posts`;
+          }
+
+          if (msg.kind !== 'commit' || msg.commit?.operation !== 'create') return;
+          const record = msg.commit?.record;
+          if (!record?.text) return;
+
+          if (!jetstreamRegex.test(record.text)) return;
+
+          const did = msg.did;
+          const rkey = msg.commit.rkey;
+
+          addPost({
+            id: `jet-${did}-${rkey}`,
+            source: 'jetstream',
+            text: record.text,
+            date: new Date(record.createdAt || Date.now()),
+            author: {
+              name: did.slice(0, 24) + '...',
+              handle: did,
+              avatar: null,
+            },
+            image: null,
+            geo: null,
+            url: `https://bsky.app/profile/${did}/post/${rkey}`
+          });
+
+          // Try to resolve the author profile in the background
+          resolveBlueskyProfile(did, `jet-${did}-${rkey}`);
+        } catch (e) {
+          // ignore parse errors
+        }
+      };
+
+      jetstreamWs.onclose = () => {
+        console.warn('Jetstream disconnected, reconnecting...');
+        document.getElementById('status-text').textContent = 'Reconnecting...';
+        setTimeout(connectJetstream, 3000);
+      };
+
+      jetstreamWs.onerror = () => {
+        jetstreamWs.close();
+      };
+    }
+
+    // Resolve Bluesky DID to profile info
+    const profileCache = new Map();
+    async function resolveBlueskyProfile(did, postId) {
+      if (profileCache.has(did)) {
+        applyProfile(postId, profileCache.get(did));
+        return;
+      }
+      try {
+        const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${did}`);
+        if (!res.ok) return;
+        const profile = await res.json();
+        const info = {
+          name: profile.displayName || profile.handle,
+          handle: `@${profile.handle}`,
+          avatar: profile.avatar || null,
+        };
+        profileCache.set(did, info);
+        applyProfile(postId, info);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    function applyProfile(postId, profile) {
+      const post = posts.find(p => p.id === postId);
+      if (post) {
+        post.author = profile;
+        renderFeed();
+      }
+    }
+
+    // --- Polling loops ---
+    async function pollAll() {
+      await Promise.all([
+        fetchBlueskySearch(),
+        ...mastodonInstances.map(inst => fetchMastodonTag(inst)),
+      ]);
+    }
+
+    // Initial load
+    pollAll().then(() => {
+      document.getElementById('status-text').textContent = 'Live';
+    });
+
+    // Poll REST APIs every 30s
+    pollTimer = setInterval(pollAll, 30000);
+
+    // Connect Jetstream
+    connectJetstream();
+
+    // Update relative times every 30s
+    setInterval(renderFeed, 30000);
+
+    // --- Location change ---
+    document.getElementById('location-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') changeLocation();
+    });
+
+    async function changeLocation() {
+      const input = document.getElementById('location-input').value.trim();
+      if (!input || input === currentLocation.name) return;
+
+      const btn = document.getElementById('location-btn');
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      // Geocode via Nominatim
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=1`);
+        const geoData = await geoRes.json();
+        if (geoData.length > 0) {
+          currentLocation.lat = parseFloat(geoData[0].lat);
+          currentLocation.lon = parseFloat(geoData[0].lon);
+          currentLocation.name = geoData[0].display_name.split(',')[0].trim();
+        } else {
+          currentLocation.name = input;
+        }
+      } catch (e) {
+        currentLocation.name = input;
+      }
+
+      // Update URL without reload
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.set('q', currentLocation.name);
+      newUrl.searchParams.set('lat', currentLocation.lat);
+      newUrl.searchParams.set('lon', currentLocation.lon);
+      history.replaceState(null, '', newUrl);
+
+      // Update UI
+      document.getElementById('location-input').value = currentLocation.name;
+      document.getElementById('query-label').textContent = currentLocation.name;
+      document.title = `${currentLocation.name} Social Firehose`;
+
+      // Update map
+      map.setView([currentLocation.lat, currentLocation.lon], 13);
+      locationCircle.setLatLng([currentLocation.lat, currentLocation.lon]);
+
+      // Reset feeds
+      posts = [];
+      seenIds = new Set();
+      counts = { bluesky: 0, mastodon: 0, jetstream: 0 };
+      updateCounts();
+      geoMarkers.clearLayers();
+      renderFeed();
+
+      // Update Jetstream regex
+      jetstreamRegex = buildRegex(currentLocation.name);
+      jetstreamScanned = 0;
+
+      // Reconnect Jetstream (to reset scan counter)
+      if (jetstreamWs) {
+        jetstreamWs.onclose = null; // prevent auto-reconnect
+        jetstreamWs.close();
+      }
+      connectJetstream();
+
+      // Re-poll REST APIs
+      if (pollTimer) clearInterval(pollTimer);
+      await pollAll();
+      pollTimer = setInterval(pollAll, 30000);
+
+      btn.disabled = false;
+      btn.textContent = 'Go';
+    }
+  </script>
+</body>
+</html>
