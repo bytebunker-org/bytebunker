@@ -3,6 +3,7 @@ import { ConfigModule } from './util/config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { MikroOrmConfigService } from './database/mikro-orm-config.service.js';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { CacheModule } from '@nestjs/cache-manager';
 import { HealthModule } from './shared/health/health.module.js';
 import { SettingModule } from './shared/setting/setting.module.js';
@@ -31,6 +32,11 @@ import { ActivityGraphSearchModule } from './activity-graph/search/activity-grap
     imports: [
         ConfigModule,
         MikroOrmModule.forRootAsync({
+            // Pass the driver at the top level so @mikro-orm/nestjs can register and export the
+            // driver-specific EntityManager (SqlEntityManager) token. Without it the async factory
+            // path only exposes the core EntityManager, and injecting `EntityManager` from
+            // @mikro-orm/postgresql fails with "SqlEntityManager is not available".
+            driver: PostgreSqlDriver,
             imports: [DatabaseModule],
             useExisting: MikroOrmConfigService,
         }),

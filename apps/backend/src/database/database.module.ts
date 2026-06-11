@@ -10,7 +10,7 @@ export class DatabaseModule implements OnModuleInit {
     private readonly logger = new Logger(DatabaseModule.name);
 
     public onModuleInit(): void {
-        if (pg.native) {
+        if ((pg as typeof pg & { native?: unknown }).native) {
             this.logger.log('Using native pg bindings for database connection');
         } else {
             this.logger.warn(`Cannot use native pg bindings for database connection - is pg-native installed?`);

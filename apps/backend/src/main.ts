@@ -1,3 +1,4 @@
+import './util/class-transformer-storage-shim.js';
 import 'reflect-metadata';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';

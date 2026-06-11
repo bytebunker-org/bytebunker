@@ -33,16 +33,19 @@ export class AssetDto extends TimestampDto {
     @IsInt()
     @IsOptional()
     @Optional()
+    @SType('integer')
     public size?: number | null;
 
     @IsString()
     @IsOptional()
     @Optional()
+    @SType('string')
     public storagePath?: string | null;
 
     @IsUrl({ require_tld: false })
     @IsOptional()
     @Optional()
+    @SType('string')
     public externalUrl?: string | null;
 
     @IsString()

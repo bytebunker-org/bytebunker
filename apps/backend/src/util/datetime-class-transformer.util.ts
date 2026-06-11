@@ -14,7 +14,7 @@ export function dateTimeClassTransformer({ type, value }: TransformFnParams): Da
     } else if (type === TransformationType.CLASS_TO_PLAIN) {
         const date = value as DateTime;
 
-        return date && DateTime.isDateTime(date) ? date.toISO() : value;
+        return date && DateTime.isDateTime(date) ? (date.toISO() ?? value) : value;
     } else {
         return value;
     }
