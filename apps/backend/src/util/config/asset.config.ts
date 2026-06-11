@@ -25,7 +25,10 @@ export class AssetConfig {
     @IsNotEmpty()
     public readonly secretKey!: string;
 
+    // Optional: when unset/empty, getPublicUrl falls back to a domain-relative URL
+    // (e.g. served behind the same proxy). Set it to the public asset base when assets
+    // are served from a different origin.
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    public readonly publicBaseUrl!: string;
+    public readonly publicBaseUrl?: string;
 }

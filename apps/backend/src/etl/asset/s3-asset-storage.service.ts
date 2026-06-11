@@ -90,7 +90,7 @@ export class S3AssetStorageService extends AssetStorageService {
     }
 
     public override getPublicUrl(storagePath: string): string {
-        const base = this.assetConfig.publicBaseUrl.replace(/\/+$/, '');
+        const base = (this.assetConfig.publicBaseUrl ?? '').replace(/\/+$/, '');
         const encodedPath = storagePath.split('/').map(encodeURIComponent).join('/');
 
         return `${base}/${this.bucketName}/${encodedPath}`;
