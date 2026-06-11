@@ -105,7 +105,10 @@
 		<ActivityTimeline
 			{searchRequest}
 			{filter}
-			initialPageParam={['cursorStart', filter.filters.start.endOf('day')]}
+			initialPageParam={[
+				'cursorStart',
+				(filter.filters.start.isValid ? filter.filters.start : DateTime.now()).endOf('day')
+			]}
 		/>
 	{/if}
 </div>

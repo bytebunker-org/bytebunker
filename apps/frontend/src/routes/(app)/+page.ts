@@ -6,8 +6,11 @@ import { ActivityGraphSearchApi } from '$lib/api/ActivityGraphSearchApi.js';
 export const load = prefetchQueries<RouteParams, PageServerData>(
 	({ fetch }) => [],
 	({ fetch, url }) => {
-		const parsedStartDate = DateTime.fromISO(url.searchParams.get('start') ?? '').endOf('day');
-		const cursorStart = parsedStartDate ?? DateTime.now().endOf('day');
+		// `DateTime.fromISO('')` returns an *invalid* DateTime (an object, not null), so a plain `??`
+		// fallback never triggers and `.toISO()` later yields null → backend rejects cursorStart with
+		// a 400. Guard on `.isValid` and only then fall back to now().
+		const parsedStartDate = DateTime.fromISO(url.searchParams.get('start') ?? '');
+		const cursorStart = (parsedStartDate.isValid ? parsedStartDate : DateTime.now()).endOf('day');
 
 		return [
 			{
