@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: "bytebunker"
       POSTGRES_DB: "bytebunker"
     ports:
-      - '5432:5432'
+      - '12110:5432'
     volumes:
       - bytebunker-backend-postgres:/var/lib/postgresql/data
   bytebunker-backend-minio:
@@ -20,13 +20,13 @@ services:
       MINIO_ROOT_USER: "bytebunker"
       MINIO_ROOT_PASSWORD: "bytebunker"
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "12114:9000"
+      - "12115:9001"
   bytebunker-backend-neo4j:
     image: neo4j:latest
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "12112:7474"
+      - "12113:7687"
     environment:
       - NEO4J_AUTH=neo4j/testtest
       - NEO4J_apoc_export_file_enabled=true
@@ -41,7 +41,7 @@ services:
     entrypoint: [ "keydb-server" ]
     command: [ "--appendonly", "yes" ]
     ports:
-      - "6379:6379"
+      - "12111:6379"
     volumes:
       - bytebunker-backend-keydb-data:/data
 volumes:

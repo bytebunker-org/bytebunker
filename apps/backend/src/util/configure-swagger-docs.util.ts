@@ -58,7 +58,7 @@ export async function configureSwaggerDocumentation(app: INestApplication) {
                 .addTag('PipelineExecution')
                 .addTag('PipelineBlueprint')
                 .setContact('Moritz Hein', 'https://moritz.website', 'moritz.hein@live.de')
-                .addServer('http://127.0.0.1:3000', 'Localhost')
+                .addServer('http://127.0.0.1:12100', 'Localhost')
                 .build(),
         );
         SwaggerModule.setup('/docs', app, document, {
