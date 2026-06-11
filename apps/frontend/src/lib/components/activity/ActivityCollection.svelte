@@ -54,7 +54,7 @@
 			? firstTypeData.color
 			: 'white'}"
 	>
-		<div class="mt-[6px] -mr-[4px] ml-[12px] w-[50px] text-neutral-500">
+		<div class="mt-[6px] -mr-[4px] w-[50px] text-neutral-500 lg:ml-[12px]">
 			{activities[0].startTime?.toLocaleString(DateTime.TIME_24_SIMPLE)}
 		</div>
 		<div
@@ -121,7 +121,8 @@
 
 <style>
 	.activity-card-icon {
-		background: linear-gradient(200deg, rgba(255, 255, 255, 0.4), transparent 100%),
+		background:
+			linear-gradient(200deg, rgba(255, 255, 255, 0.4), transparent 100%),
 			linear-gradient(0deg, var(--activity-bg-color), var(--activity-bg-color));
 		color: var(--activity-fg-color);
 	}

@@ -44,7 +44,8 @@
 		<div class="flex flex-nowrap items-center gap-1 text-nowrap">
 			{#if isSingleType}
 				{#if Icon && !hideIcon}<Icon />{/if}<span
-					class="max-w-[30vw] overflow-hidden overflow-ellipsis">{summarize(activities)}</span
+					class="max-w-[65vw] overflow-hidden overflow-ellipsis lg:max-w-[30vw]"
+					>{summarize(activities)}</span
 				>
 			{:else}
 				>{#if Icon && !hideIcon}<Icon />{/if}<span

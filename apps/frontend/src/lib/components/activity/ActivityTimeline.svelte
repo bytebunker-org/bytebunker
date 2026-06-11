@@ -187,7 +187,10 @@
 <svelte:window onscroll={onScroll} />
 
 {#each activitySearchQuery.data?.pages ?? [] as page}
-	<div class="mx-auto flex w-[60vw] flex-row flex-wrap p-2" transition:fly={{ duration: 300 }}>
+	<div
+		class="mx-auto flex w-full flex-row flex-wrap p-1 lg:w-[60vw] lg:p-2"
+		transition:fly={{ duration: 300 }}
+	>
 		{#each groupActivities(page.activities) as dayGroup (dayGroup.date.toISO())}
 			<div class="mt-4">
 				<div
@@ -199,7 +202,7 @@
 					</h2>
 					<div class="h-[1px] w-[30vw] border-t border-t-neutral-300"></div>
 				</div>
-				<div class="flex flex-col gap-4 pl-16">
+				<div class="flex flex-col gap-4 pl-2 lg:pl-16">
 					{#each processActivityTimelineDay(dayGroup.activities) as timelineEntry, i}
 						{#if timelineEntry.type === 'activity'}
 							{@const activityTypeData = getActivityTypeData(timelineEntry.activity['@type'])}

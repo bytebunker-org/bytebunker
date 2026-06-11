@@ -81,7 +81,7 @@
 			<LucideEllipsisVertical class="size-6 text-white" />
 		</label>
 
-		<main class="w-full px-4 pt-12 lg:px-8">
+		<main class="w-full px-2 pt-12 lg:px-4 lg:px-8">
 			{@render children()}
 		</main>
 	</div>
