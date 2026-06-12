@@ -1,0 +1,18 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "bytebunker-frontend",
+	// SvelteKit's @sveltejs/adapter-cloudflare emits the Worker entry and the static
+	// assets into .svelte-kit/cloudflare during `vite build`.
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-06-12",
+	// nodejs_compat also provides AsyncLocalStorage (the adapter's minimum requirement)
+	// and the Node built-ins the @bytebunker/backend shared code may pull in during SSR.
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"observability": {
+		"enabled": true
+	}
+}
