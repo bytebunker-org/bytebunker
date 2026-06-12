@@ -9,6 +9,7 @@
 		"preview": "vite preview",
 		"deploy": "vite build && wrangler deploy",
 		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts",
+		"gen:reflect-polyfill": "esbuild node_modules/reflect-metadata/ReflectLite.js --bundle --minify --outfile=static/reflect-metadata.js",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -35,9 +36,9 @@
 		"@playwright/test": "^1.52.0",
 		"@sveltejs/adapter-cloudflare": "^7.2.8",
 		"@sveltejs/kit": "^2.65.0",
-		"@sveltejs/vite-plugin-svelte": "^5.0.3",
+		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@tailwindcss/typography": "^0.5.16",
-		"@tailwindcss/vite": "^4.1.7",
+		"@tailwindcss/vite": "^4.3.0",
 		"@tanstack/svelte-query": "https://pkg.pr.new/@tanstack/svelte-query@56f67c7",
 		"@total-typescript/ts-reset": "^0.6.1",
 		"@types/humanize-duration": "^3.27.4",
@@ -76,16 +77,17 @@
 		"svelte-i18n": "^4.0.1",
 		"sveltekit-flash-message": "^2.4.6",
 		"sveltekit-superforms": "^2.25.0",
-		"tailwindcss": "^4.1.7",
+		"tailwindcss": "^4.3.0",
 		"typescript": "^5.8.3",
 		"typescript-eslint": "^8.32.1",
 		"unplugin-icons": "^22.1.0",
 		"valibot": "1.0.0-beta.14",
-		"vite": "^6.3.5",
-		"vitest": "^3.1.4",
+		"vite": "^8.0.0-beta.0",
+		"vitest": "^4.0.0",
 		"wrangler": "^4.100.0"
 	},
 	"dependencies": {
+		"reflect-metadata": "^0.2.2",
 		"remeda": "^2.22.1"
 	}
 }

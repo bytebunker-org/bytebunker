@@ -1,3 +1,4 @@
+import 'reflect-metadata/lite';
 import { locale } from 'svelte-i18n';
 import { pick } from '@escapace/accept-language-parser';
 import type { Handle, HandleFetch } from '@sveltejs/kit';

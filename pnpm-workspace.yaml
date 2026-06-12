@@ -7,3 +7,7 @@ onlyBuiltDependencies:
   - mmmagic
   - libpq
   - pg-native
+patchedDependencies:
+  '@sveltejs/kit@2.65.0': patches/@sveltejs__kit@2.65.0.patch
+overrides:
+  vite: ^8.0.0-beta.0

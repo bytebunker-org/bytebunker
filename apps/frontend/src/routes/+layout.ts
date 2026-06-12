@@ -1,3 +1,4 @@
+import 'reflect-metadata/lite';
 import { browser } from '$app/environment';
 import type { LayoutLoad } from './$types';
 import { QueryClient } from '@tanstack/svelte-query';
