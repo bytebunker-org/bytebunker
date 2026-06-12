@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TransformSemanticLocationHistoryPipelineModule } from './pipeline-module/transform-semantic-location-history.pipeline-module.js';
+import { TransformTimelinePipelineModule } from './pipeline-module/transform-timeline.pipeline-module.js';
 import { AssetModule } from '../../../etl/asset/asset.module.js';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { JsonSchemaService } from '../../../shared/json-schema/json-schema.service.js';
@@ -10,7 +11,7 @@ import { ActivityGraphModule } from '../../../activity-graph/activity-graph.modu
 @Module({
     imports: [AssetModule, JsonSchemaModule, JsonSchemaValidationModule, ActivityGraphModule],
     controllers: [],
-    providers: [TransformSemanticLocationHistoryPipelineModule],
+    providers: [TransformSemanticLocationHistoryPipelineModule, TransformTimelinePipelineModule],
 })
 export class GoogleExtensionModule {
     constructor(

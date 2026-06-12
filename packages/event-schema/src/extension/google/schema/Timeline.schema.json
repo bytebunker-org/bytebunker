@@ -1,0 +1,424 @@
+{
+    "$id": "https://bytebunker.io/schemas/google/Timeline.schema.json",
+    "$schema": "http://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "title": "Location History Timeline",
+    "description": "The on-device Google Maps Timeline export (`Timeline.json` / `location-history.json`), introduced in 2024 when Location History moved from the server to the device. Replaces the old per-month Semantic Location History files. Top level holds processed semantic segments, raw device signals, and an aggregated user location profile.",
+    "required": ["semanticSegments"],
+    "properties": {
+        "semanticSegments": {
+            "type": "array",
+            "title": "Semantic Segments",
+            "description": "Processed, chronologically ordered segments of the user's timeline. Each segment carries a start/end time plus exactly one of `timelinePath`, `visit`, `activity` or `timelineMemory`.",
+            "items": { "$ref": "#/$defs/semanticSegment" }
+        },
+        "rawSignals": {
+            "type": "array",
+            "title": "Raw Signals",
+            "description": "Unprocessed device signals (positions, detected activity records and Wi-Fi scans) the timeline was derived from.",
+            "items": { "$ref": "#/$defs/rawSignal" }
+        },
+        "userLocationProfile": {
+            "$ref": "#/$defs/userLocationProfile"
+        }
+    },
+    "$defs": {
+        "geoString": {
+            "type": "string",
+            "title": "Geo Coordinate String",
+            "description": "A latitude/longitude pair formatted as a single string with degree symbols, e.g. `\"49.7403348°, 6.650313°\"` (latitude first, then longitude).",
+            "pattern": "^-?\\d+(\\.\\d+)?°,\\s*-?\\d+(\\.\\d+)?°$"
+        },
+        "latLng": {
+            "type": "object",
+            "title": "Lat/Lng Wrapper",
+            "description": "Object wrapping a single coordinate string under the `latLng` key.",
+            "required": ["latLng"],
+            "properties": {
+                "latLng": { "$ref": "#/$defs/geoString" }
+            }
+        },
+        "isoTimestamp": {
+            "type": "string",
+            "title": "ISO 8601 Timestamp",
+            "description": "An ISO 8601 timestamp with timezone offset, e.g. `2024-11-22T10:53:29.000+01:00`."
+        },
+        "semanticSegment": {
+            "type": "object",
+            "title": "Semantic Segment",
+            "description": "A single timeline segment. Always has `startTime`/`endTime`; the payload is one of `timelinePath`, `visit`, `activity` or `timelineMemory`.",
+            "required": ["startTime", "endTime"],
+            "properties": {
+                "startTime": { "$ref": "#/$defs/isoTimestamp" },
+                "endTime": { "$ref": "#/$defs/isoTimestamp" },
+                "startTimeTimezoneUtcOffsetMinutes": {
+                    "type": "integer",
+                    "description": "UTC offset of `startTime`, in minutes. Absent on raw `timelinePath`-only segments."
+                },
+                "endTimeTimezoneUtcOffsetMinutes": {
+                    "type": "integer",
+                    "description": "UTC offset of `endTime`, in minutes."
+                },
+                "timelinePath": {
+                    "type": "array",
+                    "title": "Timeline Path",
+                    "description": "Ordered list of recorded points forming the path travelled during the segment.",
+                    "items": { "$ref": "#/$defs/timelinePathPoint" }
+                },
+                "visit": { "$ref": "#/$defs/visit" },
+                "activity": { "$ref": "#/$defs/activity" },
+                "timelineMemory": { "$ref": "#/$defs/timelineMemory" }
+            }
+        },
+        "timelinePathPoint": {
+            "type": "object",
+            "title": "Timeline Path Point",
+            "required": ["point", "time"],
+            "properties": {
+                "point": { "$ref": "#/$defs/geoString" },
+                "time": { "$ref": "#/$defs/isoTimestamp" }
+            }
+        },
+        "visit": {
+            "type": "object",
+            "title": "Visit",
+            "description": "A stay at a fixed place for a duration of time.",
+            "required": ["topCandidate"],
+            "properties": {
+                "hierarchyLevel": {
+                    "type": "integer",
+                    "description": "Nesting depth of the visit (0 = top level)."
+                },
+                "probability": {
+                    "type": "number",
+                    "description": "Probability that this segment is a visit, in the range 0 to 1."
+                },
+                "isTimelessVisit": {
+                    "type": "boolean",
+                    "description": "True when the visit has no reliable duration."
+                },
+                "topCandidate": { "$ref": "#/$defs/visitCandidate" }
+            }
+        },
+        "visitCandidate": {
+            "type": "object",
+            "title": "Visit Candidate",
+            "required": ["placeId", "placeLocation"],
+            "properties": {
+                "placeId": {
+                    "type": "string",
+                    "description": "Google Maps Place ID of the candidate place."
+                },
+                "semanticType": {
+                    "type": "string",
+                    "title": "Visit Semantic Type",
+                    "description": "Semantic classification of the place relative to the user.",
+                    "enum": [
+                        "UNKNOWN",
+                        "HOME",
+                        "WORK",
+                        "INFERRED_HOME",
+                        "INFERRED_WORK",
+                        "SEARCHED_ADDRESS",
+                        "ALIASED_LOCATION"
+                    ]
+                },
+                "probability": {
+                    "type": "number",
+                    "description": "Probability that this candidate is the correct place, in the range 0 to 1."
+                },
+                "placeLocation": { "$ref": "#/$defs/latLng" }
+            }
+        },
+        "activity": {
+            "type": "object",
+            "title": "Activity",
+            "description": "A journey from one place to another (walk, drive, transit ride, flight, ...).",
+            "required": ["start", "end", "topCandidate"],
+            "properties": {
+                "start": { "$ref": "#/$defs/latLng" },
+                "end": { "$ref": "#/$defs/latLng" },
+                "distanceMeters": {
+                    "type": "number",
+                    "description": "Distance travelled during the activity, in meters."
+                },
+                "probability": {
+                    "type": "number",
+                    "description": "Probability that this segment is an activity, in the range 0 to 1."
+                },
+                "topCandidate": { "$ref": "#/$defs/activityCandidate" },
+                "parking": { "$ref": "#/$defs/parking" }
+            }
+        },
+        "activityCandidate": {
+            "type": "object",
+            "title": "Activity Candidate",
+            "required": ["type"],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "title": "Activity Type",
+                    "description": "Detected activity/travel-mode type. Open enum; known values include UNKNOWN_ACTIVITY_TYPE, WALKING, RUNNING, CYCLING, HIKING, SKATING, IN_VEHICLE, IN_PASSENGER_VEHICLE, IN_BUS, IN_TRAIN, IN_SUBWAY, IN_TRAM, IN_FERRY, IN_CABLECAR, FLYING, CATCHING_POKEMON."
+                },
+                "probability": {
+                    "type": "number",
+                    "description": "Probability that this activity type is correct, in the range 0 to 1."
+                }
+            }
+        },
+        "parking": {
+            "type": "object",
+            "title": "Parking Event",
+            "required": ["location", "startTime"],
+            "properties": {
+                "location": { "$ref": "#/$defs/latLng" },
+                "startTime": { "$ref": "#/$defs/isoTimestamp" }
+            }
+        },
+        "timelineMemory": {
+            "type": "object",
+            "title": "Timeline Memory",
+            "description": "An aggregated 'memory' such as a trip spanning multiple destinations.",
+            "properties": {
+                "trip": {
+                    "type": "object",
+                    "title": "Trip",
+                    "required": ["destinations"],
+                    "properties": {
+                        "distanceFromOriginKms": {
+                            "type": "number",
+                            "description": "Maximum distance of the trip from its origin, in kilometers."
+                        },
+                        "destinations": {
+                            "type": "array",
+                            "items": { "$ref": "#/$defs/tripDestination" }
+                        }
+                    }
+                }
+            }
+        },
+        "tripDestination": {
+            "type": "object",
+            "title": "Trip Destination",
+            "required": ["identifier"],
+            "properties": {
+                "identifier": {
+                    "type": "object",
+                    "required": ["placeId"],
+                    "properties": {
+                        "placeId": {
+                            "type": "string",
+                            "description": "Google Maps Place ID of the destination."
+                        }
+                    }
+                }
+            }
+        },
+        "rawSignal": {
+            "type": "object",
+            "title": "Raw Signal",
+            "description": "A single raw device signal. Exactly one of `position`, `activityRecord` or `wifiScan` is present.",
+            "properties": {
+                "position": { "$ref": "#/$defs/position" },
+                "activityRecord": { "$ref": "#/$defs/activityRecord" },
+                "wifiScan": { "$ref": "#/$defs/wifiScan" }
+            }
+        },
+        "position": {
+            "type": "object",
+            "title": "Position",
+            "description": "A raw location fix. Note the capitalised `LatLng` key (unlike the lower-case `latLng` used elsewhere).",
+            "required": ["LatLng"],
+            "properties": {
+                "LatLng": { "$ref": "#/$defs/geoString" },
+                "accuracyMeters": {
+                    "type": "integer",
+                    "description": "Approximate accuracy radius of the fix, in meters. Lower is better."
+                },
+                "altitudeMeters": {
+                    "type": "number",
+                    "description": "Altitude in meters, when available."
+                },
+                "source": {
+                    "type": "string",
+                    "title": "Position Source",
+                    "description": "Origin of the location fix. Open enum; known values include UNKNOWN, WIFI_ONLY, GPS, CELL.",
+                    "examples": ["UNKNOWN", "WIFI_ONLY"]
+                },
+                "timestamp": { "$ref": "#/$defs/isoTimestamp" },
+                "speedMetersPerSecond": {
+                    "type": "number",
+                    "description": "Instantaneous speed in meters per second, when available."
+                }
+            }
+        },
+        "activityRecord": {
+            "type": "object",
+            "title": "Activity Record",
+            "description": "A raw on-device activity-recognition reading with candidate activities.",
+            "required": ["probableActivities", "timestamp"],
+            "properties": {
+                "probableActivities": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/probableActivity" }
+                },
+                "timestamp": { "$ref": "#/$defs/isoTimestamp" }
+            }
+        },
+        "probableActivity": {
+            "type": "object",
+            "title": "Probable Activity",
+            "required": ["type", "confidence"],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "title": "Probable Activity Type",
+                    "description": "Low-level activity-recognition type. Open enum; known values include UNKNOWN, STILL, WALKING, RUNNING, ON_FOOT, ON_BICYCLE, IN_VEHICLE, IN_ROAD_VEHICLE, IN_RAIL_VEHICLE, EXITING_VEHICLE, TILTING."
+                },
+                "confidence": {
+                    "type": "number",
+                    "description": "Confidence of this activity type, in the range 0 to 1."
+                }
+            }
+        },
+        "wifiScan": {
+            "type": "object",
+            "title": "Wi-Fi Scan",
+            "description": "A raw Wi-Fi scan with the access points seen at delivery time.",
+            "required": ["deliveryTime"],
+            "properties": {
+                "deliveryTime": { "$ref": "#/$defs/isoTimestamp" },
+                "devicesRecords": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/wifiDeviceRecord" }
+                }
+            }
+        },
+        "wifiDeviceRecord": {
+            "type": "object",
+            "title": "Wi-Fi Device Record",
+            "required": ["mac", "rawRssi"],
+            "properties": {
+                "mac": {
+                    "type": "integer",
+                    "description": "MAC address of the access point, encoded as an integer."
+                },
+                "rawRssi": {
+                    "type": "integer",
+                    "description": "Raw received signal strength indicator, in dBm."
+                }
+            }
+        },
+        "userLocationProfile": {
+            "type": "object",
+            "title": "User Location Profile",
+            "description": "Aggregated profile derived from the user's history: frequent places, frequent trips and travel persona.",
+            "properties": {
+                "frequentPlaces": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/frequentPlace" }
+                },
+                "frequentTrips": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/frequentTrip" }
+                },
+                "persona": { "$ref": "#/$defs/persona" }
+            }
+        },
+        "frequentPlace": {
+            "type": "object",
+            "title": "Frequent Place",
+            "required": ["placeId", "placeLocation"],
+            "properties": {
+                "placeId": {
+                    "type": "string",
+                    "description": "Google Maps Place ID of the frequent place."
+                },
+                "placeLocation": { "$ref": "#/$defs/geoString" },
+                "label": {
+                    "type": "string",
+                    "title": "Frequent Place Label",
+                    "description": "User label for the place.",
+                    "enum": ["HOME", "WORK"]
+                }
+            }
+        },
+        "frequentTrip": {
+            "type": "object",
+            "title": "Frequent Trip",
+            "properties": {
+                "waypointIds": {
+                    "type": "array",
+                    "description": "Ordered Google Maps Place IDs of the waypoints along the trip.",
+                    "items": { "type": "string" }
+                },
+                "modeDistribution": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/modeShare" }
+                },
+                "startTimeMinutes": {
+                    "type": "integer",
+                    "description": "Typical start time, in minutes past midnight (local)."
+                },
+                "endTimeMinutes": {
+                    "type": "integer",
+                    "description": "Typical end time, in minutes past midnight (local)."
+                },
+                "durationMinutes": {
+                    "type": "integer",
+                    "description": "Typical trip duration, in minutes."
+                },
+                "confidence": {
+                    "type": "number",
+                    "description": "Confidence in this frequent trip, in the range 0 to 1."
+                },
+                "commuteDirection": {
+                    "type": "string",
+                    "title": "Commute Direction",
+                    "enum": ["COMMUTE_DIRECTION_HOME_TO_WORK", "COMMUTE_DIRECTION_WORK_TO_HOME"]
+                }
+            }
+        },
+        "modeShare": {
+            "type": "object",
+            "title": "Mode Share",
+            "required": ["mode", "rate"],
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "description": "Travel mode (open enum, e.g. WALKING, IN_BUS, IN_TRAIN, IN_SUBWAY, IN_PASSENGER_VEHICLE, RUNNING)."
+                },
+                "rate": {
+                    "type": "number",
+                    "description": "Share of trips taken with this mode, in the range 0 to 1."
+                }
+            }
+        },
+        "persona": {
+            "type": "object",
+            "title": "Persona",
+            "description": "Aggregated travel-mode affinities of the user.",
+            "properties": {
+                "travelModeAffinities": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/modeAffinity" }
+                }
+            }
+        },
+        "modeAffinity": {
+            "type": "object",
+            "title": "Mode Affinity",
+            "required": ["mode", "affinity"],
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "description": "Travel mode (open enum, e.g. WALKING, IN_BUS, IN_PASSENGER_VEHICLE, IN_TRAIN, FLYING, CYCLING, RUNNING)."
+                },
+                "affinity": {
+                    "type": "number",
+                    "description": "Relative affinity for this mode, in the range 0 to 1."
+                }
+            }
+        }
+    }
+}
