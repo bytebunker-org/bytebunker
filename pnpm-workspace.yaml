@@ -5,3 +5,5 @@ onlyBuiltDependencies:
   - '@nestjs/core'
   - '@suites/di.nestjs'
   - mmmagic
+  - libpq
+  - pg-native
