@@ -11,3 +11,5 @@ vite.config.ts.timestamp-*
 .idea/
 .turbo
 foundTcds.jsonl
+# Local prod-DB tunnel + MCP secrets (do not commit)
+tunnel-prod-dbs.sh
