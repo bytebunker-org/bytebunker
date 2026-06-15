@@ -34,13 +34,13 @@
             "dependsOn": ["^clean"]
         },
         "build:lib": {
-            "inputs": ["src/**/*.ts"],
+            "inputs": ["src/**/*.ts", "src/**/*.json"],
             "dependsOn": ["^build:lib"],
             "outputs": ["lib/**"],
             "outputLogs": "new-only"
         },
         "build": {
-            "inputs": ["src/**/*.ts"],
+            "inputs": ["src/**/*.ts", "src/**/*.json"],
             "outputs": ["lib/**", "dist/**"],
             "outputLogs": "new-only"
         }
