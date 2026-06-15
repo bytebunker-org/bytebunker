@@ -2,6 +2,11 @@ temp
 temp-dirs
 src/metadata.ts
 
+# Intermediate scratch output of `pnpm generate:google-types`. Hand-curated into
+# src/extension/google/type/*.type.ts (the committed source of truth); nothing imports
+# these directly and the build does not regenerate them.
+src/extension/google/generatedType/
+
 # compiled output
 /dist
 /lib
