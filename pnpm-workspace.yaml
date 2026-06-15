@@ -11,3 +11,4 @@ patchedDependencies:
   '@sveltejs/kit@2.65.0': patches/@sveltejs__kit@2.65.0.patch
 overrides:
   vite: ^8.0.0-beta.0
+  class-transformer: npm:@kage0x3b/class-transformer@^0.7.1

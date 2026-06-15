@@ -5,7 +5,6 @@ export default defineConfig({
     test: {
         globals: true,
         root: './',
-        setupFiles: ['./test/setup.ts'],
         coverage: {
             provider: 'v8',
             exclude: [

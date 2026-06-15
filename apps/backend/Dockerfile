@@ -1,4 +1,7 @@
-FROM node:22.6-alpine AS base
+# Node 22.12+ is required: the @kage0x3b/class-transformer fork is ESM-only, and CommonJS consumers
+# (nest-typed-config, and ts-node during build:mikro-orm-cache) rely on unflagged require(ESM), which
+# only landed in Node 22.12. 22.6 throws ERR_REQUIRE_ESM. Pinned to a verified-working 22.x patch.
+FROM node:22.22-alpine AS base
 
 LABEL org.opencontainers.image.title="@bytebunker/backend"
 LABEL org.opencontainers.image.authors="moritz.hein+bytebunker@live.de"
@@ -56,6 +59,7 @@ COPY --from=build /opt/app/packages/qs-esm/lib /opt/app/packages/qs-esm/lib
 COPY --from=build /opt/app/packages/event-schema/lib /opt/app/packages/event-schema/lib
 # COPY --from=build /opt/app/apps/backend/resources ./resources
 COPY --from=build /opt/app/apps/backend/.env.production.toml ./.env.production.toml
+COPY --from=build /opt/app/apps/backend/run-mikro-orm.cjs ./run-mikro-orm.cjs
 COPY --from=build /opt/app/apps/backend/dist ./dist
 
 CMD node ./dist/main.js

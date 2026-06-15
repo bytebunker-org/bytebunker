@@ -1,4 +1,3 @@
-import './util/class-transformer-storage-shim.js';
 import 'reflect-metadata';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
@@ -15,6 +14,21 @@ import { ExtendedExceptionFilter } from './database/util/extended-exception.filt
 // Set default luxon DateTime timezone to UTC instead of using the system timezone
 Settings.defaultZone = 'utc';
 const requestLogger = new Logger('Http');
+const processLogger = new Logger('Process');
+
+// Last-resort safety net: a rejected promise that nobody awaited (e.g. a fire-and-forget pipeline
+// trigger handler) would otherwise terminate the process with `triggerUncaughtException`. Log it and
+// keep the server running - a single failed pipeline must not take down the whole backend.
+process.on('unhandledRejection', (reason) => {
+    processLogger.error('Unhandled promise rejection - keeping the process alive', reason);
+});
+
+// An uncaught synchronous exception can leave the process in an undefined state, so we log it loudly.
+// We deliberately keep running here too: the same resilience requirement applies, and Nest's shutdown
+// hooks still run on real fatal signals.
+process.on('uncaughtException', (error) => {
+    processLogger.error('Uncaught exception - keeping the process alive', error);
+});
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
