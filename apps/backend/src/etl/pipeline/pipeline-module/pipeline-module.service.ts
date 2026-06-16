@@ -135,6 +135,13 @@ export class PipelineModuleService {
             moduleOptions,
         );
 
+        // Register the runnable instance in the in-memory registry up front, independent of whether the
+        // persisted JSON schema is up to date. A schema mismatch (same version, changed types) must still
+        // leave the module executable in production - only the DB schema refresh is gated below. Otherwise
+        // a type change without a version bump would silently drop the module from the registry and break
+        // every pipeline that uses it.
+        this.pipelineModuleRegistry.set(moduleIdentifier, discoveredClass.instance as IPipelineModule<Input, Output>);
+
         const existingModule = await em.findOne(PipelineModuleEntity, {
             id: moduleIdentifier,
         });
@@ -210,8 +217,6 @@ export class PipelineModuleService {
                     : undefined,
             });
         }
-
-        this.pipelineModuleRegistry.set(moduleIdentifier, discoveredClass.instance as IPipelineModule<Input, Output>);
 
         this.logger.log(`Registered module ${moduleIdentifier}`);
     }
