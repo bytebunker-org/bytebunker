@@ -20,6 +20,7 @@ import { ActivityStableKeyService } from '../../../../activity-graph/activity-st
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
+import { NodeLabelEnum } from '../../../../activity-graph/node-label.enum.js';
 
 @PipelineModuleJsonSchema()
 export class TransformTimelineInput {
@@ -31,6 +32,14 @@ export class TransformTimelineInput {
      */
     @Optional()
     public minVisitProbability?: number;
+
+    /**
+     * When enabled, derive a cutoff from the newest already-stored Move/Arrive activity and only emit segments
+     * starting at or after it. Lets a re-run import just the new tail of the timeline instead of the whole file
+     * (the stableKey dedup still protects against the boundary segment). Defaults to false (emit everything).
+     */
+    @Optional()
+    public skipAlreadyImported?: boolean;
 }
 
 @PipelineModuleJsonSchema()
@@ -66,7 +75,7 @@ export class TransformTimelinePipelineModule
         em,
         inputData,
     }: PipelineModuleExecutionContext<TransformTimelineInput>): Promise<TransformTimelineOutput> {
-        const { rawJson: rawJsonAsset, minVisitProbability = 0 } = inputData;
+        const { rawJson: rawJsonAsset, minVisitProbability = 0, skipAlreadyImported = false } = inputData;
 
         const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, GOOGLE_EXTENSION_ID);
 
@@ -75,6 +84,17 @@ export class TransformTimelinePipelineModule
 
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
         const actorId = ownerActor.get('id')!;
+
+        const importAfter = skipAlreadyImported
+            ? await this.activityGraphService.getLatestActivityStartTime([
+                  NodeLabelEnum.ACTIVITY_MOVE,
+                  NodeLabelEnum.ACTIVITY_ARRIVE,
+              ])
+            : undefined;
+
+        if (importAfter) {
+            this.logger.log(`Skipping segments starting before the newest stored activity at ${importAfter.toISO()}`);
+        }
 
         return {
             activities: (timeline.semanticSegments ?? [])
@@ -86,6 +106,7 @@ export class TransformTimelinePipelineModule
                             visit: segment.visit,
                             actorId,
                             minVisitProbability,
+                            importAfter,
                         });
                     } else if (segment.activity) {
                         return this.transformActivity({
@@ -93,6 +114,7 @@ export class TransformTimelinePipelineModule
                             segment,
                             activity: segment.activity,
                             actorId,
+                            importAfter,
                         });
                     } else if (segment.timelinePath || segment.timelineMemory) {
                         // Raw path / memory segments carry no discrete activity yet, skip silently.
@@ -112,11 +134,13 @@ export class TransformTimelinePipelineModule
         segment,
         activity,
         actorId,
+        importAfter,
     }: {
         generatorExtensionObject: ASObject;
         segment: SemanticSegment;
         activity: Activity;
         actorId: string;
+        importAfter: DateTime | undefined;
     }): (Move & GoogleTimelineActivityInterface) | undefined {
         const origin = this.parsePlace(activity.start?.latLng);
         const target = this.parsePlace(activity.end?.latLng);
@@ -125,6 +149,10 @@ export class TransformTimelinePipelineModule
         const endDateTime = this.parseDateTime(segment.endTime);
 
         if (!origin || !target || !startDateTime) {
+            return;
+        }
+
+        if (importAfter && startDateTime < importAfter) {
             return;
         }
 
@@ -159,12 +187,14 @@ export class TransformTimelinePipelineModule
         visit,
         actorId,
         minVisitProbability,
+        importAfter,
     }: {
         generatorExtensionObject: ASObject;
         segment: SemanticSegment;
         visit: Visit;
         actorId: string;
         minVisitProbability: number;
+        importAfter: DateTime | undefined;
     }): Arrive | undefined {
         if (visit.probability !== undefined && visit.probability < minVisitProbability) {
             return;
@@ -176,6 +206,10 @@ export class TransformTimelinePipelineModule
         const endDateTime = this.parseDateTime(segment.endTime);
 
         if (!place || !startDateTime) {
+            return;
+        }
+
+        if (importAfter && startDateTime < importAfter) {
             return;
         }
 
