@@ -90,6 +90,11 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
 
         const fullRelativeFilePath = join(process.cwd(), localFileTriggerImportFolderSetting, filePath);
 
+        // Diagnostics collected while matching, so a "no pipeline" failure can explain *why*: which trigger
+        // glob patterns were checked and whether any actually matched the file.
+        const consideredTriggers: { nodeId: number | string; globPatterns: string[] }[] = [];
+        let anyTriggerMatched = false;
+
         // The transaction is scoped to just the database work. Error handling and file moves happen
         // outside of it: once any statement fails, Postgres aborts the whole transaction, so the commit
         // attempt at the end of `transactional` would throw on its own. Catching that here (instead of
@@ -113,7 +118,12 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
                                 return false;
                             }
 
-                            return micromatch.isMatch(filePath, options.globPatterns);
+                            consideredTriggers.push({ nodeId: node.id, globPatterns: options.globPatterns });
+
+                            const matched = micromatch.isMatch(filePath, options.globPatterns);
+                            anyTriggerMatched ||= matched;
+
+                            return matched;
                         },
                         buildNodeData: async () => {
                             const fileAsset = await this.assetService.storeAssetFromLocalFile(em, fullRelativeFilePath, {
@@ -133,7 +143,7 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
             );
 
             if (!createdPipelines.length) {
-                throw new Error(`No pipeline created from imported file ${filePath}`);
+                throw new Error(this.buildNoPipelineError(filePath, consideredTriggers, anyTriggerMatched));
             }
 
             await moveFile(
@@ -141,7 +151,7 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
                 join(process.cwd(), localFileTriggerImportFinishedFolderSetting, filePath),
             );
         } catch (error) {
-            this.logger.error("Couldn't start pipeline from local file trigger", error);
+            this.logger.error(`Couldn't start pipeline from local file trigger for imported file ${filePath}`, error);
 
             try {
                 await moveFile(
@@ -152,5 +162,41 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
                 this.logger.error(`Couldn't move failed import file ${filePath} to failed folder`, moveError);
             }
         }
+    }
+
+    /**
+     * Builds an actionable error explaining why an imported file produced no pipeline, distinguishing the
+     * three possible causes: a blueprint matched but its execution failed, no trigger blueprint was found
+     * at all, or blueprints were found but none of their glob patterns matched the file.
+     */
+    private buildNoPipelineError(
+        filePath: string,
+        consideredTriggers: { nodeId: number | string; globPatterns: string[] }[],
+        anyTriggerMatched: boolean,
+    ): string {
+        if (anyTriggerMatched) {
+            return (
+                `Imported file "${filePath}" matched a local-file-trigger blueprint, but no pipeline could be started. ` +
+                `See the preceding "Failed to execute pipeline from trigger" error for the underlying cause.`
+            );
+        }
+
+        if (!consideredTriggers.length) {
+            return (
+                `Imported file "${filePath}" matched no pipeline: no blueprint uses the local-file-trigger module ` +
+                `with configured glob patterns. Create a blueprint with a local-file-trigger node whose globPatterns ` +
+                `match this path and re-save it so its used modules are linked.`
+            );
+        }
+
+        const checked = consideredTriggers
+            .map((trigger) => `node ${trigger.nodeId}: [${trigger.globPatterns.join(', ')}]`)
+            .join('; ');
+
+        return (
+            `Imported file "${filePath}" did not match any local-file-trigger glob pattern. ` +
+            `Checked ${consideredTriggers.length} trigger node(s): ${checked}. ` +
+            `Adjust a blueprint's globPatterns or the file's path relative to the import folder.`
+        );
     }
 }
