@@ -251,7 +251,7 @@ export class ParseWhatsappChatPipelineModule
             actor: args.actor,
             ...(args.target ? { target: args.target } : {}),
             startTime,
-            object: { '@type': 'Note', content: message.text },
+            object: { '@type': 'Note', stableKeys: [`whatsapp:${identity}:${ordinal}:note`], content: message.text },
             conversationId: args.conversationId,
             chatName: args.chatName,
             isGroupChat: args.isGroup,

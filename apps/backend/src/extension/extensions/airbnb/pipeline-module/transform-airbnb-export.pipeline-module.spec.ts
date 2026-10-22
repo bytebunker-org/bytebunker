@@ -165,7 +165,8 @@ describe('TransformAirbnbExportPipelineModule', () => {
             expect(outgoing.direction).toBe('outgoing');
             expect(outgoing.conversationId).toBe('airbnb:thread:9001');
             expect(outgoing.contentType).toBe('TextContent');
-            expect(outgoing.object).toEqual({ '@type': 'Note', content: 'Is parking available?' });
+            expect(outgoing.object).toMatchObject({ '@type': 'Note', content: 'Is parking available?' });
+            expect(outgoing.object.stableKeys).toEqual([`${outgoing.stableKeys[0]}:note`]);
             expect(outgoing.target).toMatchObject({
                 '@type': 'Person',
                 stableKeys: ['person:handle:airbnb:2002'],
@@ -233,7 +234,8 @@ describe('TransformAirbnbExportPipelineModule', () => {
             expect(received['@secondaryTypes']).toEqual(['Review']);
             expect(received.actor.stableKeys).toEqual(['person:handle:airbnb:2002']);
             expect(received.target).toEqual({ '@id': FAKE_ACTOR_ID, '@type': 'Person' });
-            expect(received.object).toEqual({ '@type': 'Note', content: 'Pleasant guest.' });
+            expect(received.object).toMatchObject({ '@type': 'Note', content: 'Pleasant guest.' });
+            expect(received.object.stableKeys).toEqual([`${received.stableKeys[0]}:note`]);
             expect(received.startTime.toISO()).toBe('2021-07-14T10:00:00.000Z');
             expect(received).toMatchObject({
                 rating: 5,
