@@ -12,6 +12,7 @@ export enum NodeLabelEnum {
     SPOTIFY_EPISODE = 'SpotifyEpisode',
     VIDEO = 'Video',
     YOUTUBE_VIDEO = 'YouTubeVideo',
+    NOTE = 'Note',
 
     ACTIVITY = 'Activity',
     GOOGLE_TIMELINE_ACTIVITY = 'GoogleTimelineActivity',
@@ -22,4 +23,6 @@ export enum NodeLabelEnum {
     ACTIVITY_LISTEN = 'Listen',
     ACTIVITY_VIEW = 'View',
     ACTIVITY_EVENT = 'Event',
+    ACTIVITY_CREATE = 'Create',
+    ACTIVITY_SEARCH = 'Search',
 }

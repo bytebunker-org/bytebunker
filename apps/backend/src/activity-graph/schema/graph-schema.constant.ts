@@ -17,6 +17,8 @@ import { MusicRecordingSchema } from './as-object/music-recording.schema.js';
 import { PodcastEpisodeSchema } from './as-object/podcast-episode.schema.js';
 import { VideoSchema } from './as-object/video.schema.js';
 import { YouTubeVideoSchema } from './as-object/youtube-video.schema.js';
+import { NoteSchema } from './as-object/note.schema.js';
+import { SearchActivitySchema } from './activity/search-activity.schema.js';
 
 export function registerGraphSchemas(neode: Neode): void {
     neode.model(NodeLabelEnum.EXTENSION, ExtensionSchema);
@@ -33,6 +35,7 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.PODCAST_EPISODE, NodeLabelEnum.SPOTIFY_EPISODE, {});
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.VIDEO, VideoSchema);
     neode.extend(NodeLabelEnum.VIDEO, NodeLabelEnum.YOUTUBE_VIDEO, YouTubeVideoSchema);
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.NOTE, NoteSchema);
 
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.ACTIVITY, ASActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.GOOGLE_TIMELINE_ACTIVITY, GoogleTimelineActivitySchema);
@@ -43,6 +46,8 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_VIEW, {});
     neode.extend(NodeLabelEnum.ACTIVITY_VIEW, NodeLabelEnum.YOUTUBE_VIEW_ACTIVITY, YouTubeViewActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_EVENT, EventActivitySchema);
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_CREATE, {});
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_SEARCH, SearchActivitySchema);
 }
 
 export const relationshipInfoMap: Record<

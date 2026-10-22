@@ -1,9 +1,14 @@
-import { Items, Required } from 'ts-decorator-json-schema-generator';
-import ICAL from 'ical.js';
+import { Items, Optional, Required } from 'ts-decorator-json-schema-generator';
 import { Logger } from '@nestjs/common';
-import type { DateTime } from 'luxon';
+import { DateTime, Duration } from 'luxon';
 import type { ASObject, EventActivity, Place } from '@bytebunker/event-schema';
 import { createUnknownASType } from '@bytebunker/event-schema';
+import type {
+    IcsCalendarModel,
+    IcsComponentModel,
+    IcsOccurrenceModel,
+    IcsParticipantModel,
+} from '@bytebunker/event-schema/extension/ics';
 import { AssetDto } from '../../../../etl/asset/dto/asset.dto.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { AssetService } from '../../../../etl/asset/asset.service.js';
@@ -17,13 +22,52 @@ import type {
     PipelineModuleExecutionContext,
 } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
 import { ICS_CALENDAR_EXTENSION, ICS_CALENDAR_EXTENSION_ID } from '../../local-extension.constant.js';
-import { icalTimeToLuxon, parseAttendees } from './parse-ics-file.util.js';
+import { parseIcsDocumentWithSources } from '../util/ics-document.parser.js';
+import { expandIcsOccurrences } from '../util/ics-occurrence.util.js';
+import type { IcsEventActivityInterface } from '../type/ics-event-activity.interface.js';
 import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
+
+/** Zone for floating/all-day values when neither the value nor the calendar (X-WR-TIMEZONE) declares one. */
+const DEFAULT_FLOATING_ZONE = 'Europe/Berlin';
+const DEFAULT_RECURRENCE_HORIZON = 'P1Y';
+const DEFAULT_MAX_OCCURRENCES_PER_SERIES = 5000;
+const UNTITLED_EVENT_SUMMARY = 'Untitled event';
+
+export interface ParseIcsOptions {
+    floatingZone?: string;
+    recurrenceHorizon?: string;
+    maxOccurrencesPerSeries?: number;
+    includeCancelled?: boolean;
+    /** Reference "now" for the recurrence horizon (tests). */
+    now?: DateTime;
+}
 
 @PipelineModuleJsonSchema()
 export class ParseIcsFileInput {
     @Required()
     public icsFile!: AssetDto;
+
+    /**
+     * IANA zone for floating and all-day values when the calendar does not declare X-WR-TIMEZONE. Defaults to
+     * Europe/Berlin.
+     */
+    @Optional()
+    public floatingZone?: string;
+
+    /**
+     * How far past "now" recurring series are expanded, as ISO 8601 duration. Defaults to P1Y. Single events are
+     * always imported regardless of their date.
+     */
+    @Optional()
+    public recurrenceHorizon?: string;
+
+    /** Safety cap of instances per recurring series. Defaults to 5000. */
+    @Optional()
+    public maxOccurrencesPerSeries?: number;
+
+    /** Import events and instances with STATUS:CANCELLED too. Defaults to false. */
+    @Optional()
+    public includeCancelled?: boolean;
 }
 
 @PipelineModuleJsonSchema()
@@ -33,6 +77,12 @@ export class ParseIcsFileOutput {
     public activities!: ActivityDto[];
 }
 
+/**
+ * Parses any iCalendar file (Google, Outlook/Exchange, Apple, Thunderbird, my-hub, CalDAV dumps) into one Event
+ * activity per occurrence. Recurring series are expanded with overrides and exceptions applied. Each activity
+ * carries the full parsed component (`ics`), so properties without a dedicated field, vendor extensions included,
+ * stay available.
+ */
 @PipelineModule({
     extensionName: ICS_CALENDAR_EXTENSION,
     inputType: ParseIcsFileInput,
@@ -61,95 +111,152 @@ export class ParseIcsFilePipelineModule implements IPipelineModule<ParseIcsFileI
         inputData,
         progress,
     }: PipelineModuleExecutionContext<ParseIcsFileInput>): Promise<ParseIcsFileOutput> {
-        const generatorExtensionObject = await this.activityGraphNodeService.getExtension(
-            em,
-            ICS_CALENDAR_EXTENSION_ID,
-        );
+        const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, ICS_CALENDAR_EXTENSION_ID);
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
         const actorId = ownerActor.get('id')!;
 
         progress.message('Reading calendar');
         const rawIcs = await this.assetService.getAssetString(em, inputData.icsFile);
         progress.message('Parsing events');
-        const activities = this.parseIcsToActivities(rawIcs, generatorExtensionObject, actorId);
+        const activities = this.parseIcsToActivities(rawIcs, generatorExtensionObject, actorId, inputData);
 
         return { activities };
     }
 
-    public parseIcsToActivities(rawIcs: string, generatorExtensionObject: ASObject, actorId: string): ActivityDto[] {
-        const calendar = new ICAL.Component(ICAL.parse(rawIcs));
-        const vevents = calendar.getAllSubcomponents('vevent');
-        const activities: ActivityDto[] = [];
-
-        for (const vevent of vevents) {
-            const activity = this.transformEvent(vevent, generatorExtensionObject, actorId);
-
-            if (activity) {
-                activities.push(activity as unknown as ActivityDto);
-            }
-        }
-
-        return activities;
-    }
-
-    public transformEvent(
-        vevent: ICAL.Component,
+    public parseIcsToActivities(
+        rawIcs: string,
         generatorExtensionObject: ASObject,
         actorId: string,
-    ): EventActivity | undefined {
-        const event = new ICAL.Event(vevent);
+        options: ParseIcsOptions = {},
+    ): ActivityDto[] {
+        const horizon = Duration.fromISO(options.recurrenceHorizon ?? DEFAULT_RECURRENCE_HORIZON);
+        const until = (options.now ?? DateTime.now()).plus(horizon.isValid ? horizon : { years: 1 });
 
-        const summary = event.summary?.trim();
-        const startDateTime = icalTimeToLuxon(event.startDate);
+        const { document, context, sources } = parseIcsDocumentWithSources(rawIcs, {
+            floatingZone: options.floatingZone ?? DEFAULT_FLOATING_ZONE,
+        });
 
-        if (!summary || !startDateTime) {
-            this.logger.warn(`Skipping VEVENT without summary or dtstart (uid=${event.uid ?? 'unknown'})`);
-            return;
+        for (const warning of document.warnings) {
+            this.logger.warn(`ICS import: ${warning.message}${warning.uid ? ` (uid=${warning.uid})` : ''}`);
         }
 
-        const endDateTime = icalTimeToLuxon(event.endDate);
-        const locationText = event.location?.trim();
-        const attendees = parseAttendees(event.attendees);
-        const location = locationText ? this.buildLocationPlace(locationText) : undefined;
-        const stableKeys = this.buildStableKeys(event.uid, startDateTime);
+        const { occurrences, truncatedSeriesUids } = expandIcsOccurrences(sources, context, {
+            until,
+            maxOccurrencesPerSeries: options.maxOccurrencesPerSeries ?? DEFAULT_MAX_OCCURRENCES_PER_SERIES,
+            includeCancelled: options.includeCancelled ?? false,
+        });
+
+        if (truncatedSeriesUids.length) {
+            this.logger.warn(`Stopped expanding ${truncatedSeriesUids.length} series at the occurrence cap`);
+        }
+
+        this.logger.log(
+            `Parsed ${document.components.length} iCalendar components into ${occurrences.length} event occurrences`,
+        );
+
+        return occurrences.map(
+            (occurrence) =>
+                this.transformOccurrence(
+                    occurrence,
+                    document.calendar,
+                    generatorExtensionObject,
+                    actorId,
+                ) as unknown as ActivityDto,
+        );
+    }
+
+    public transformOccurrence(
+        occurrence: IcsOccurrenceModel,
+        calendar: IcsCalendarModel,
+        generatorExtensionObject: ASObject,
+        actorId: string,
+    ): EventActivity & IcsEventActivityInterface {
+        const { component } = occurrence;
+        const summary = component.summary?.trim() || UNTITLED_EVENT_SUMMARY;
+        const startTime = DateTime.fromISO(occurrence.startIso, { setZone: true });
+        const endTime = occurrence.endIso ? DateTime.fromISO(occurrence.endIso, { setZone: true }) : undefined;
+        const location = this.buildLocationPlace(component);
+        const attendees = component.attendees.map(toAttendee).filter((attendee) => attendee.email);
+        const organizer = component.organizer ? toAttendee(component.organizer) : undefined;
 
         return {
             '@type': 'Event',
+            '@secondaryTypes': [createUnknownASType('IcsEvent')],
             generator: generatorExtensionObject,
-            stableKeys,
+            stableKeys: this.buildStableKeys(occurrence, summary, startTime),
             actor: {
                 '@id': actorId,
                 '@type': 'Person',
             },
             summary,
-            startTime: startDateTime,
-            endTime: endDateTime,
+            startTime,
+            ...(endTime ? { endTime } : {}),
+            allDay: occurrence.allDay,
+            ...(component.description ? { content: component.description } : {}),
+            ...(component.status ? { status: component.status } : {}),
+            ...(component.url ? { eventUrl: component.url } : {}),
+            ...(component.categories.length ? { categories: component.categories } : {}),
             ...(location ? { location } : {}),
             ...(attendees.length ? { attendees } : {}),
-        } satisfies EventActivity;
+            ...(organizer?.email ? { organizer } : {}),
+            ...(component.conferences.length ? { conferenceUrl: component.conferences[0].uri } : {}),
+            ...(occurrence.uid ? { icsUid: occurrence.uid } : {}),
+            ...(occurrence.recurrenceKey ? { icsRecurrenceKey: occurrence.recurrenceKey } : {}),
+            isRecurring: occurrence.isRecurring,
+            ...(calendar.name ? { calendarName: calendar.name } : {}),
+            ics: component,
+        } satisfies EventActivity & IcsEventActivityInterface;
     }
 
-    private buildStableKeys(uid: string | undefined, startDateTime: DateTime<true>): string[] {
+    private buildStableKeys(occurrence: IcsOccurrenceModel, summary: string, startTime: DateTime): string[] {
+        const uidKey = occurrence.uid
+            ? occurrence.recurrenceKey
+                ? `ics:${occurrence.uid}:${occurrence.recurrenceKey}`
+                : `ics:${occurrence.uid}`
+            : undefined;
+
         return [
-            uid ? `ics:${uid}` : undefined,
+            uidKey,
+            // Content key: catches the same event exported from several calendars under different UIDs.
             this.activityStableKeyService.createActivityStableKey(
                 'Event',
-                { start: startDateTime },
+                { start: startTime, summary },
                 { dateTimePrecision: 'minute' },
             ),
         ].filter((key): key is string => Boolean(key));
     }
 
-    private buildLocationPlace(locationText: string): Place {
+    private buildLocationPlace(component: IcsComponentModel): Place | undefined {
+        const structured = component.structuredLocations[0];
+        const name = component.location?.trim() || structured?.name || structured?.address;
+        const geo = component.geo ?? structured?.geo;
+
+        if (!name && !geo) {
+            return undefined;
+        }
+
         return {
             '@type': 'Place',
             '@secondaryTypes': [createUnknownASType('IcsLocation')],
             stableKeys: [
                 this.activityStableKeyService.createASObjectStableKey('Place', {
-                    name: locationText,
+                    ...(name ? { name } : {}),
+                    ...(geo ? { lat: geo.latitude, lng: geo.longitude } : {}),
                 }),
             ],
-            name: locationText,
+            ...(name ? { name } : {}),
+            ...(geo ? { latitude: geo.latitude, longitude: geo.longitude } : {}),
+            ...(structured?.address && structured.address !== name ? { summary: structured.address } : {}),
         } satisfies Place;
     }
+}
+
+function toAttendee(participant: IcsParticipantModel): NonNullable<IcsEventActivityInterface['organizer']> {
+    return {
+        email: participant.email ?? participant.calAddress,
+        ...(participant.name ? { name: participant.name } : {}),
+        ...(participant.participationStatus ? { status: participant.participationStatus } : {}),
+        ...(participant.participationRole ? { role: participant.participationRole } : {}),
+        ...(participant.calendarUserType ? { type: participant.calendarUserType } : {}),
+    };
 }
