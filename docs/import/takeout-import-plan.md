@@ -4,6 +4,16 @@ Status: 2026-10-22. Goal: bytebunker as the long-term history log of everything,
 my-hub keeps serving current, changing data (contacts, calendars, live sync); bytebunker stores the immutable
 history and does not promise up-to-date answers for other clients.
 
+## Decisions (2026-10-22)
+
+- my-hub is the source of truth for persons and for current calendar events; bytebunker links to it (see
+  "my-hub integration"). bytebunker holds the history and dedupes old exports against my-hub data.
+- Messages (WhatsApp, Airbnb) are stored with full text.
+- Browser history: every visit, minus redirects, reloads and framed loads.
+- Google Maps saved-list CSVs (no dates) are skipped.
+- Spotify Extended Streaming History is part of this round (real module instead of the execute-code script).
+- Work builds on `feat/ingest-pipeline-test-harness` (batched writes, content routing, tier-1/tier-2 harness).
+
 ## Conventions every importer follows
 
 - One extension per source (`apps/backend/src/extension/extensions/<name>`), id in `local-extension.constant.ts`,
@@ -94,13 +104,23 @@ detected by option (`ownerName`). Sample export: 8,148 messages, 2 senders, 2025
 review with rating; `Gespeichert/*.csv` lists (title, note, URL, comment; no dates), labeled places, commute
 settings.
 
+### 7. Spotify Extended Streaming History
+
+`spotify` extension replacing the execute-code blueprint: audio, podcast episodes, audiobook chapters, video.
+`ts` is the end of playback (start = ts − ms_played); identity `spotify:play:<ts>:<uri>`; per-row errors are
+skipped and counted; IP addresses are not stored.
+
+### 8. my-hub integration
+
+Person nodes seeded from my-hub with all identity keys (`person:myhub:<id>`, `person:email:`, `person:phone:`,
+`person:handle:<platform>:<id>`), a standalone object write path (`bytebunker-core:store-objects`), and the my-hub
+calendar feed as an ICS source. Details in the section added by that workstream.
+
 ## Not in this round
 
-Spotify Extended Streaming History (~280k plays), Google Fit (1.8 GB), Google Contacts vCards, Google Pay,
-Play Store purchases, Chrome takeout settings. Spotify is the biggest remaining gain.
+Google Fit (1.8 GB), Google Contacts vCards (my-hub owns persons), Google Pay, Play Store purchases, Chrome
+takeout settings, raw Location History records.
 
 ## Known issues found on the way
 
-- `pnpm test` in apps/backend fails on a clean tree: vitest 2.1.9 cannot load with Vite 8
-  (`__vite_ssr_exportName__ is not defined`). vitest 4.1.8 from the store runs the suites.
 - Airbnb activity log shows 84 `airlock_suggested:account_login` entries and logins from Shanghai IPs (2021).
