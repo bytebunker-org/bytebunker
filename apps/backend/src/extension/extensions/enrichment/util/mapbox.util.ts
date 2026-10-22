@@ -35,23 +35,6 @@ export interface MapboxPlaceDetails {
     mapboxCountryCode?: string;
 }
 
-export const MAPBOX_GEOCODE_PROPERTY_KEYS = [
-    'mapboxFound',
-    'mapboxId',
-    'mapboxName',
-    'mapboxCategory',
-    'mapboxPlaceName',
-    'mapboxRoad',
-    'mapboxHouseNumber',
-    'mapboxPostcode',
-    'mapboxSuburb',
-    'mapboxCity',
-    'mapboxCountryCode',
-    'mapboxRefinedAt',
-    'mapboxRefinedLatitude',
-    'mapboxRefinedLongitude',
-] as const;
-
 export const DEFAULT_MAPBOX_BASE_URL = 'https://api.mapbox.com';
 
 /**

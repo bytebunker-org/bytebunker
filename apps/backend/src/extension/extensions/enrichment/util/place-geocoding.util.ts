@@ -1,9 +1,9 @@
 import { type CustomPlaceMatch, customPlaceProps } from './custom-places.util.js';
 import { haversineMeters } from './geo.util.js';
-import { MAPBOX_GEOCODE_PROPERTY_KEYS, type MapboxPlaceDetails } from './mapbox.util.js';
+import type { MapboxPlaceDetails } from './mapbox.util.js';
 import type { OfflineGeocode } from './geonames.util.js';
 import { type OsmPlaceDetails, selectPlaceName } from './nominatim.util.js';
-import { ONLINE_GEOCODE_PROPERTY_KEYS } from '../geocoding/geocoding.constant.js';
+import { MAPBOX_GEOCODE_PROPERTY_KEYS, ONLINE_GEOCODE_PROPERTY_KEYS } from '../geocoding/geocoding.constant.js';
 import type { GeocodablePlace } from '../graph/place-geocode.service.js';
 
 /**

@@ -86,9 +86,9 @@ export class RefinePlacesMapboxOutput {
 }
 
 /**
- * Refines canonical places with Mapbox reverse geocoding (temporary Geocoding API): nearest POI name and category,
- * street address, postcode, neighbourhood, city. Results are stored on the place in `mapbox*` properties; naming
- * prefers an OSM POI name, then the Mapbox POI name. Does nothing without `geocoding.mapboxAccessToken`.
+ * Refines canonical places with Mapbox reverse geocoding (temporary Geocoding API): street address, postcode,
+ * neighbourhood, city, and a POI name if Mapbox returns one (the v5 API has stopped returning POIs). Results are stored
+ * on the place in `mapbox*` properties. Does nothing without `geocoding.mapboxAccessToken`.
  */
 @PipelineModule({
     extensionName: ENRICHMENT_EXTENSION,

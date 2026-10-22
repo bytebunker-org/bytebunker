@@ -31,12 +31,6 @@ export interface CustomPlaceMatch {
 }
 
 /**
- * Properties the enrichment modules store on a `CanonicalPlace` matched by a custom place (`null` clears them when the
- * custom place was deleted or moved away). consolidate-places keeps them, like the geocoding properties.
- */
-export const CUSTOM_PLACE_PROPERTY_KEYS = ['customPlaceId', 'customRole', 'customName'] as const;
-
-/**
  * The custom place whose radius contains the point. If several do, the one the point is relatively closest to
  * (distance / radius) wins, so a small place inside a big one still gets its own name.
  */

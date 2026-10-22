@@ -357,8 +357,17 @@ files, 0 duplicate nodes.
 
 Geocoding: offline GeoNames lookup (city, country, timezone; seconds for all places) runs in the nightly places chain;
 OpenStreetMap Nominatim refines names and addresses in the background (`enrichment/geocoding-refine`, hourly, 600
-places/run at 1 request/s, resumable). Trips are named by destination city ("Trip to Osaka, Japan"). Mapbox was checked
-as an alternative: its free 100k/month geocoding is "temporary" (results may not be stored); storing needs permanent
-geocoding at $5 per 1,000 requests, so Nominatim (ODbL, storing allowed with attribution) is used.
+places/run at 1 request/s, resumable). Trips are named by destination city ("Trip to Osaka, Japan").
+
+Mapbox (`enrichment/mapbox-refine`, hourly at :45) uses only the temporary Geocoding API v5 (100k requests/month free);
+every request URL is checked against the permanent API, which is never called. Results are stored on the place anyway
+(private use). Full run over 2,635 places: 2,599 found, 36 not found, 0 failures, 6.6 minutes. The Geocoding API no
+longer returns POIs (Mapbox moved them to the Search Box API), so Mapbox fills addresses, postcodes and cities. Search
+Box `/reverse` was tested and not adopted: the nearest POI is usually a neighbour or a business in the same building
+(a home would be named "VISUAL CULT"), so POIs make worse names than addresses.
+
+Custom places (`/settings/places`) come before every provider: each place within the radius takes the custom name, and
+home/work custom places with a validity range replace the derived home/work periods for that range. Suggestions list
+the most visited places not yet covered, with the inferred role. "Jetzt anwenden" runs the places chain (~15 s).
 
 Open: "exports that could fill gaps" on the coverage page, streaming transforms.

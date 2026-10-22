@@ -1,5 +1,3 @@
-import { CUSTOM_PLACE_PROPERTY_KEYS } from '../util/custom-places.util.js';
-import { MAPBOX_GEOCODE_PROPERTY_KEYS } from '../util/mapbox.util.js';
 export const DEFAULT_GEONAMES_DATA_DIR = './temp/geonames';
 export const DEFAULT_GEONAMES_BASE_URL = 'https://download.geonames.org/export/dump';
 export const DEFAULT_NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
@@ -11,6 +9,30 @@ export const NOMINATIM_USER_AGENT = 'bytebunker-personal-archive/1.0';
 export const DEFAULT_ACCEPT_LANGUAGE = 'de,en';
 export const OSM_ATTRIBUTION = 'Data © OpenStreetMap contributors, ODbL 1.0';
 export const GEONAMES_ATTRIBUTION = 'GeoNames (geonames.org), CC BY 4.0';
+
+/** Properties enrichment:refine-places-mapbox stores on a `CanonicalPlace`. */
+export const MAPBOX_GEOCODE_PROPERTY_KEYS = [
+    'mapboxFound',
+    'mapboxId',
+    'mapboxName',
+    'mapboxCategory',
+    'mapboxPlaceName',
+    'mapboxRoad',
+    'mapboxHouseNumber',
+    'mapboxPostcode',
+    'mapboxSuburb',
+    'mapboxCity',
+    'mapboxCountryCode',
+    'mapboxRefinedAt',
+    'mapboxRefinedLatitude',
+    'mapboxRefinedLongitude',
+] as const;
+
+/**
+ * Properties the enrichment modules store on a `CanonicalPlace` matched by a custom place (`null` clears them when the
+ * custom place was deleted or moved away). consolidate-places keeps them, like the geocoding properties.
+ */
+export const CUSTOM_PLACE_PROPERTY_KEYS = ['customPlaceId', 'customRole', 'customName'] as const;
 
 /**
  * Properties the geocoding modules store on `CanonicalPlace`. enrichment:consolidate-places rewrites its nodes
