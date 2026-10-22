@@ -1,6 +1,4 @@
-import { normalizePageUrl, pageStableKey, urlStableKey } from '../../../../activity-graph/util/page-stable-key.util.js';
-
-export { normalizePageUrl, pageStableKey, urlStableKey };
+import { urlStableKey } from '../../../../activity-graph/util/page-stable-key.util.js';
 
 /**
  * Identity of one visit: normalised URL + visit time in milliseconds. Milliseconds, not microseconds: Firefox Sync
@@ -30,3 +28,5 @@ export function profileNameFromPath(originalPath: string | undefined): string | 
 
     return folder.replace(/^[\da-z]{8}\./, '') || undefined;
 }
+
+export { normalizePageUrl, urlStableKey, pageStableKey } from '../../../../activity-graph/util/page-stable-key.util.js';
