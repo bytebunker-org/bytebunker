@@ -16,13 +16,15 @@
 # plus every `wt_cmd_<name>` function the project defines (`wt.sh <name>`).
 #
 # Config (required): WT_PROJECT WT_SCRIPT WT_MAIN_DB WT_DB_PREFIX WT_PG_CONTAINER WT_PG_USER
-# Config (optional): WT_MAX_SLOT (8), WT_STATE_DIR (.worktree), WT_GENERATED_FILES (paths removed
+# Config (optional): WT_MIGRATE_HINT (command shown when migrations are pending), WT_MAX_SLOT (8), WT_STATE_DIR (.worktree), WT_GENERATED_FILES (paths removed
 #   on teardown), WT_HTTPS_PORTS (WT_PORTS names served over https), WT_SLOT_KEYS / WT_ID_KEYS (state keys read for legacy state files)
 # Hooks: wt_ports (required: set port vars for $SLOT and WT_PORTS=(name=port …)), wt_services,
 #   wt_config, wt_install, wt_build, wt_setup_extra, wt_info, wt_pending_migrations,
-#   wt_stop_extra, wt_teardown_extra, wt_gc_extra, wt_describe_extra, wt_guard
+#   wt_db_cloned (after a worktree DB was (re)cloned), wt_db_extra <sub> (after `db <sub>`),
+#   wt_stop_extra, wt_teardown_extra, wt_gc_extra, wt_describe_extra.
+# Setup exports WT_SETUP_INSTALL / WT_SETUP_BUILD / WT_SETUP_DB (1 or 0) for the hooks.
 
-WT_LIB_VERSION=1
+WT_LIB_VERSION=2
 
 # --- basics --------------------------------------------------------------------------------------
 
@@ -121,6 +123,13 @@ allocate_slot() {
     done < <(wt_worktree_paths)
     for slot in $(seq 1 "$WT_MAX_SLOT"); do
         if [[ "$used" != *" $slot "* ]]; then
+            # A slot whose ports are taken (e.g. a server left from a deleted worktree) is not free.
+            local busy
+            busy="$(SLOT=$slot ID= DB=; WT_PORTS=(); wt_ports; listening_ports | tr '\n' ' ')"
+            if [ -n "$busy" ]; then
+                warn "slot $slot skipped: ports in use ($busy) — 'wt gc' stops servers of deleted worktrees"
+                continue
+            fi
             id="$(new_id)"
             printf 'SLOT=%s\nID=%s\nDB=%s\n' "$slot" "$id" "$WT_DB_PREFIX$id" >"$STATE_FILE"
             log "allocated slot $slot"
@@ -214,9 +223,12 @@ wait_pg() {
     die "postgres ($WT_PG_CONTAINER) did not become ready"
 }
 
+WT_SERVICES_UP=0
 ensure_services() {
+    [ "$WT_SERVICES_UP" = 1 ] && return
     if declare -F wt_services >/dev/null; then wt_services; else docker start "$WT_PG_CONTAINER" >/dev/null; fi
     wait_pg
+    WT_SERVICES_UP=1
 }
 
 # Postgres for a one-off maintenance step: start it if it is down, and stop it again afterwards.
@@ -225,13 +237,16 @@ with_pg_begin() {
     pg_ready && return
     log "postgres is down — starting $WT_PG_CONTAINER for this step"
     docker start "$WT_PG_CONTAINER" >/dev/null
-    wait_pg
     PG_STARTED_BY_US=1
+    # Stop it again even when a later step fails under set -e.
+    trap with_pg_end EXIT
+    wait_pg
 }
 with_pg_end() {
     [ "$PG_STARTED_BY_US" = 1 ] || return 0
-    docker stop "$WT_PG_CONTAINER" >/dev/null && log "stopped $WT_PG_CONTAINER again"
     PG_STARTED_BY_US=0
+    docker stop "$WT_PG_CONTAINER" >/dev/null && log "stopped $WT_PG_CONTAINER again"
+    return 0
 }
 
 db_snapshot() {
@@ -257,6 +272,7 @@ db_clone() {
     sql "DROP DATABASE IF EXISTS $DB"
     sql "CREATE DATABASE $DB TEMPLATE $TEMPLATE_DB STRATEGY FILE_COPY"
     log "database $DB cloned from $TEMPLATE_DB (snapshot of $WT_MAIN_DB)"
+    if declare -F wt_db_cloned >/dev/null; then wt_db_cloned; fi
 }
 
 db_drop() {
@@ -321,8 +337,18 @@ self_chain() {
 # PIDs of processes working inside this worktree: cwd below $ROOT and not below a nested worktree,
 # excluding interactive shells, coding agents and this script itself.
 worktree_pids() {
-    local self others p cwd comm o nested ppid
-    self=" $(self_chain | tr '\n' ' ') "
+    local self others p cwd comm o nested
+    # Never this script, its ancestors, its own children (subshells, helpers) or the other commands
+    # of its pipeline (`wt.sh teardown | tail`: same parent and process group).
+    self=" $(self_chain | tr '\n' ' ') $(ps -eo pid=,ppid=,pgid= | awk -v root=$$ '
+        { parent[$1] = $2; group[$1] = $3 }
+        END {
+            for (p in parent) {
+                if (parent[p] == parent[root] && group[p] == group[root]) { print p; continue }
+                q = p
+                while (q > 1) { if (parent[q] == root) { print p; break } q = parent[q] }
+            }
+        }' | tr '\n' ' ') "
     others="$(wt_worktree_paths | grep -vxF "$ROOT" || true)"
     for p in /proc/[0-9]*; do
         cwd=$(readlink "$p/cwd" 2>/dev/null) || continue
@@ -336,10 +362,6 @@ worktree_pids() {
         [[ "$self" == *" ${p#/proc/} "* ]] && continue
         comm=$(cat "$p/comm" 2>/dev/null) || continue
         case "$comm" in bash | zsh | sh | fish | claude | codex | tmux*) continue ;; esac
-        # This script's own subshells (and any other wt.sh run) are not servers.
-        [[ "$(tr '\0' ' ' <"$p/cmdline" 2>/dev/null)" == *"/wt.sh "* ]] && continue
-        ppid=$(awk '{print $4}' "$p/stat" 2>/dev/null) || continue
-        [[ "$(tr '\0' ' ' <"/proc/$ppid/cmdline" 2>/dev/null)" == *"/wt.sh "* ]] && continue
         echo "${p#/proc/}"
     done
     return 0
@@ -407,6 +429,7 @@ cmd_setup() {
             *) die "unknown option $arg" ;;
         esac
     done
+    export WT_SETUP_INSTALL=$install WT_SETUP_BUILD=$build WT_SETUP_DB=$db
     is_main || allocate_slot
     load_state
     if ! is_main && declare -F wt_config >/dev/null; then wt_config; fi
@@ -454,14 +477,14 @@ report_migrations() {
     if [ -z "$pending" ]; then
         log "migrations: $DB is up to date"
     else
-        log "migrations not yet run on $DB:"
+        log "migrations not yet run on $DB${WT_MIGRATE_HINT:+ (run them: $WT_MIGRATE_HINT)}:"
         printf '    %s\n' $pending >&2
     fi
 }
 
 cmd_list() {
-    local path slot id db running
-    printf '%-5s %-44s %-22s %s\n' slot database running worktree
+    local path slot id db running base
+    printf '%-5s %-44s %-7s %-22s %s\n' slot database base running worktree
     while read -r path; do
         if [ "$path" = "$MAIN_ROOT" ]; then
             slot=0 db=$WT_MAIN_DB
@@ -470,7 +493,8 @@ cmd_list() {
             [ -z "$slot" ] && slot=- db=-
         fi
         running=$(cd "$path" && "$WT_SELF" describe 2>/dev/null | sed -n 's/^listening=//p')
-        printf '%-5s %-44s %-22s %s\n' "$slot" "$db" "${running:--}" "$path"
+        base=$(cd "$path" && "$WT_SELF" describe 2>/dev/null | sed -n 's/^ports=[^=]*=\([0-9]*\).*/\1/p')
+        printf '%-5s %-44s %-7s %-22s %s\n' "$slot" "$db" "${base:--}" "${running:--}" "$path"
     done < <(wt_worktree_paths)
 }
 
@@ -557,6 +581,7 @@ cmd_db() {
         gc) prune "$@" ;;
         *) die "usage: $WT_SCRIPT db reset [--fresh] | snapshot | psql [args] | drop | gc" ;;
     esac
+    if declare -F wt_db_extra >/dev/null; then wt_db_extra "$sub" "$@"; fi
 }
 
 wt_usage() {

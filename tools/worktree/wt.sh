@@ -52,9 +52,6 @@ TEMPLATE_NEO4J_VOLUME=bytebunker_wt_neo4j_template
 NEO4J_IMAGE=neo4j:latest
 KEYDB_CONTAINER=bytebunker-bytebunker-backend-keydb-1
 
-# The lib passes no setup flags to hooks; the graph clone in wt_setup_extra follows --no-db too.
-SETUP_DB=1
-[ "${1:-}" = setup ] && [[ " $* " == *" --no-db "* ]] && SETUP_DB=0
 # `services` also starts this worktree's neo4j; the lib's DB steps only need the shared services.
 WITH_NEO4J=0
 [ "${1:-}" = services ] && WITH_NEO4J=1
@@ -156,12 +153,8 @@ ensure_neo4j() {
     die "neo4j on :$NEO4J_HTTP_PORT did not become ready"
 }
 
-# The lib's clone plus an empty KeyDB index: jobs queued against the old DB copy must not run.
-eval "wt_lib_db_clone()$(declare -f db_clone | sed 1d)"
-db_clone() {
-    wt_lib_db_clone
-    keydb_flush "$SLOT"
-}
+# A fresh DB copy gets an empty KeyDB index: jobs queued against the old copy must not run.
+wt_db_cloned() { keydb_flush "$SLOT"; }
 
 # --- config ----------------------------------------------------------------------------------------
 
@@ -295,7 +288,7 @@ graph_empty() {
 
 wt_setup_extra() {
     is_main && return 0
-    [ "$SETUP_DB" = 1 ] || return 0
+    [ "${WT_SETUP_DB:-1}" = 1 ] || return 0
     check_import_folders
     if volume_exists "$NEO4J_VOLUME"; then log "graph $NEO4J_VOLUME exists, kept ($WT_SCRIPT graph reset to re-clone)"; else graph_clone; fi
 }
