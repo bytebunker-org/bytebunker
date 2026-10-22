@@ -21,6 +21,7 @@ import type { JobDataType } from '../../../queue/queue-data.type.js';
 import { serializeError } from 'serialize-error';
 import type { QueueConsumerJob } from '../../../queue/abstract-queue-consumer.class.js';
 import { PipelineProgressService, type ThrottledReporter } from '../progress/pipeline-progress.service.js';
+import { PipelineOutputStoreService } from './pipeline-output-store.service.js';
 
 @Injectable()
 export class PipelineExecutionService {
@@ -35,6 +36,7 @@ export class PipelineExecutionService {
         @InjectQueue(QueueNameEnum.START_PIPELINE_EXECUTION)
         private readonly startPipelineExecutionQueue: Queue,
         private readonly progressService: PipelineProgressService,
+        private readonly outputStore: PipelineOutputStoreService,
     ) {}
 
     /**
@@ -103,7 +105,7 @@ export class PipelineExecutionService {
         const source = await em.findOneOrFail(
             PipelineExecutionEntity,
             { id: sourceExecutionId },
-            { populate: ['blueprint', 'executionData'] },
+            { populate: ['blueprint', 'executionData'], exclude: ['executionData.data'] },
         );
         const blueprint = new Blueprint(source.blueprint.$.data);
         const triggerNodeIds = new Set(
@@ -116,13 +118,15 @@ export class PipelineExecutionService {
                 )
                 .map((node) => node.id),
         );
-        const triggerData = source.executionData.find((d) => triggerNodeIds.has(d.nodeId));
+        const triggerNode = source.executionData.find((d) => triggerNodeIds.has(d.nodeId));
 
-        if (!triggerData) {
+        if (!triggerNode) {
             throw new Error(`Execution ${sourceExecutionId} has no stored trigger output to re-run from`);
         }
 
-        return this.createExecutionFromTrigger(em, source.blueprint.id, triggerData.nodeId, triggerData.data, {
+        const [triggerData] = await this.loadNodeOutputs(em, sourceExecutionId, [triggerNode.nodeId]);
+
+        return this.createExecutionFromTrigger(em, source.blueprint.id, triggerNode.nodeId, triggerData?.data, {
             triggerAssetId: source.triggerAsset?.id,
             dryRun: options.dryRun,
         });
@@ -380,7 +384,9 @@ export class PipelineExecutionService {
                 pipelineExecution,
                 nodeId,
                 executionStatus,
-                data: outputData,
+                data: (await this.outputStore.externalize(em, pipelineExecution.id, nodeId, outputData)) as
+                    | Record<string, unknown>
+                    | undefined,
             }),
         );
         pipelineExecution.executionData.add(executionData);
@@ -413,7 +419,7 @@ export class PipelineExecutionService {
         nodeId: number,
         job: QueueConsumerJob<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>,
     ): Promise<Error | void> {
-        // TODO: Optimize to only load necessary execution data
+        // Node outputs are not loaded here: only the outputs feeding this node are read, below.
         const pipelineExecution = await em.findOneOrFail(
             PipelineExecutionEntity,
             {
@@ -421,6 +427,7 @@ export class PipelineExecutionService {
             },
             {
                 populate: ['blueprint', 'executionData'],
+                exclude: ['executionData.data'],
             },
         );
         const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
@@ -436,7 +443,7 @@ export class PipelineExecutionService {
             return;
         }
 
-        const inputData = this.buildNodeInputData(pipelineExecution, node);
+        const inputData = await this.buildNodeInputData(em, pipelineExecution, node);
         let progress: ThrottledReporter | undefined;
 
         try {
@@ -597,21 +604,47 @@ export class PipelineExecutionService {
         return current?.executionStatus === PipelineExecutionStatusEnum.ABORTED;
     }
 
-    private buildNodeInputData(
+    /**
+     * Reads the stored outputs of the given nodes with a plain query: no entities, so no ORM snapshot copies of what can
+     * be a large JSON value.
+     */
+    private async loadNodeOutputs(
+        em: EntityManager,
+        executionId: number,
+        nodeIds: number[],
+    ): Promise<{ nodeId: number; data: Record<string, unknown> | undefined }[]> {
+        if (!nodeIds.length) {
+            return [];
+        }
+
+        const rows = await em
+            .getConnection()
+            .execute<
+                { node_id: number; data: Record<string, unknown> | null }[]
+            >(`SELECT node_id, data FROM pipeline_execution_data_entity WHERE pipeline_execution_id = ? AND node_id IN (${nodeIds.map(() => '?').join(', ')})`, [executionId, ...nodeIds]);
+
+        return rows.map((row) => ({ nodeId: row.node_id, data: row.data ?? undefined }));
+    }
+
+    private async buildNodeInputData(
+        em: EntityManager,
         pipelineExecution: Loaded<PipelineExecutionEntity, 'blueprint' | 'executionData'>,
         node: BlueprintNodeDto,
-    ): Record<string, unknown> {
+    ): Promise<Record<string, unknown>> {
         // TODO Validate inputData via Json Schema
 
         const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
         const inputEdges = blueprint.getInputEdgesAtNode(node);
+        const outputs = await this.loadNodeOutputs(em, pipelineExecution.id, [
+            ...new Set(inputEdges.map((edge) => edge.source)),
+        ]);
 
         const inputData: Record<string, unknown> = node.constantInputData
             ? structuredClone(node.constantInputData)
             : {};
 
         for (const edge of inputEdges) {
-            const sourceNodeExecutionData = pipelineExecution.executionData.find((d) => d.nodeId === edge.source);
+            const sourceNodeExecutionData = outputs.find((d) => d.nodeId === edge.source);
 
             if (!sourceNodeExecutionData) {
                 throw new Error(
@@ -623,21 +656,28 @@ export class PipelineExecutionService {
                 // Automatically merge into one array, if multiple connections are connected to the same (array-types) socket
                 if (inputData[edge.targetHandle]) {
                     let data = inputData[edge.targetHandle];
-                    const additionalData = sourceNodeExecutionData.data?.[edge.sourceHandle];
+                    const additionalData = await this.outputStore.resolve(
+                        em,
+                        sourceNodeExecutionData.data?.[edge.sourceHandle],
+                    );
 
                     if (!Array.isArray(data)) {
                         data = [data];
                     }
 
                     if (additionalData !== undefined && additionalData !== null) {
-                        (data as unknown[]).push(
-                            ...(Array.isArray(additionalData) ? additionalData : [additionalData]),
-                        );
+                        // A loop, not push(...items): spreading 200k+ items overflows the call stack.
+                        for (const item of Array.isArray(additionalData) ? additionalData : [additionalData]) {
+                            (data as unknown[]).push(item);
+                        }
                     }
 
                     inputData[edge.targetHandle] = data;
                 } else {
-                    inputData[edge.targetHandle] = sourceNodeExecutionData.data?.[edge.sourceHandle];
+                    inputData[edge.targetHandle] = await this.outputStore.resolve(
+                        em,
+                        sourceNodeExecutionData.data?.[edge.sourceHandle],
+                    );
                 }
             } catch (error) {
                 console.log(
@@ -656,8 +696,8 @@ export class PipelineExecutionService {
                         targetHandle: edge.targetHandle,
                     },
                     error,
-                    'sourceNodeExecutionData:',
-                    sourceNodeExecutionData.data,
+                    'source node:',
+                    sourceNodeExecutionData.nodeId,
                 );
 
                 throw error;

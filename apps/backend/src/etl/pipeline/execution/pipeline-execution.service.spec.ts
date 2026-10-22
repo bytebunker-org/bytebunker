@@ -3,6 +3,7 @@ import type { EntityManager } from '@mikro-orm/postgresql';
 import type { FlowProducer, Queue } from 'bullmq';
 import { PipelineExecutionService } from './pipeline-execution.service.js';
 import type { PipelineModuleService } from '../pipeline-module/pipeline-module.service.js';
+import type { PipelineOutputStoreService } from './pipeline-output-store.service.js';
 import type { PipelineProgressService } from '../progress/pipeline-progress.service.js';
 import { PipelineModuleTypeEnum } from '../pipeline-module/type/pipeline-module-type.enum.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
@@ -82,7 +83,16 @@ describe('PipelineExecutionService', () => {
     /** Status the committed row has, as seen by a fresh fork. */
     let committedStatus: PipelineExecutionStatusEnum;
     let em: Record<
-        'findOne' | 'findOneOrFail' | 'find' | 'nativeDelete' | 'flush' | 'persist' | 'create' | 'upsert' | 'fork',
+        | 'findOne'
+        | 'findOneOrFail'
+        | 'find'
+        | 'nativeDelete'
+        | 'flush'
+        | 'persist'
+        | 'create'
+        | 'upsert'
+        | 'fork'
+        | 'getConnection',
         ReturnType<typeof vi.fn>
     >;
 
@@ -105,6 +115,12 @@ describe('PipelineExecutionService', () => {
             {} as Queue,
             { add: vi.fn() } as unknown as Queue,
             progressService as unknown as PipelineProgressService,
+            {
+                externalize: vi.fn((_em: unknown, _id: number, _node: number, output: unknown) =>
+                    Promise.resolve(output),
+                ),
+                resolve: vi.fn((_em: unknown, value: unknown) => Promise.resolve(value)),
+            } as unknown as PipelineOutputStoreService,
         );
         vi.spyOn(service['logger'], 'log').mockImplementation(() => undefined);
         vi.spyOn(service['logger'], 'warn').mockImplementation(() => undefined);
@@ -115,6 +131,12 @@ describe('PipelineExecutionService', () => {
             findOneOrFail: vi.fn(() => Promise.resolve(execution)),
             find: vi.fn(() => Promise.resolve(execution.executionData)),
             nativeDelete: vi.fn(() => Promise.resolve(0)),
+            // Node outputs are read with a plain query.
+            getConnection: vi.fn(() => ({
+                execute: vi.fn(() =>
+                    Promise.resolve(execution.executionData.map((d) => ({ node_id: d.nodeId, data: d.data ?? null }))),
+                ),
+            })),
             flush: vi.fn(() => Promise.resolve()),
             persist: vi.fn(),
             create: vi.fn((_entity: unknown, data: Record<string, unknown>) => data),
