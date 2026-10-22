@@ -346,5 +346,10 @@ the move they happened during, 170 of 491 calendar events confirmed (4 by place 
 overlap), 3,248 daily summaries. Trip names are weak ("Trip to Lidl" for a week-long trip) because most canonical places
 have no name yet; geocoding fixes that.
 
-Open: geocoding (needs a decision on regions), "exports that could fill gaps" on the coverage page, chunked node outputs
-(plan step 4), naming trips by city/country once places are geocoded.
+Large outputs (plan step 4, first half): handles over 4 MB go to asset storage, modules load only their inputs. A single
+240k-play file now imports in 16 s at 2.5 GB peak RSS (a 235k-activity Firefox history previously ran the 4 GB heap
+out). The remaining cost is the transform holding all activities at once; streaming/chunked transforms are the next step
+if bigger sources appear.
+
+Open: geocoding (needs a decision on regions), "exports that could fill gaps" on the coverage page, streaming
+transforms, naming trips by city/country once places are geocoded.
