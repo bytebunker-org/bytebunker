@@ -1,0 +1,60 @@
+{
+    "title": "Place enrichment",
+    "description": "Every night at 03:30: consolidates raw places into canonical places, then derives home and work periods. Run it by hand with POST /pipelines-blueprints/:id/run.",
+    "data": {
+        "edges": [
+            {
+                "id": 0,
+                "source": 1,
+                "target": 2,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 1,
+                "source": 2,
+                "target": 3,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            }
+        ],
+        "nodes": [
+            {
+                "id": 1,
+                "moduleId": "common-pipeline-triggers:schedule-trigger@1",
+                "position": {
+                    "x": 0,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "cron": "30 3 * * *",
+                    "timezone": "Europe/Berlin"
+                }
+            },
+            {
+                "id": 2,
+                "moduleId": "enrichment:consolidate-places@1",
+                "position": {
+                    "x": 320,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "radiusMeters": 75,
+                    "maxClusterSpanMeters": 300
+                }
+            },
+            {
+                "id": 3,
+                "moduleId": "enrichment:derive-home-work@1",
+                "position": {
+                    "x": 640,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "maxGapDays": 60,
+                    "minTakeoverVisits": 3
+                }
+            }
+        ]
+    }
+}
