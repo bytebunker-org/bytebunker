@@ -65,18 +65,27 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
         transformNodeId: 2,
         storeNodeId: 3,
     },
+    'google-maps-places': {
+        id: 'google-maps-places',
+        blueprintFile: 'google-maps-places.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
     'airbnb-export': {
         id: 'airbnb-export',
         blueprintFile: 'airbnb-export.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
     whatsapp: {
         id: 'whatsapp',
         blueprintFile: 'whatsapp.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
-    'google-maps-places': {
-        id: 'google-maps-places',
-        blueprintFile: 'google-maps-places.blueprint.json',
+    'spotify-streaming-history': {
+        id: 'spotify-streaming-history',
+        blueprintFile: 'spotify-streaming-history.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
@@ -141,18 +150,30 @@ export const corpusSources: CorpusSource[] = [
     },
     {
         id: 'airbnb-search-history',
+        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/search_history.json',
         to: airbnbTarget('search_history'),
+    },
+    {
         id: 'airbnb-messages',
+        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/messages.json',
         to: airbnbTarget('messages'),
+    },
+    {
         id: 'airbnb-reviews',
+        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/reviews.json',
         to: airbnbTarget('reviews'),
+    },
+    {
         id: 'airbnb-wishlists-unsupported',
+        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/wishlists.json',
         to: airbnbTarget('wishlists'),
         notes: 'Not importable on purpose: the module must return no activities for other files of the folder.',
+    },
+    {
         id: 'whatsapp-hannah-km',
         importer: 'whatsapp',
         from: 'whatsapp-exports/hannah-km/WhatsApp Chat with *.txt',
