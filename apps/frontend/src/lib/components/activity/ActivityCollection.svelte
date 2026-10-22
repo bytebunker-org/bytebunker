@@ -34,7 +34,7 @@
 	let Icon = $derived(isSingleType ? firstTypeData.defaultIcon : LucideSquareActivity);
 </script>
 
-{#if isSingleType && firstTypeData.componentSupportsMergedSize}
+{#if isSingleType && firstTypeData.componentSupportsMergedSize && (firstTypeData.supportsMergedSize?.(activities) ?? true)}
 	{@const ActivityComponent = firstTypeData.component}
 	<ActivityComponent
 		cardSize="merged"
