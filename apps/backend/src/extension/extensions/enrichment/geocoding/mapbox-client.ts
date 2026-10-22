@@ -1,4 +1,5 @@
 import {
+    assertTemporaryGeocodingUrl,
     buildMapboxReverseUrl,
     mapMapboxReverse,
     type MapboxPlaceDetails,
@@ -56,6 +57,7 @@ export class MapboxClient {
         language: string,
     ): Promise<MapboxReverseResult> {
         const url = buildMapboxReverseUrl(this.options.baseUrl, this.options.accessToken, point, language);
+        assertTemporaryGeocodingUrl(url);
         let lastError = '';
 
         for (let attempt = 0; attempt <= this.maxRetries; attempt++) {

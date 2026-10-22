@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildMapboxReverseUrl, mapMapboxReverse, selectPlacesForMapbox } from './mapbox.util.js';
+import {
+    assertTemporaryGeocodingUrl,
+    buildMapboxReverseUrl,
+    mapMapboxReverse,
+    selectPlacesForMapbox,
+} from './mapbox.util.js';
 import { selectPlaceName } from './nominatim.util.js';
 import type { GeocodablePlace } from '../graph/place-geocode.service.js';
 
@@ -104,5 +109,21 @@ describe('mapbox.util', () => {
             name: 'Mapbox Café',
             nameSource: 'mapbox',
         });
+    });
+
+    it('never allows the permanent Geocoding API', () => {
+        expect(() =>
+            assertTemporaryGeocodingUrl(
+                buildMapboxReverseUrl('https://api.mapbox.com', 't', { latitude: 1, longitude: 2 }, 'de'),
+            ),
+        ).not.toThrow();
+        expect(() =>
+            assertTemporaryGeocodingUrl('https://api.mapbox.com/geocoding/v5/mapbox.places-permanent/2,1.json'),
+        ).toThrow(/permanent/);
+        expect(() =>
+            assertTemporaryGeocodingUrl(
+                'https://api.mapbox.com/search/geocode/v6/reverse?longitude=2&latitude=1&permanent=true',
+            ),
+        ).toThrow(/permanent/);
     });
 });

@@ -55,6 +55,18 @@ export const MAPBOX_GEOCODE_PROPERTY_KEYS = [
 export const DEFAULT_MAPBOX_BASE_URL = 'https://api.mapbox.com';
 
 /**
+ * Only the temporary Geocoding API may be used, never the (billed) permanent one: no `mapbox.places-permanent`
+ * endpoint (v5) and no `permanent=true` (v6). Every request URL goes through this check.
+ */
+export function assertTemporaryGeocodingUrl(url: string): void {
+    const parsed = new URL(url);
+
+    if (/permanent/i.test(parsed.pathname) || /^(true|1)$/i.test(parsed.searchParams.get('permanent') ?? '')) {
+        throw new Error('Refusing to call the Mapbox permanent Geocoding API; only the temporary API is allowed');
+    }
+}
+
+/**
  * Reverse geocoding with the temporary Geocoding API (v5, `mapbox.places`). Two feature types without `limit`: Mapbox
  * then returns the nearest POI and the nearest address, one each.
  */
