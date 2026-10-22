@@ -7,6 +7,8 @@ import {
     selectPlacesToRefine,
     sourceNameOf,
 } from './place-geocoding.util.js';
+import type { CustomPlaceRule } from './custom-places.util.js';
+import { CustomPlaceRoleEnum } from '../custom-place/dto/custom-place-role.enum.js';
 
 const now = new Date('2026-10-22T12:00:00.000Z');
 const countries = new Map([
@@ -17,6 +19,15 @@ const countries = new Map([
 function place(overrides: Partial<GeocodablePlace> = {}): GeocodablePlace {
     return { id: 'p1', latitude: 53.55, longitude: 9.99, visitCount: 3, ...overrides };
 }
+
+const home: CustomPlaceRule = {
+    id: 7,
+    name: 'Zuhause',
+    latitude: 53.55,
+    longitude: 9.99,
+    radiusMeters: 75,
+    role: CustomPlaceRoleEnum.HOME,
+};
 
 const hamburg = {
     geonamesId: 2_911_298,
@@ -54,6 +65,27 @@ describe('buildOfflineGeocodeProps', () => {
             sourceName: 'Lidl',
             name: 'Lidl',
             nameSource: 'source',
+            customPlaceId: null,
+            customRole: null,
+            customName: null,
+        });
+    });
+
+    it('names the place after the custom place it lies in, before OSM', () => {
+        const props = buildOfflineGeocodeProps(
+            place({ sourceName: 'Shop', name: 'Bäckerei', nameSource: 'osm', osmName: 'Bäckerei' }),
+            hamburg,
+            countries,
+            now,
+            { customPlace: home, distanceMeters: 12 },
+        );
+
+        expect(props).toMatchObject({
+            name: 'Zuhause',
+            nameSource: 'custom',
+            customPlaceId: 7,
+            customRole: CustomPlaceRoleEnum.HOME,
+            customName: 'Zuhause',
         });
     });
 
@@ -132,6 +164,15 @@ describe('buildRefinementProps', () => {
                 now,
             ),
         ).toMatchObject({ name: 'Rathausmarkt 1', nameSource: 'address', city: 'Hamburg' });
+    });
+
+    it('keeps the custom place name over the OSM POI name', () => {
+        expect(
+            buildRefinementProps(place(), { osmFound: true, osmName: 'Bäckerei Schmidt', road: 'Rathausmarkt' }, now, {
+                customPlace: home,
+                distanceMeters: 5,
+            }),
+        ).toMatchObject({ osmName: 'Bäckerei Schmidt', name: 'Zuhause', nameSource: 'custom', customPlaceId: 7 });
     });
 
     it('marks a place without OSM result as refined', () => {

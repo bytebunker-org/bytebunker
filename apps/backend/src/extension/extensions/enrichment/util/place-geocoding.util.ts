@@ -1,3 +1,4 @@
+import { type CustomPlaceMatch, customPlaceProps } from './custom-places.util.js';
 import { haversineMeters } from './geo.util.js';
 import { MAPBOX_GEOCODE_PROPERTY_KEYS, type MapboxPlaceDetails } from './mapbox.util.js';
 import type { OfflineGeocode } from './geonames.util.js';
@@ -17,14 +18,20 @@ export function sourceNameOf(place: GeocodablePlace): string | undefined {
     return !place.nameSource || place.nameSource === 'source' ? place.name : undefined;
 }
 
+/**
+ * Name and custom place properties. The custom place the place lies in (if any) names it before every provider;
+ * without one the custom properties are cleared, so deleting or moving a custom place takes effect on the next run.
+ */
 function nameProps(
     place: GeocodablePlace,
     fields: { osmName?: string; road?: string; houseNumber?: string },
+    customPlace: CustomPlaceMatch | undefined,
 ): Record<string, unknown> {
     const sourceName = sourceNameOf(place);
     // Address from OSM if it has one there, otherwise from Mapbox.
     const hasOsmRoad = Boolean(fields.road);
     const selected = selectPlaceName({
+        customName: customPlace?.customPlace.name,
         osmName: fields.osmName,
         mapboxName: place.mapboxName,
         sourceName,
@@ -36,6 +43,7 @@ function nameProps(
         // Pins the source name before `name` is overwritten, so a later run still knows it.
         ...(sourceName && !place.sourceName ? { sourceName } : {}),
         ...(selected ? { name: selected.name, nameSource: selected.nameSource } : {}),
+        ...customPlaceProps(customPlace),
     };
 }
 
@@ -48,6 +56,7 @@ export function buildOfflineGeocodeProps(
     geocode: OfflineGeocode | undefined,
     countries: Map<string, string>,
     now: Date,
+    customPlace?: CustomPlaceMatch,
 ): Record<string, unknown> {
     const countryCode = place.osmCountryCode ?? place.mapboxCountryCode ?? geocode?.countryCode;
     const country = countryCode ? (countries.get(countryCode) ?? geocode?.country) : undefined;
@@ -63,7 +72,7 @@ export function buildOfflineGeocodeProps(
         cityDistanceKm: geocode?.cityDistanceKm ?? null,
         city: place.osmCity ?? place.mapboxCity ?? geocode?.geonamesCity ?? null,
         offlineGeocodedAt: now.toISOString(),
-        ...nameProps(place, { osmName: place.osmName, road: place.road, houseNumber: place.houseNumber }),
+        ...nameProps(place, { osmName: place.osmName, road: place.road, houseNumber: place.houseNumber }, customPlace),
     };
 }
 
@@ -72,6 +81,7 @@ export function buildRefinementProps(
     place: GeocodablePlace,
     details: OsmPlaceDetails,
     now: Date,
+    customPlace?: CustomPlaceMatch,
 ): Record<string, unknown> {
     const props: Record<string, unknown> = {};
 
@@ -86,7 +96,7 @@ export function buildRefinementProps(
         refinedLatitude: place.latitude,
         refinedLongitude: place.longitude,
         city: details.osmCity ?? place.geonamesCity ?? null,
-        ...nameProps(place, details),
+        ...nameProps(place, details, customPlace),
     };
 }
 
@@ -135,6 +145,7 @@ export function buildMapboxRefinementProps(
     place: GeocodablePlace,
     details: MapboxPlaceDetails,
     now: Date,
+    customPlace?: CustomPlaceMatch,
 ): Record<string, unknown> {
     const props: Record<string, unknown> = {};
 
@@ -157,6 +168,6 @@ export function buildMapboxRefinementProps(
         mapboxRefinedLongitude: place.longitude,
         // OSM and GeoNames win where they have a value; Mapbox fills the gaps.
         ...(!place.osmCity && !place.geonamesCity && details.mapboxCity ? { city: details.mapboxCity } : {}),
-        ...nameProps(merged, { osmName: place.osmName, road: place.road, houseNumber: place.houseNumber }),
+        ...nameProps(merged, { osmName: place.osmName, road: place.road, houseNumber: place.houseNumber }, customPlace),
     };
 }

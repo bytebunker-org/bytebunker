@@ -126,9 +126,11 @@ export function mapNominatimReverse(response: NominatimReverseResponse): OsmPlac
     ) as unknown as OsmPlaceDetails;
 }
 
-export type PlaceNameSource = 'osm' | 'mapbox' | 'source' | 'address';
+export type PlaceNameSource = 'custom' | 'osm' | 'mapbox' | 'source' | 'address';
 
 export interface PlaceNameInput {
+    /** Name of the user-defined place (Settings → custom places) the place lies in; beats every provider. */
+    customName?: string | null;
     osmName?: string | null;
     /** POI name from the Mapbox refinement. */
     mapboxName?: string | null;
@@ -138,8 +140,14 @@ export interface PlaceNameInput {
     houseNumber?: string | null;
 }
 
-/** OSM POI name > Mapbox POI name > name from the source data > road and house number. */
+/** Custom place name > OSM POI name > Mapbox POI name > name from the source data > road and house number. */
 export function selectPlaceName(input: PlaceNameInput): { name: string; nameSource: PlaceNameSource } | undefined {
+    const customName = input.customName?.trim();
+
+    if (customName) {
+        return { name: customName, nameSource: 'custom' };
+    }
+
     const osmName = input.osmName?.trim();
 
     if (osmName) {

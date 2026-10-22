@@ -96,6 +96,16 @@ describe('mapNominatimReverse', () => {
 });
 
 describe('selectPlaceName', () => {
+    it('prefers the custom place name over every provider', () => {
+        expect(
+            selectPlaceName({ customName: 'Zuhause', osmName: 'Bäckerei', mapboxName: 'Bakery', sourceName: 'X' }),
+        ).toEqual({ name: 'Zuhause', nameSource: 'custom' });
+        expect(selectPlaceName({ customName: '  ', osmName: 'Bäckerei' })).toEqual({
+            name: 'Bäckerei',
+            nameSource: 'osm',
+        });
+    });
+
     it('prefers the OSM POI name, then the source name, then road and house number', () => {
         expect(selectPlaceName({ osmName: 'Café Paris', sourceName: 'Cafe', road: 'Rathausstraße' })).toEqual({
             name: 'Café Paris',
