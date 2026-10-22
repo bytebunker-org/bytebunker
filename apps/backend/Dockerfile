@@ -53,8 +53,6 @@ RUN npm install -g corepack@latest && corepack enable && pnpm install --prod --r
 
 WORKDIR /opt/app/apps/backend
 
-# Only add pg-native bindings when running in production
-RUN pnpm add --prod pg-native
 COPY --from=build /opt/app/packages/qs-esm/lib /opt/app/packages/qs-esm/lib
 COPY --from=build /opt/app/packages/event-schema/lib /opt/app/packages/event-schema/lib
 # COPY --from=build /opt/app/apps/backend/resources ./resources

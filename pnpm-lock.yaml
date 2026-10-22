@@ -234,6 +234,9 @@ importers:
       pg:
         specifier: ^8.16.0
         version: 8.16.0(pg-native@3.2.0)
+      pg-native:
+        specifier: ^3.2.0
+        version: 3.2.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -14147,7 +14150,6 @@ snapshots:
   bindings@1.5.0:
     dependencies:
       file-uri-to-path: 1.0.0
-    optional: true
 
   bits-ui@0.22.0(svelte@5.56.3(@typescript-eslint/types@8.32.1)):
     dependencies:
@@ -15896,8 +15898,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  file-uri-to-path@1.0.0:
-    optional: true
+  file-uri-to-path@1.0.0: {}
 
   file-url@3.0.0: {}
 
@@ -17351,7 +17352,6 @@ snapshots:
     dependencies:
       bindings: 1.5.0
       nan: 2.19.0
-    optional: true
 
   light-my-request@6.6.0:
     dependencies:
@@ -17857,8 +17857,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  nan@2.19.0:
-    optional: true
+  nan@2.19.0: {}
 
   nan@2.22.2: {}
 
@@ -18288,7 +18287,6 @@ snapshots:
     dependencies:
       libpq: 1.8.13
       pg-types: 1.13.0
-    optional: true
 
   pg-numeric@1.0.2: {}
 
@@ -18309,7 +18307,6 @@ snapshots:
       postgres-bytea: 1.0.0
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
-    optional: true
 
   pg-types@2.2.0:
     dependencies:
@@ -18476,8 +18473,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  postgres-array@1.0.3:
-    optional: true
+  postgres-array@1.0.3: {}
 
   postgres-array@2.0.0: {}
 
