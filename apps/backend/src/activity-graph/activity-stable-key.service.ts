@@ -69,6 +69,25 @@ export class ActivityStableKeyService {
         }
     }
 
+    /**
+     * A Google place is identified by its placeId alone; coordinates only identify anonymous points. Keying named places
+     * by both linked separate key groups: one placeId showed up with several coordinates, and one coordinate with
+     * several placeIds (a shop and the mall around it).
+     */
+    public createGooglePlaceStableKey({
+        placeId,
+        latitude,
+        longitude,
+    }: {
+        placeId?: string;
+        latitude: number;
+        longitude: number;
+    }): string {
+        return placeId
+            ? this.createASObjectStableKey('Place', { placeId })
+            : this.createASObjectStableKey('Place', { lat: latitude, lng: longitude });
+    }
+
     public createASObjectStableKey(
         primaryNodeType: ASObjectType,
         data: ASObjectStableKeyCommonDataInterface & Record<string, unknown>,

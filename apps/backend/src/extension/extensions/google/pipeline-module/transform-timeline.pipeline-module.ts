@@ -21,6 +21,8 @@ import { Logger } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import type { GooglePlaceObjectInterface } from '../type/google-place-object.interface.js';
 import type { GoogleTimelineActivityInterface } from '../type/google-timeline-activity.interface.js';
+import type { GoogleTimelineVisitInterface } from '../type/google-timeline-visit.interface.js';
+import { collapseIdenticalActivities } from '../util/collapse-identical-activities.util.js';
 import { ActivityStableKeyService } from '../../../../activity-graph/activity-stable-key.service.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
@@ -114,46 +116,46 @@ export class TransformTimelinePipelineModule
             this.logger.log(`Skipping segments starting before the newest stored activity at ${importAfter.toISO()}`);
         }
 
-        return {
-            activities: segments
-                .map((segment, index) => {
-                    if (index % 500 === 0) {
-                        progress.report({
-                            current: index,
-                            total: segments.length,
-                            unit: 'segments',
-                            message: 'Transforming segments',
-                        });
-                    }
+        const activities = segments
+            .map((segment, index) => {
+                if (index % 500 === 0) {
+                    progress.report({
+                        current: index,
+                        total: segments.length,
+                        unit: 'segments',
+                        message: 'Transforming segments',
+                    });
+                }
 
-                    if (segment.visit) {
-                        return this.transformVisit({
-                            generatorExtensionObject,
-                            segment,
-                            visit: segment.visit,
-                            actorId,
-                            minVisitProbability,
-                            importAfter,
-                        });
-                    } else if (segment.activity) {
-                        return this.transformActivity({
-                            generatorExtensionObject,
-                            segment,
-                            activity: segment.activity,
-                            actorId,
-                            importAfter,
-                        });
-                    } else if (segment.timelinePath || segment.timelineMemory) {
-                        // Raw path / memory segments carry no discrete activity yet, skip silently.
-                        return;
-                    } else {
-                        this.logger.warn('Unknown semantic segment type', segment);
+                if (segment.visit) {
+                    return this.transformVisit({
+                        generatorExtensionObject,
+                        segment,
+                        visit: segment.visit,
+                        actorId,
+                        minVisitProbability,
+                        importAfter,
+                    });
+                } else if (segment.activity) {
+                    return this.transformActivity({
+                        generatorExtensionObject,
+                        segment,
+                        activity: segment.activity,
+                        actorId,
+                        importAfter,
+                    });
+                } else if (segment.timelinePath || segment.timelineMemory) {
+                    // Raw path / memory segments carry no discrete activity yet, skip silently.
+                    return;
+                } else {
+                    this.logger.warn('Unknown semantic segment type', segment);
 
-                        return;
-                    }
-                })
-                .filter(Boolean) as ActivityDto[],
-        };
+                    return;
+                }
+            })
+            .filter(Boolean) as ActivityDto[];
+
+        return { activities: collapseIdenticalActivities(activities) };
     }
 
     private transformActivity({
@@ -222,7 +224,7 @@ export class TransformTimelinePipelineModule
         actorId: string;
         minVisitProbability: number;
         importAfter: DateTime | undefined;
-    }): Arrive | undefined {
+    }): (Arrive & GoogleTimelineVisitInterface) | undefined {
         if (visit.probability !== undefined && visit.probability < minVisitProbability) {
             return;
         }
@@ -240,14 +242,28 @@ export class TransformTimelinePipelineModule
             return;
         }
 
+        const hierarchyLevel = visit.hierarchyLevel ?? 0;
+        const semanticType = visit.topCandidate?.semanticType;
+
         return {
             '@type': 'Arrive',
             generator: generatorExtensionObject,
             stableKeys: [
+                // Top-level visits keep the start-minute key the semantic location history shares, so old monthly files
+                // still deduplicate against Timeline.json. A nested visit (a shop inside a mall) starts in the same
+                // minute as its parent, so it adds its level and place.
                 this.activityStableKeyService.createActivityStableKey(
                     'Arrive',
                     {
                         start: startDateTime,
+                        ...(hierarchyLevel > 0
+                            ? {
+                                  hierarchyLevel,
+                                  ...(place.placeId
+                                      ? { placeId: place.placeId }
+                                      : { lat: place.latitude, lng: place.longitude }),
+                              }
+                            : {}),
                     },
                     { dateTimePrecision: 'minute' },
                 ),
@@ -259,7 +275,9 @@ export class TransformTimelinePipelineModule
             location: place,
             startTime: startDateTime,
             endTime: endDateTime,
-        } satisfies Arrive;
+            hierarchyLevel,
+            ...(semanticType ? { semanticType } : {}),
+        } satisfies Arrive & GoogleTimelineVisitInterface;
     }
 
     private parsePlace(latLng: string | undefined, placeId?: string): (Place & GooglePlaceObjectInterface) | undefined {
@@ -274,13 +292,7 @@ export class TransformTimelinePipelineModule
         return {
             '@type': 'Place',
             '@secondaryTypes': [createUnknownASType('GooglePlace')],
-            stableKeys: [
-                this.activityStableKeyService.createASObjectStableKey('Place', {
-                    lat: latitude,
-                    lng: longitude,
-                }),
-                placeId ? this.activityStableKeyService.createASObjectStableKey('Place', { placeId }) : undefined,
-            ].filter(Boolean),
+            stableKeys: [this.activityStableKeyService.createGooglePlaceStableKey({ placeId, latitude, longitude })],
             latitude,
             longitude,
             ...(placeId ? { placeId } : {}),

@@ -24,6 +24,7 @@ import type { GoogleTimelineActivityInterface } from '../type/google-timeline-ac
 import { hasOwn } from '../../../../util/util.js';
 import { ActivityStableKeyService } from '../../../../activity-graph/activity-stable-key.service.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
+import { collapseIdenticalActivities } from '../util/collapse-identical-activities.util.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
 import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
@@ -86,37 +87,39 @@ export class TransformSemanticLocationHistoryPipelineModule
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
 
         return {
-            activities: rawLocations.timelineObjects
-                .map((timelineObject, index, all) => {
-                    if (index % 200 === 0) {
-                        progress.report({
-                            current: index,
-                            total: all.length,
-                            unit: 'entries',
-                            message: 'Transforming entries',
-                        });
-                    }
+            activities: collapseIdenticalActivities(
+                rawLocations.timelineObjects
+                    .map((timelineObject, index, all) => {
+                        if (index % 200 === 0) {
+                            progress.report({
+                                current: index,
+                                total: all.length,
+                                unit: 'entries',
+                                message: 'Transforming entries',
+                            });
+                        }
 
-                    if (hasOwn(timelineObject, 'activitySegment')) {
-                        return this.transformActivitySegment(
-                            generatorExtensionObject,
-                            timelineObject.activitySegment as ActivitySegment,
-                            ownerActor.get('id')!,
-                        );
-                    } else if (hasOwn(timelineObject, 'placeVisit')) {
-                        return this.transformPlaceVisit({
-                            generatorExtensionObject,
-                            visit: timelineObject.placeVisit as PlaceVisit,
-                            actorId: ownerActor.get('id')!,
-                            minPlaceConfidence,
-                        });
-                    } else {
-                        this.logger.warn('Unknown timeline object type', timelineObject);
+                        if (hasOwn(timelineObject, 'activitySegment')) {
+                            return this.transformActivitySegment(
+                                generatorExtensionObject,
+                                timelineObject.activitySegment as ActivitySegment,
+                                ownerActor.get('id')!,
+                            );
+                        } else if (hasOwn(timelineObject, 'placeVisit')) {
+                            return this.transformPlaceVisit({
+                                generatorExtensionObject,
+                                visit: timelineObject.placeVisit as PlaceVisit,
+                                actorId: ownerActor.get('id')!,
+                                minPlaceConfidence,
+                            });
+                        } else {
+                            this.logger.warn('Unknown timeline object type', timelineObject);
 
-                        return;
-                    }
-                })
-                .filter(Boolean) as ActivityDto[],
+                            return;
+                        }
+                    })
+                    .filter(Boolean) as ActivityDto[],
+            ),
         };
     }
 
@@ -264,14 +267,12 @@ export class TransformSemanticLocationHistoryPipelineModule
             '@type': 'Place',
             '@secondaryTypes': [createUnknownASType('GooglePlace')],
             stableKeys: [
-                this.activityStableKeyService.createASObjectStableKey('Place', {
-                    lat: latitude,
-                    lng: longitude,
+                this.activityStableKeyService.createGooglePlaceStableKey({
+                    placeId: usePlaceDetails ? location?.placeId : undefined,
+                    latitude: latitude!,
+                    longitude: longitude!,
                 }),
-                usePlaceDetails && location?.placeId
-                    ? this.activityStableKeyService.createASObjectStableKey('Place', { placeId: location?.placeId })
-                    : undefined,
-            ].filter(Boolean),
+            ],
             latitude,
             longitude,
             ...(usePlaceDetails
