@@ -12,7 +12,7 @@ export type ImporterId =
     | 'google-semantic-location-history'
     | 'youtube-watch-history'
     | 'ics-calendar'
-    | 'spotify-streaming-history-script';
+    | 'spotify-streaming-history';
 
 export interface ImporterDefinition {
     id: ImporterId;
@@ -62,9 +62,9 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
         transformNodeId: 2,
         storeNodeId: 3,
     },
-    'spotify-streaming-history-script': {
-        id: 'spotify-streaming-history-script',
-        blueprintFile: 'spotify-streaming-history-script.blueprint.json',
+    'spotify-streaming-history': {
+        id: 'spotify-streaming-history',
+        blueprintFile: 'spotify-streaming-history.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
@@ -120,10 +120,17 @@ export const corpusSources: CorpusSource[] = [
     },
     {
         id: 'spotify-audio',
-        importer: 'spotify-streaming-history-script',
+        importer: 'spotify-streaming-history',
         from: 'Spotify Extended Streaming History/Streaming_History_Audio_*.json',
         to: (path) => `spotify/${basename(path)}`,
-        notes: 'Imported through the execute-code blueprint (inline script), there is no Spotify module yet.',
+        notes: 'Unpacked my_spotify_data_2026_06_13.zip (identical files). The old execute-code script blueprint stays in blueprints/ but is no longer used.',
+    },
+    {
+        id: 'spotify-video',
+        importer: 'spotify-streaming-history',
+        from: 'Spotify Extended Streaming History/Streaming_History_Video_*.json',
+        to: (path) => `spotify/${basename(path)}`,
+        notes: 'Music videos and video podcasts; same row shape as audio.',
     },
 ];
 
@@ -133,11 +140,10 @@ export const corpusSources: CorpusSource[] = [
  */
 export const knownUnsupported: { area: string; glob: string; notes: string }[] = [
     {
-        area: 'Spotify video streams',
-        glob: 'Spotify Extended Streaming History/Streaming_History_Video_*.json',
-        notes: 'Same shape as audio, tiny.',
+        area: 'Spotify account export (zip)',
+        glob: 'my_spotify_data_*.zip',
+        notes: 'Archive of the unpacked Spotify Extended Streaming History folder (identical as of 2026-06-13).',
     },
-    { area: 'Spotify account export (zip)', glob: 'my_spotify_data_*.zip', notes: 'Archive; not unpacked.' },
     {
         area: 'Airbnb',
         glob: 'Airbnb_data_request_*/**',

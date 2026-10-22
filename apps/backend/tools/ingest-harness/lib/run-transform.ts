@@ -19,7 +19,7 @@ import { TransformTimelinePipelineModule } from '../../../src/extension/extensio
 import { TransformSemanticLocationHistoryPipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-semantic-location-history.pipeline-module.js';
 import { TransformYouTubeWatchHistoryPipelineModule } from '../../../src/extension/extensions/youtube/pipeline-module/transform-youtube-watch-history.pipeline-module.js';
 import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ics-calendar/pipeline-module/parse-ics-file.pipeline-module.js';
-import { ExecuteCodePipelineModule } from '../../../src/etl/pipeline/pipeline-module/core-module/execute-code.pipeline-module.js';
+import { TransformSpotifyStreamingHistoryPipelineModule } from '../../../src/extension/extensions/spotify/pipeline-module/transform-spotify-streaming-history.pipeline-module.js';
 import { importers, type ImporterId } from '../corpus.manifest.js';
 import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
 
@@ -57,8 +57,13 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
         ) as never,
     'ics-calendar': (s) =>
         new ParseIcsFilePipelineModule(s.assetService, s.stableKeyService, s.graphService, s.graphNodeService) as never,
-    'spotify-streaming-history-script': (s) =>
-        new ExecuteCodePipelineModule(s.graphService, s.graphNodeService, s.stableKeyService, s.assetService) as never,
+    'spotify-streaming-history': (s) =>
+        new TransformSpotifyStreamingHistoryPipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
 };
 
 /** Same defaults as `settingsConfig` (eventUniqueLocationPrecision / eventUniqueDateTimePrecision). */
