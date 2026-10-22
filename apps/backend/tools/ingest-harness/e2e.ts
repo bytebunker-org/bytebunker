@@ -353,6 +353,7 @@ async function sampledCopy(file: CorpusFile, size: number): Promise<string> {
 
 interface FileResult {
     sourceId: string;
+    importer: ImporterId;
     importPath: string;
     pass: 'import' | 'reimport';
     /** skipped: the duplicate-import guard recognised the content and started nothing. */
@@ -494,6 +495,7 @@ async function importFile(
 
     const result: FileResult = {
         sourceId: file.sourceId,
+        importer: file.importer,
         importPath: file.importPath,
         pass,
         outcome,
@@ -617,7 +619,7 @@ function formatReport(report: {
 
     for (const r of report.results) {
         const e = r.executions[0];
-        const definition = Object.values(importers).find((i) => e?.blueprint.endsWith(i.id));
+        const definition = importers[r.importer];
         const store = e?.storeOutput as { createdCount?: number; existingCount?: number } | undefined;
         lines.push(
             `| ${r.pass} | ${r.importPath} | ${r.outcome}${r.executions.length > 1 ? ` (${r.executions.length} pipelines)` : ''} | ${s(r.wallMs)} | ${s(definition ? e?.nodeMs[definition.transformNodeId] : undefined)} | ${s(definition ? e?.nodeMs[definition.storeNodeId] : undefined)} | ${definition && e ? ((e.nodeOutputBytes[definition.transformNodeId] ?? 0) / 1024 / 1024).toFixed(1) : ''} | ${fmt(store?.createdCount)} | ${fmt(store?.existingCount)} | ${fmt(r.predictedCreated)} | ${fmt(r.graphDelta.labels['Activity'])} | ${fmt(r.stableKeyDelta)} | ${r.fileMovedTo ?? ''} | ${(e?.error ?? '').slice(0, 120)} |`,
@@ -626,7 +628,7 @@ function formatReport(report: {
 
     const totalStoreMs = report.results.reduce((sum, r) => {
         const e = r.executions[0];
-        const definition = Object.values(importers).find((i) => e?.blueprint.endsWith(i.id));
+        const definition = importers[r.importer];
         return sum + (definition && e?.nodeMs[definition.storeNodeId] ? e.nodeMs[definition.storeNodeId]! : 0);
     }, 0);
     const totalCreated = report.results.reduce(
