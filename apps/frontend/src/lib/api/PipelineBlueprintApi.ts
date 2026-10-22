@@ -1,5 +1,7 @@
 import { ApiBase } from '$lib/api/ApiBase.js';
 import type {
+	BlueprintDataDto,
+	BlueprintValidationResultDto,
 	CreatePipelineBlueprintDto,
 	FindAllDto,
 	FindRestApiCountDto,
@@ -17,6 +19,14 @@ export class PipelineBlueprintApi extends ApiBase {
 		fetchImpl?: typeof fetch
 	): Promise<PipelineBlueprintDto> {
 		return ApiBase.post(fetchImpl, '/pipelines-blueprints', data);
+	}
+
+	/** Checks blueprint data without saving it. Accepts any JSON, issues explain what is wrong. */
+	public static validate(
+		data: BlueprintDataDto | Record<string, unknown>,
+		fetchImpl?: typeof fetch
+	): Promise<BlueprintValidationResultDto> {
+		return ApiBase.post(fetchImpl, '/pipelines-blueprints/validate', data);
 	}
 
 	public static findAllDatatable(

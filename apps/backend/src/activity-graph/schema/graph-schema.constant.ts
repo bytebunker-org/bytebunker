@@ -17,6 +17,14 @@ import { MusicRecordingSchema } from './as-object/music-recording.schema.js';
 import { PodcastEpisodeSchema } from './as-object/podcast-episode.schema.js';
 import { VideoSchema } from './as-object/video.schema.js';
 import { YouTubeVideoSchema } from './as-object/youtube-video.schema.js';
+import { NoteSchema } from './as-object/note.schema.js';
+import { SearchActivitySchema } from './activity/search-activity.schema.js';
+import { AudiobookChapterSchema } from './as-object/audiobook-chapter.schema.js';
+import { SpotifyVideoSchema } from './as-object/spotify-video.schema.js';
+import { SpotifyViewActivitySchema } from './activity/spotify-view-activity.schema.js';
+import { CanonicalPlaceSchema } from './as-object/canonical-place.schema.js';
+import { DailySummarySchema } from './as-object/daily-summary.schema.js';
+import { TravelActivitySchema } from './activity/travel-activity.schema.js';
 
 export function registerGraphSchemas(neode: Neode): void {
     neode.model(NodeLabelEnum.EXTENSION, ExtensionSchema);
@@ -25,13 +33,23 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.PERSON, PersonSchema);
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.PLACE, PlaceSchema);
     neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.GOOGLE_PLACE, GooglePlaceSchema);
+    neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.ICS_LOCATION, {});
+    // Deliberately not a Place: queries over raw places must not see the derived ones.
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.CANONICAL_PLACE, CanonicalPlaceSchema);
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.AUDIO, AudioSchema);
     neode.extend(NodeLabelEnum.AUDIO, NodeLabelEnum.MUSIC_RECORDING, MusicRecordingSchema);
     neode.extend(NodeLabelEnum.MUSIC_RECORDING, NodeLabelEnum.SPOTIFY_TRACK, {});
     neode.extend(NodeLabelEnum.AUDIO, NodeLabelEnum.PODCAST_EPISODE, PodcastEpisodeSchema);
     neode.extend(NodeLabelEnum.PODCAST_EPISODE, NodeLabelEnum.SPOTIFY_EPISODE, {});
+    neode.extend(NodeLabelEnum.AUDIO, NodeLabelEnum.AUDIOBOOK_CHAPTER, AudiobookChapterSchema);
+    neode.extend(NodeLabelEnum.AUDIOBOOK_CHAPTER, NodeLabelEnum.SPOTIFY_AUDIOBOOK_CHAPTER, {});
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.VIDEO, VideoSchema);
     neode.extend(NodeLabelEnum.VIDEO, NodeLabelEnum.YOUTUBE_VIDEO, YouTubeVideoSchema);
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.NOTE, NoteSchema);
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.PAGE, {});
+    neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.AIRBNB_LISTING, {});
+    neode.extend(NodeLabelEnum.PERSON, NodeLabelEnum.MY_HUB_PERSON, {});
+    neode.extend(NodeLabelEnum.VIDEO, NodeLabelEnum.SPOTIFY_VIDEO, SpotifyVideoSchema);
 
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.ACTIVITY, ASActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.GOOGLE_TIMELINE_ACTIVITY, GoogleTimelineActivitySchema);
@@ -41,7 +59,23 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_MOVE, {});
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_VIEW, {});
     neode.extend(NodeLabelEnum.ACTIVITY_VIEW, NodeLabelEnum.YOUTUBE_VIEW_ACTIVITY, YouTubeViewActivitySchema);
+    neode.extend(NodeLabelEnum.ACTIVITY_VIEW, NodeLabelEnum.SPOTIFY_VIEW_ACTIVITY, SpotifyViewActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_EVENT, EventActivitySchema);
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_CREATE, {});
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_SEARCH, SearchActivitySchema);
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_ADD, {});
+
+    neode.extend(NodeLabelEnum.ACTIVITY_EVENT, NodeLabelEnum.ICS_EVENT, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_EVENT, NodeLabelEnum.STAY, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_CREATE, NodeLabelEnum.MESSAGE, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_CREATE, NodeLabelEnum.REVIEW, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_ADD, NodeLabelEnum.BOOKMARK, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_ADD, NodeLabelEnum.SAVED_PLACE, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_VIEW, NodeLabelEnum.BROWSER_VISIT, {});
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.GOOGLE_MY_ACTIVITY, {});
+    // Derived by enrichment. A daily summary is deliberately not an Activity: activity queries must not count it.
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_TRAVEL, TravelActivitySchema);
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.DAILY_SUMMARY, DailySummarySchema);
 }
 
 export const relationshipInfoMap: Record<

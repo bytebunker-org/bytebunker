@@ -59,7 +59,7 @@ export class PipelineBlueprintService {
     ): Promise<PaginatedListResponseDto<PipelineBlueprintDatatableDto>> {
         const queryBuilder = em
             .createQueryBuilder(PipelineBlueprintEntity, 'blueprint')
-            .select(['id', 'title', 'description', 'createdAt', 'updatedAt']);
+            .select(['id', 'title', 'description', 'key', 'createdAt', 'updatedAt']);
 
         return this.datatableService.executeDataTableSearch<PipelineBlueprintEntity, PipelineBlueprintDatatableDto>(
             PipelineBlueprintEntity,

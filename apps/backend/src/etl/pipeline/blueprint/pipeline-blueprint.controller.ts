@@ -3,7 +3,7 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { PipelineBlueprintEntity } from './entity/pipeline-blueprint.entity.js';
 import { PipelineBlueprintDto } from './dto/pipeline-blueprint.dto.js';
-import type { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint.dto.js';
+import { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint.dto.js';
 import { UpdatePipelineBlueprintDto } from './dto/update-pipeline-blueprint.dto.js';
 import { FindRestApiService } from '../../../shared/find-rest-api/find-rest-api.service.js';
 import { FindAllDto } from '../../../shared/find-rest-api/dto/find-all.dto.js';
@@ -19,6 +19,9 @@ import { PaginatedListRequestDto } from '../../../shared/datatable/dto/paginated
 import { PaginatedListResponseDto } from '../../../shared/datatable/dto/paginated-list-response.dto.js';
 import { PipelineBlueprintDatatableDto } from './dto/pipeline-blueprint-datatable.dto.js';
 import { PipelineBlueprintService } from './pipeline-blueprint.service.js';
+import { PipelineBlueprintValidationService } from './pipeline-blueprint-validation.service.js';
+import { BlueprintValidationResultDto } from './dto/blueprint-validation-result.dto.js';
+import type { BlueprintDataDto } from './dto/blueprint-data.dto.js';
 import { ApiFindAllDatatableMethod } from '../../../shared/datatable/find-all-datatable-swagger.decorator.js';
 
 @Controller('pipelines-blueprints')
@@ -27,7 +30,21 @@ export class PipelineBlueprintController {
         private readonly em: EntityManager,
         private readonly findRestApiService: FindRestApiService,
         private readonly pipelineBlueprintService: PipelineBlueprintService,
+        private readonly validationService: PipelineBlueprintValidationService,
     ) {}
+
+    @Post('validate')
+    @ApiOperation({
+        summary:
+            'Check blueprint data without saving it: unknown modules or handles, missing required inputs, type ' +
+            'mismatches, cycles, invalid trigger options. Use before saving generated blueprints.',
+    })
+    @ApiResponse({ status: 201, type: BlueprintValidationResultDto })
+    // Typed as a plain record on purpose: the global ValidationPipe would reject malformed data with a generic 400
+    // before the validator could explain what is wrong.
+    public validate(@Body() data: Record<string, unknown>): Promise<BlueprintValidationResultDto> {
+        return this.validationService.validate(this.em.fork(), data as unknown as BlueprintDataDto);
+    }
 
     @Post()
     @ApiOperation({ summary: 'Create a new blueprint' })

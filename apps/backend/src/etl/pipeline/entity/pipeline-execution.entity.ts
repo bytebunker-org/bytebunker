@@ -13,6 +13,7 @@ import {
 } from '@mikro-orm/core';
 import { TimestampEntity } from '../../../database/util/timestamp.entity.js';
 import { PipelineBlueprintEntity } from '../blueprint/entity/pipeline-blueprint.entity.js';
+import { AssetEntity } from '../../asset/entity/asset.entity.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
 import { toDatabaseEnumName } from '../../../database/util/database.util.js';
 import { PipelineExecutionLogEntity } from './pipeline-execution-log.entity.js';
@@ -35,6 +36,26 @@ export class PipelineExecutionEntity extends TimestampEntity implements Pipeline
         updateRule: 'cascade',
     })
     public blueprint!: Ref<PipelineBlueprintEntity>;
+
+    /**
+     * The asset this execution was triggered from, if the trigger produced one (e.g. the imported file of a
+     * local file trigger). Used to recognise that the very same content was already run through this blueprint
+     * so a re-import can be skipped instead of reprocessed. Indexed because it is looked up on every trigger.
+     */
+    @ManyToOne(() => AssetEntity, {
+        nullable: true,
+        deleteRule: 'set null',
+        updateRule: 'cascade',
+        index: true,
+    })
+    public triggerAsset?: Ref<AssetEntity>;
+
+    /**
+     * Dry runs execute every module but skip writes: store modules report what they would create instead.
+     * Never counted as an earlier import by the re-import guard.
+     */
+    @Property({ default: false })
+    public dryRun: boolean & Opt = false;
 
     @Enum({
         items: [

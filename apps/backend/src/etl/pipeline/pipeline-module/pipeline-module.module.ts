@@ -18,7 +18,11 @@ export class PipelineModuleModule implements OnApplicationBootstrap {
         private readonly em: EntityManager,
     ) {}
 
-    public onApplicationBootstrap(): Promise<void> {
-        return this.em.transactional((em) => this.pipelineModuleService.discoverPipelineModules(em));
+    public async onApplicationBootstrap(): Promise<void> {
+        try {
+            await this.em.transactional((em) => this.pipelineModuleService.discoverPipelineModules(em));
+        } finally {
+            this.pipelineModuleService.markModulesReady();
+        }
     }
 }

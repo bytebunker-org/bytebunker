@@ -24,8 +24,10 @@ import type { GoogleTimelineActivityInterface } from '../type/google-timeline-ac
 import { hasOwn } from '../../../../util/util.js';
 import { ActivityStableKeyService } from '../../../../activity-graph/activity-stable-key.service.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
+import { collapseIdenticalActivities } from '../util/collapse-identical-activities.util.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
+import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
 
 @PipelineModuleJsonSchema()
 export class TransformSemanticLocationHistoryInput {
@@ -61,42 +63,63 @@ export class TransformSemanticLocationHistoryPipelineModule
         private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
 
+    public detectFile(sample: FileSample): FileDetection | undefined {
+        if (sample.extension === 'json' && /^\s*\{\s*"timelineObjects"\s*:/.test(sample.head)) {
+            return { confidence: 0.95, format: 'Google Semantic Location History (monthly file, before 2024)' };
+        }
+
+        return undefined;
+    }
+
     public async executeModule({
         em,
         inputData,
+        progress,
     }: PipelineModuleExecutionContext<TransformSemanticLocationHistoryInput>): Promise<TransformSemanticLocationHistoryOutput> {
         const { rawJson: rawJsonAsset, minPlaceConfidence = PlaceConfidenceEnum.MEDIUM_CONFIDENCE } = inputData;
 
         const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, GOOGLE_EXTENSION_ID);
 
+        progress.message(`Reading ${rawJsonAsset.originalFilename ?? 'semantic location history'}`);
         const rawJson = await this.assetService.getAssetString(em, rawJsonAsset);
         const rawLocations = JSON.parse(rawJson) as SemanticLocationHistory;
 
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
 
         return {
-            activities: rawLocations.timelineObjects
-                .map((timelineObject) => {
-                    if (hasOwn(timelineObject, 'activitySegment')) {
-                        return this.transformActivitySegment(
-                            generatorExtensionObject,
-                            timelineObject.activitySegment as ActivitySegment,
-                            ownerActor.get('id')!,
-                        );
-                    } else if (hasOwn(timelineObject, 'placeVisit')) {
-                        return this.transformPlaceVisit({
-                            generatorExtensionObject,
-                            visit: timelineObject.placeVisit as PlaceVisit,
-                            actorId: ownerActor.get('id')!,
-                            minPlaceConfidence,
-                        });
-                    } else {
-                        this.logger.warn('Unknown timeline object type', timelineObject);
+            activities: collapseIdenticalActivities(
+                rawLocations.timelineObjects
+                    .map((timelineObject, index, all) => {
+                        if (index % 200 === 0) {
+                            progress.report({
+                                current: index,
+                                total: all.length,
+                                unit: 'entries',
+                                message: 'Transforming entries',
+                            });
+                        }
 
-                        return;
-                    }
-                })
-                .filter(Boolean) as ActivityDto[],
+                        if (hasOwn(timelineObject, 'activitySegment')) {
+                            return this.transformActivitySegment(
+                                generatorExtensionObject,
+                                timelineObject.activitySegment as ActivitySegment,
+                                ownerActor.get('id')!,
+                            );
+                        } else if (hasOwn(timelineObject, 'placeVisit')) {
+                            return this.transformPlaceVisit({
+                                generatorExtensionObject,
+                                visit: timelineObject.placeVisit as PlaceVisit,
+                                actorId: ownerActor.get('id')!,
+                                minPlaceConfidence,
+                            });
+                        } else {
+                            this.logger.warn('Unknown timeline object type', timelineObject);
+
+                            return;
+                        }
+                    })
+                    .filter(Boolean) as ActivityDto[],
+            ),
         };
     }
 
@@ -244,14 +267,12 @@ export class TransformSemanticLocationHistoryPipelineModule
             '@type': 'Place',
             '@secondaryTypes': [createUnknownASType('GooglePlace')],
             stableKeys: [
-                this.activityStableKeyService.createASObjectStableKey('Place', {
-                    lat: latitude,
-                    lng: longitude,
+                this.activityStableKeyService.createGooglePlaceStableKey({
+                    placeId: usePlaceDetails ? location?.placeId : undefined,
+                    latitude: latitude!,
+                    longitude: longitude!,
                 }),
-                usePlaceDetails && location?.placeId
-                    ? this.activityStableKeyService.createASObjectStableKey('Place', { placeId: location?.placeId })
-                    : undefined,
-            ].filter(Boolean),
+            ],
             latitude,
             longitude,
             ...(usePlaceDetails

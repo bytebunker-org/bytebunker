@@ -11,7 +11,11 @@
 	import BlueprintEditorToolbox from '$lib/components/pipeline/BlueprintEditorToolbox.svelte';
 	import { Card, CardBody } from '@bytebunker/daisyui-components';
 	import { SvelteFlowProvider } from '@xyflow/svelte';
-	import type { PipelineExecutionDto } from '@bytebunker/backend';
+	import type {
+		PipelineExecutionDto,
+		NodeProgressDto,
+		BlueprintValidationIssueDto
+	} from '@bytebunker/backend';
 	import { enumValues, PipelineExecutionStatusEnum } from '@bytebunker/backend';
 	import PipelineStatusBadge from '$lib/components/pipeline/PipelineStatusBadge.svelte';
 	import { browser } from '$app/environment';
@@ -22,9 +26,21 @@
 		pipelineExecution?: PipelineExecutionDto;
 
 		allowEdit?: boolean;
+
+		/** Live progress per node id, shown on the nodes (execution view). */
+		nodeProgress?: Record<number, NodeProgressDto>;
+
+		/** Validation issues per node id, shown on the nodes (editor). */
+		nodeIssues?: Record<number, BlueprintValidationIssueDto[]>;
 	}
 
-	let { blueprint, pipelineExecution, allowEdit = true }: Props = $props();
+	let {
+		blueprint,
+		pipelineExecution,
+		allowEdit = true,
+		nodeProgress,
+		nodeIssues
+	}: Props = $props();
 
 	const pipelineModulesQuery = createQuery<
 		PipelineModuleDto[],
@@ -52,7 +68,9 @@
 		// All children of the blueprint are only rendered when everything is loaded
 		pipelineModules: pipelineModules!,
 		pipelineExecution,
-		allowEdit
+		allowEdit,
+		nodeProgress,
+		nodeIssues
 	}));
 </script>
 

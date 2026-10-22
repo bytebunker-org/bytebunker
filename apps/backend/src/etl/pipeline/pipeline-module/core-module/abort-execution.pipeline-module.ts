@@ -15,6 +15,7 @@ export class AbortExecutionInput {
 @PipelineModule({
     extensionName: CORE_EXTENSION_NAME,
     inputType: AbortExecutionInput,
+    description: 'Stops the whole execution with an optional message.',
 })
 export class AbortExecutionPipelineModule implements IPipelineModule<AbortExecutionInput, undefined> {
     public executeModule({ inputData }: PipelineModuleExecutionContext<AbortExecutionInput>): CreateHoldExecutionDto {

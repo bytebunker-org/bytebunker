@@ -1,0 +1,71 @@
+{
+    "title": "my-hub calendar import",
+    "description": "Fetches a my-hub calendar as iCalendar and imports its events (past occurrences of recurring series only).",
+    "data": {
+        "edges": [
+            {
+                "id": 0,
+                "source": 1,
+                "target": 2,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 1,
+                "source": 2,
+                "target": 3,
+                "sourceHandle": "icsFile",
+                "targetHandle": "icsFile"
+            },
+            {
+                "id": 2,
+                "source": 3,
+                "target": 4,
+                "sourceHandle": "activities",
+                "targetHandle": "activities"
+            }
+        ],
+        "nodes": [
+            {
+                "id": 1,
+                "moduleId": "my-hub:my-hub-sync-trigger@1",
+                "position": {
+                    "x": 260,
+                    "y": 0
+                },
+                "constantInputData": {}
+            },
+            {
+                "id": 2,
+                "moduleId": "my-hub:fetch-calendar-feed@1",
+                "position": {
+                    "x": 480,
+                    "y": -20
+                },
+                "constantInputData": {
+                    "calendarSlug": "personal"
+                }
+            },
+            {
+                "id": 3,
+                "moduleId": "ics-calendar:parse-ics-file@1",
+                "position": {
+                    "x": 700,
+                    "y": -20
+                },
+                "constantInputData": {
+                    "recurrenceHorizon": "P0D"
+                }
+            },
+            {
+                "id": 4,
+                "moduleId": "bytebunker-core:store-activity@1",
+                "position": {
+                    "x": 960,
+                    "y": -20
+                },
+                "constantInputData": {}
+            }
+        ]
+    }
+}

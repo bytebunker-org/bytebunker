@@ -16,3 +16,6 @@ tunnel-prod-dbs.sh
 
 # Per-worktree dev instance state (tools/worktree/wt.sh)
 .worktree/
+
+# GeoNames dump cached by enrichment:geocode-places-offline (geocoding.dataDir)
+**/temp/geonames/

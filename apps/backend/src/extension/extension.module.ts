@@ -10,13 +10,25 @@ import { CommonPipelineTriggersModule } from './extensions/common-pipeline-trigg
 import { localExtensions } from './extensions/local-extension.constant.js';
 import { GoogleExtensionModule } from './extensions/google/google-extension.module.js';
 import { IcsCalendarExtensionModule } from './extensions/ics-calendar/ics-calendar-extension.module.js';
+import { AirbnbExtensionModule } from './extensions/airbnb/airbnb-extension.module.js';
+import { WhatsappExtensionModule } from './extensions/whatsapp/whatsapp-extension.module.js';
 import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.module.js';
+import { SpotifyExtensionModule } from './extensions/spotify/spotify-extension.module.js';
+import { MyHubExtensionModule } from './extensions/my-hub/my-hub-extension.module.js';
+import { BrowserHistoryExtensionModule } from './extensions/browser-history/browser-history-extension.module.js';
+import { EnrichmentExtensionModule } from './extensions/enrichment/enrichment-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
     GoogleExtensionModule,
     IcsCalendarExtensionModule,
+    WhatsappExtensionModule,
     YouTubeExtensionModule,
+    AirbnbExtensionModule,
+    SpotifyExtensionModule,
+    MyHubExtensionModule,
+    BrowserHistoryExtensionModule,
+    EnrichmentExtensionModule,
 ];
 
 @Module({

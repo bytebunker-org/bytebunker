@@ -38,6 +38,9 @@ export class ExecuteCodeOutput {}
     extensionName: CORE_EXTENSION_NAME,
     inputType: ExecuteCodeInput,
     outputType: ExecuteCodeOutput,
+    description:
+        'Runs a JavaScript snippet (constant input "code"). Extra inputs and outputs are declared with ' +
+        'customInputParameters / customOutputParameters (lists of handle names) and are available to the code.',
 })
 @Injectable()
 export class ExecuteCodePipelineModule implements IPipelineModule<ExecuteCodeInput, ExecuteCodeOutput> {

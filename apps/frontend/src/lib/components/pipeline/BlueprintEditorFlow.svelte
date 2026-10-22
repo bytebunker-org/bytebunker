@@ -27,7 +27,9 @@
 		transformBlueprintEdgeToFlowEdge,
 		transformBlueprintNodeToFlowNode
 	} from '$lib/components/pipeline/blueprintTransformer.svelte.js';
+	import { getBlueprintFocusContext } from '$lib/components/pipeline/validation/blueprintFocusContext.js';
 	import type {
+		Blueprint,
 		BlueprintNodeDto,
 		PipelineModuleIdentifier,
 		BlueprintDataDto
@@ -47,7 +49,7 @@
 
 	let maxNodeId = $derived(Math.max(0, ...nodes.map((n) => Number.parseInt(n.id))));
 
-	const { screenToFlowPosition } = $derived(useSvelteFlow());
+	const { screenToFlowPosition, fitView } = $derived(useSvelteFlow());
 
 	function onDragOver(event: DragEvent) {
 		event.preventDefault();
@@ -91,6 +93,33 @@
 		nodes = [...nodes, newNode];
 	}
 
+	// The connection check has to see nodes added or edited since the editor was opened
+	const currentNodes = {
+		getNode: (nodeId: number) => nodes.find((n) => n.id === String(nodeId))?.data
+	} as unknown as Blueprint;
+
+	const focusStore = getBlueprintFocusContext();
+	$effect(() => {
+		if (!focusStore) {
+			return;
+		}
+
+		focusStore.current = (nodeId) => {
+			const id = String(nodeId);
+
+			if (!nodes.some((n) => n.id === id)) {
+				return;
+			}
+
+			nodes = nodes.map((n) => ({ ...n, selected: n.id === id }));
+			fitView({ nodes: [{ id }], duration: 400, maxZoom: 1.2, padding: 0.5 });
+		};
+
+		return () => {
+			focusStore.current = undefined;
+		};
+	});
+
 	function serialize(
 		nodes: Node<BlueprintNodeData>[],
 		edges: Edge<BlueprintEdgeData>[]
@@ -125,7 +154,7 @@
 	connectionLineType={ConnectionLineType.SmoothStep}
 	defaultEdgeOptions={{ type: ConnectionLineType.SmoothStep }}
 	isValidConnection={(connection: Connection | Edge) =>
-		isValidConnection(blueprint, pipelineModules, connection)}
+		isValidConnection(currentNodes, pipelineModules, connection)}
 	snapGrid={[20, 20]}
 	nodesDraggable={allowEdit}
 	nodesConnectable={allowEdit}

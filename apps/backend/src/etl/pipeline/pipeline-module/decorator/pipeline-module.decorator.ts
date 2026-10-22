@@ -12,6 +12,16 @@ export interface PipelineModuleOptions<Input, Output> {
     inputType?: Constructable<Input>;
 
     outputType?: Constructable<Output>;
+
+    /** One or two sentences on what the module does; shown in the module catalog that AI blueprint generation reads. */
+    description?: string;
+
+    /**
+     * Share of the whole pipeline's progress this module accounts for, relative to the other nodes (default 1,
+     * trigger modules 0). Heavy modules such as store-activity use a higher weight so the pipeline progress bar
+     * moves with the actual work.
+     */
+    progressWeight?: number;
 }
 
 export const PIPELINE_MODULE_METADATA = 'pipeline-module-metadata';

@@ -1,0 +1,56 @@
+{
+    "title": "Browser history database import",
+    "description": "Imports visits and bookmarks from a Firefox places.sqlite or Chrome/Chromium History database.",
+    "data": {
+        "edges": [
+            {
+                "id": 0,
+                "source": 1,
+                "target": 2,
+                "sourceHandle": "fileAsset",
+                "targetHandle": "databaseFile"
+            },
+            {
+                "id": 1,
+                "source": 2,
+                "target": 3,
+                "sourceHandle": "activities",
+                "targetHandle": "activities"
+            }
+        ],
+        "nodes": [
+            {
+                "id": 1,
+                "moduleId": "common-pipeline-triggers:local-file-trigger@1",
+                "position": {
+                    "x": 260,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "globPatterns": [
+                        "browser/**/places.sqlite",
+                        "browser/**/History"
+                    ]
+                }
+            },
+            {
+                "id": 2,
+                "moduleId": "browser-history:transform-browser-database@1",
+                "position": {
+                    "x": 480,
+                    "y": -20
+                },
+                "constantInputData": {}
+            },
+            {
+                "id": 3,
+                "moduleId": "bytebunker-core:store-activity@1",
+                "position": {
+                    "x": 800,
+                    "y": -20
+                },
+                "constantInputData": {}
+            }
+        ]
+    }
+}

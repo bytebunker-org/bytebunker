@@ -25,12 +25,23 @@ export class PipelineModuleService {
     private readonly logger = new Logger(PipelineModuleService.name);
 
     private readonly pipelineModuleRegistry = new Map<string, IPipelineModule<unknown, unknown>>();
+    private readonly pipelineModuleOptionsRegistry = new Map<string, PipelineModuleOptions<unknown, unknown>>();
+
+    /**
+     * Resolves once every module is registered. BullMQ workers start in `onModuleInit`, before discovery in
+     * `onApplicationBootstrap`, so jobs left in the queue from before a restart must wait for this instead of
+     * failing with an empty module registry.
+     */
+    private readonly modulesReady: Promise<void>;
+    private resolveModulesReady!: () => void;
 
     constructor(
         private readonly discoveryService: DiscoveryService,
         private readonly jsonSchemaService: JsonSchemaService,
         private readonly config: AppConfig,
-    ) {}
+    ) {
+        this.modulesReady = new Promise((resolve) => (this.resolveModulesReady = resolve));
+    }
 
     public async discoverPipelineModules(em: EntityManager): Promise<void> {
         const discoveredPipelineModules =
@@ -41,6 +52,24 @@ export class PipelineModuleService {
         for (const { discoveredClass, meta } of discoveredPipelineModules) {
             await this.registerPipelineModule(em, discoveredClass, meta);
         }
+    }
+
+    /**
+     * Called once discovery's transaction has committed (or failed), so waiting jobs and the blueprint installer see
+     * the module rows. On failure they are released too and fail with a clear error.
+     */
+    public markModulesReady(): void {
+        this.resolveModulesReady();
+    }
+
+    public whenModulesReady(): Promise<void> {
+        return this.modulesReady;
+    }
+
+    public getPipelineModuleOptions(
+        identifier: PipelineModuleIdentifier,
+    ): PipelineModuleOptions<unknown, unknown> | undefined {
+        return this.pipelineModuleOptionsRegistry.get(identifier);
     }
 
     public getPipelineModule(identifier: PipelineModuleIdentifier): IPipelineModule<unknown, unknown> | undefined {
@@ -141,6 +170,10 @@ export class PipelineModuleService {
         // a type change without a version bump would silently drop the module from the registry and break
         // every pipeline that uses it.
         this.pipelineModuleRegistry.set(moduleIdentifier, discoveredClass.instance as IPipelineModule<Input, Output>);
+        this.pipelineModuleOptionsRegistry.set(
+            moduleIdentifier,
+            moduleOptions as PipelineModuleOptions<unknown, unknown>,
+        );
 
         const existingModule = await em.findOne(PipelineModuleEntity, {
             id: moduleIdentifier,

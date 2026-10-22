@@ -10,6 +10,18 @@ export const ICS_CALENDAR_EXTENSION_ID = '01958c1b-0a4f-7f12-9a6c-7a4c2dbb31ea';
 export const ICS_CALENDAR_EXTENSION = 'ics-calendar';
 export const YOUTUBE_EXTENSION_ID = '019df6f5-dae3-7099-a14f-22b5d7ddd19e';
 export const YOUTUBE_EXTENSION = 'youtube';
+export const AIRBNB_EXTENSION_ID = '01a163be-3d69-7179-9cd7-d9867999848a';
+export const AIRBNB_EXTENSION = 'airbnb';
+export const SPOTIFY_EXTENSION_ID = '01a163c8-c151-737e-a06a-271de119db95';
+export const SPOTIFY_EXTENSION = 'spotify';
+export const WHATSAPP_EXTENSION_ID = '01a163c8-c173-76cd-8a82-5d0a97928500';
+export const WHATSAPP_EXTENSION = 'whatsapp';
+export const BROWSER_HISTORY_EXTENSION_ID = '01a163c8-c191-7548-94ff-1e727b3aa54c';
+export const BROWSER_HISTORY_EXTENSION = 'browser-history';
+export const MY_HUB_EXTENSION_ID = '01a163c8-c1af-73dc-816d-53c911877f99';
+export const MY_HUB_EXTENSION = 'my-hub';
+export const ENRICHMENT_EXTENSION_ID = '01a163e4-c3ae-70cf-9f51-1027a9f82a59';
+export const ENRICHMENT_EXTENSION = 'enrichment';
 
 export const localExtensions = [
     {
@@ -35,6 +47,30 @@ export const localExtensions = [
     {
         id: YOUTUBE_EXTENSION_ID,
         name: YOUTUBE_EXTENSION,
+    } as const,
+    {
+        id: AIRBNB_EXTENSION_ID,
+        name: AIRBNB_EXTENSION,
+    } as const,
+    {
+        id: SPOTIFY_EXTENSION_ID,
+        name: SPOTIFY_EXTENSION,
+    } as const,
+    {
+        id: WHATSAPP_EXTENSION_ID,
+        name: WHATSAPP_EXTENSION,
+    } as const,
+    {
+        id: BROWSER_HISTORY_EXTENSION_ID,
+        name: BROWSER_HISTORY_EXTENSION,
+    } as const,
+    {
+        id: MY_HUB_EXTENSION_ID,
+        name: MY_HUB_EXTENSION,
+    } as const,
+    {
+        id: ENRICHMENT_EXTENSION_ID,
+        name: ENRICHMENT_EXTENSION,
     } as const,
 ] satisfies { id: string; name: string }[];
 

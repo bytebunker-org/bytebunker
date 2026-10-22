@@ -5,6 +5,7 @@ export class PipelineBlueprintDatatableDto extends PickType(PipelineBlueprintDto
     'id',
     'title',
     'description',
+    'key',
     'createdAt',
     'updatedAt',
 ] as const) {}

@@ -7,6 +7,7 @@ import { GraphDatabaseModule } from './graph-database/graph-database.module.js';
 import { ActivityStableKeyService } from './activity-stable-key.service.js';
 import { ActivityGraphNodeService } from './activity-graph-node.service.js';
 import { ActivityGraphPersisterService } from './activity-graph-persister.service.js';
+import { NodeStableKeyIndexService } from './node-stable-key-index.service.js';
 
 @Module({
     imports: [UserModule, GraphDatabaseModule],
@@ -15,8 +16,15 @@ import { ActivityGraphPersisterService } from './activity-graph-persister.servic
         ActivityGraphPersisterService,
         ActivityStableKeyService,
         ActivityGraphNodeService,
+        NodeStableKeyIndexService,
     ],
-    exports: [ActivityGraphService, ActivityGraphPersisterService, ActivityStableKeyService, ActivityGraphNodeService],
+    exports: [
+        ActivityGraphService,
+        ActivityGraphPersisterService,
+        ActivityStableKeyService,
+        ActivityGraphNodeService,
+        NodeStableKeyIndexService,
+    ],
 })
 export class ActivityGraphModule implements OnApplicationBootstrap {
     private readonly logger = new Logger(ActivityGraphModule.name);

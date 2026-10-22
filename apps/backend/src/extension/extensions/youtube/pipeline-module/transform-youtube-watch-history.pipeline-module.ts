@@ -1,9 +1,7 @@
 import { Items, Required } from 'ts-decorator-json-schema-generator';
 import { Logger } from '@nestjs/common';
 import { DateTime } from 'luxon';
-import type { ASObject, Audio, Listen, View } from '@bytebunker/event-schema';
-import { createUnknownASType } from '@bytebunker/event-schema';
-import { type YouTubeWatchEntry, YouTubeProductEnum } from '@bytebunker/event-schema/extension/youtube';
+import { YouTubeProductEnum } from '@bytebunker/event-schema/extension/youtube';
 import { AssetDto } from '../../../../etl/asset/dto/asset.dto.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { AssetService } from '../../../../etl/asset/asset.service.js';
@@ -18,8 +16,13 @@ import type {
 } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
 import { YOUTUBE_EXTENSION, YOUTUBE_EXTENSION_ID } from '../../local-extension.constant.js';
 import { parseYouTubeWatchHistory } from '../util/youtube-watch-history.parser.js';
-import type { YouTubeViewActivityInterface } from '../type/youtube-view-activity.interface.js';
-import type { YouTubeVideoObjectInterface } from '../type/youtube-video-object.interface.js';
+import { looksLikeTakeoutActivityHtml } from '../../google/util/google-activity-html.parser.js';
+import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
+import {
+    buildYouTubeListenActivity,
+    buildYouTubeViewActivity,
+    type YouTubeActivityBuildContext,
+} from '../util/youtube-activity.builder.js';
 
 @PipelineModuleJsonSchema()
 export class TransformYouTubeWatchHistoryInput {
@@ -51,19 +54,62 @@ export class TransformYouTubeWatchHistoryPipelineModule
         private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
 
+    public detectFile(sample: FileSample): FileDetection | undefined {
+        if (sample.extension !== 'html') {
+            return undefined;
+        }
+
+        const isWatchHistoryName = /^(watch-history|wiedergabeverlauf)\.html$/i.test(sample.fileName);
+
+        if (isWatchHistoryName && looksLikeTakeoutActivityHtml(sample.head)) {
+            return { confidence: 0.95, format: 'YouTube watch history (Google Takeout)' };
+        }
+
+        if (!/youtube\.com\/watch\?v=/.test(sample.head)) {
+            return undefined;
+        }
+
+        // "My Activity" exports and the search history use the same HTML; their own importers claim them.
+        if (
+            /my activity|meine aktivit/i.test(sample.relativePath) ||
+            /search-history|suchverlauf/i.test(sample.fileName)
+        ) {
+            return { confidence: 0.3, format: 'Google My Activity (YouTube)' };
+        }
+
+        return {
+            confidence: isWatchHistoryName ? 0.95 : 0.7,
+            format: 'YouTube watch history (Google Takeout)',
+        };
+    }
+
     public async executeModule({
         em,
         inputData,
+        progress,
     }: PipelineModuleExecutionContext<TransformYouTubeWatchHistoryInput>): Promise<TransformYouTubeWatchHistoryOutput> {
         const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, YOUTUBE_EXTENSION_ID);
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
         const actorId = ownerActor.get('id')!;
 
+        progress.message('Reading watch history');
         const rawHtml = await this.assetService.getAssetString(em, inputData.rawHtml);
+        progress.message('Parsing HTML');
         const entries = parseYouTubeWatchHistory(rawHtml, this.logger);
+        progress.report({
+            current: 0,
+            total: entries.length,
+            unit: 'entries',
+            message: `Found ${entries.length} entries`,
+        });
 
         this.logger.log(`Parsed ${entries.length} YouTube watch history entries`);
 
+        const context: YouTubeActivityBuildContext = {
+            stableKeyService: this.activityStableKeyService,
+            generator: generatorExtensionObject,
+            actorId,
+        };
         const activities: ActivityDto[] = [];
 
         for (const entry of entries) {
@@ -75,103 +121,12 @@ export class TransformYouTubeWatchHistoryPipelineModule
 
             const activity =
                 entry.product === YouTubeProductEnum.YOUTUBE_MUSIC
-                    ? this.buildListenActivity(entry, watchedAt, generatorExtensionObject, actorId)
-                    : this.buildViewActivity(entry, watchedAt, generatorExtensionObject, actorId);
+                    ? buildYouTubeListenActivity(entry, watchedAt, context)
+                    : buildYouTubeViewActivity(entry, watchedAt, context);
 
             activities.push(activity as unknown as ActivityDto);
         }
 
         return { activities };
     }
-
-    private buildViewActivity(
-        entry: YouTubeWatchEntry,
-        watchedAt: DateTime<true>,
-        generatorExtensionObject: ASObject,
-        actorId: string,
-    ): View & YouTubeViewActivityInterface {
-        const videoObject: Audio & YouTubeVideoObjectInterface = {
-            '@type': 'Video' as Audio['@type'],
-            '@secondaryTypes': [createUnknownASType('YouTubeVideo')],
-            stableKeys: [
-                this.activityStableKeyService.createASObjectStableKey('Video', {
-                    videoId: entry.videoId,
-                }),
-            ],
-            name: entry.title,
-            videoId: entry.videoId,
-            videoUrl: entry.videoUrl,
-            ...(entry.channelName ? { channelName: entry.channelName } : {}),
-            ...(entry.channelId ? { channelId: entry.channelId } : {}),
-            ...(entry.channelUrl ? { channelUrl: entry.channelUrl } : {}),
-        } as Audio & YouTubeVideoObjectInterface;
-
-        return {
-            '@type': 'View',
-            '@secondaryTypes': [createUnknownASType('YouTubeViewActivity')],
-            generator: generatorExtensionObject,
-            stableKeys: [
-                this.activityStableKeyService.createActivityStableKey(
-                    'View',
-                    { start: watchedAt, videoId: entry.videoId },
-                    { dateTimePrecision: 'minute' },
-                ),
-            ],
-            actor: {
-                '@id': actorId,
-                '@type': 'Person',
-            },
-            startTime: watchedAt,
-            product: entry.product,
-            object: videoObject,
-        } satisfies View & YouTubeViewActivityInterface;
-    }
-
-    private buildListenActivity(
-        entry: YouTubeWatchEntry,
-        watchedAt: DateTime<true>,
-        generatorExtensionObject: ASObject,
-        actorId: string,
-    ): Listen {
-        const identifier = `youtube:track:${entry.videoId}`;
-
-        const audioObject: Audio = {
-            '@type': 'Audio',
-            '@secondaryTypes': [createUnknownASType('MusicRecording')],
-            stableKeys: [
-                this.activityStableKeyService.createASObjectStableKey('Audio', {
-                    identifier,
-                }),
-            ],
-            name: entry.title,
-            ...(entry.channelName ? { byArtist: stripTopicSuffix(entry.channelName) } : {}),
-            identifier,
-        } as Audio;
-
-        return {
-            '@type': 'Listen',
-            generator: generatorExtensionObject,
-            stableKeys: [
-                this.activityStableKeyService.createActivityStableKey(
-                    'Listen',
-                    { start: watchedAt, videoId: entry.videoId },
-                    { dateTimePrecision: 'minute' },
-                ),
-            ],
-            actor: {
-                '@id': actorId,
-                '@type': 'Person',
-            },
-            startTime: watchedAt,
-            object: audioObject,
-        } satisfies Listen;
-    }
-}
-
-/**
- * YouTube Music auto-generated artist channels are named like `NERO - Topic` — the artist is the
- * portion before the suffix. Channels without that suffix are user-uploaded; return as-is.
- */
-function stripTopicSuffix(channelName: string): string {
-    return channelName.replace(/\s*-\s*Topic\s*$/, '').trim() || channelName;
 }

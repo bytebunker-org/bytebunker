@@ -1,0 +1,162 @@
+{
+    "title": "Place enrichment",
+    "description": "Nightly 03:30: canonical places, offline geocoding, home/work periods, trips, music on the move, confirmed events, daily summaries. Run by hand: POST /pipelines-blueprints/:id/run.",
+    "data": {
+        "edges": [
+            {
+                "id": 0,
+                "source": 1,
+                "target": 2,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 1,
+                "source": 2,
+                "target": 3,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 2,
+                "source": 3,
+                "target": 4,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 3,
+                "source": 4,
+                "target": 5,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 4,
+                "source": 5,
+                "target": 6,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 5,
+                "source": 6,
+                "target": 7,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            },
+            {
+                "id": 6,
+                "source": 7,
+                "target": 8,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            }
+        ],
+        "nodes": [
+            {
+                "id": 1,
+                "moduleId": "common-pipeline-triggers:schedule-trigger@1",
+                "position": {
+                    "x": 0,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "cron": "30 3 * * *",
+                    "timezone": "Europe/Berlin"
+                }
+            },
+            {
+                "id": 2,
+                "moduleId": "enrichment:consolidate-places@1",
+                "position": {
+                    "x": 320,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "radiusMeters": 75,
+                    "maxClusterSpanMeters": 300
+                }
+            },
+            {
+                "id": 3,
+                "moduleId": "enrichment:geocode-places-offline@1",
+                "position": {
+                    "x": 640,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "maxCityDistanceKm": 100,
+                    "metroRadiusKm": 25,
+                    "metroMinPopulation": 100000,
+                    "setActivityTimezones": true
+                }
+            },
+            {
+                "id": 4,
+                "moduleId": "enrichment:derive-home-work@1",
+                "position": {
+                    "x": 960,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "maxGapDays": 60,
+                    "minTakeoverVisits": 3
+                }
+            },
+            {
+                "id": 5,
+                "moduleId": "enrichment:derive-trips@1",
+                "position": {
+                    "x": 1280,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "minDistanceKm": 100,
+                    "minAwayHours": 20,
+                    "minLongStayDistanceKm": 25,
+                    "homeRadiusKm": 1,
+                    "maxDataGapHours": 48,
+                    "timezone": "Europe/Berlin"
+                }
+            },
+            {
+                "id": 6,
+                "moduleId": "enrichment:link-listens-to-moves@1",
+                "position": {
+                    "x": 1600,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "minOverlapSeconds": 30,
+                    "includeViews": true
+                }
+            },
+            {
+                "id": 7,
+                "moduleId": "enrichment:confirm-events@1",
+                "position": {
+                    "x": 1920,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "windowMinutes": 60,
+                    "minSimilarity": 0.6,
+                    "homeRadiusKm": 1
+                }
+            },
+            {
+                "id": 8,
+                "moduleId": "enrichment:daily-summary@1",
+                "position": {
+                    "x": 2240,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "timezone": "Europe/Berlin",
+                    "linkActivities": false
+                }
+            }
+        ]
+    }
+}

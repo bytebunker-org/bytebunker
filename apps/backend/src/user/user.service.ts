@@ -61,11 +61,16 @@ export class UserService {
 
     public async getOwnerUser(em: EntityManager): Promise<UserEntity> {
         if (!this.ownerUser) {
-            this.ownerUser = await em.findOneOrFail(UserEntity, {
-                username: {
-                    $ne: (await this.getNullUser(em)).username,
+            // The owner is the first real user; ordering keeps it stable once more users (e.g. test logins) exist.
+            this.ownerUser = await em.findOneOrFail(
+                UserEntity,
+                {
+                    username: {
+                        $ne: (await this.getNullUser(em)).username,
+                    },
                 },
-            });
+                { orderBy: { id: 'asc' } },
+            );
         }
 
         return this.ownerUser;

@@ -1,35 +1,69 @@
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
-import { PipelineTriggerService } from '../../../etl/pipeline/execution/pipeline-trigger.service.js';
 import { EntityManager } from '@mikro-orm/postgresql';
-import {
-    LocalFileTriggerInput,
-    LocalFileTriggerOutput,
-    LocalFileTriggerPipelineModule,
-} from './pipeline-module/local-file-trigger.pipeline-module.js';
 import { type FSWatcher, watch } from 'chokidar';
 import { SettingService } from '../../../shared/setting/setting.service.js';
 import fs from 'node:fs/promises';
-import type { Stats } from 'node:fs';
-import micromatch from 'micromatch';
+import { join, relative, resolve } from 'node:path';
+import { moveFile } from 'move-file';
+import type { SkippedPipelineTriggerResult } from '../../../etl/pipeline/execution/pipeline-trigger-result.type.js';
+import { PipelineExecutionEntity } from '../../../etl/pipeline/entity/pipeline-execution.entity.js';
+import { PipelineExecutionStatusEnum } from '../../../etl/pipeline/type/pipeline-execution-status.enum.js';
 import { AssetService } from '../../../etl/asset/asset.service.js';
 import { AssetTypeEnum } from '../../../etl/asset/type/asset-type.enum.js';
-import { join } from 'node:path';
-import { moveFile } from 'move-file';
+import { FileImportService } from './file-import.service.js';
 
+interface ImportFolders {
+    import: string;
+    /** Files whose executions are still running. Derived from the import folder, not a setting. */
+    processing: string;
+    finished: string;
+    failed: string;
+}
+
+/** A file in the processing folder and the executions that decide where it goes. */
+interface ProcessingFile {
+    executionIds: number[];
+    /** Some matching blueprint could not even create its execution. */
+    hadCreationFailure: boolean;
+}
+
+const CHECK_INTERVAL_MS = 5000;
+/** A file must be untouched this long before the sweep picks it up, so it never grabs a file still being written. */
+const SWEEP_MIN_AGE_MS = 5000;
+
+/**
+ * Watches the import folder and hands every new file to {@link FileImportService}. The file moves to the processing
+ * folder first and stays there while its executions run; once all of them ended it moves to the finished folder
+ * (all succeeded, or the file was skipped as an already imported duplicate) or to the failed folder.
+ *
+ * Which executions belong to a file is kept in memory and rebuilt at boot from the files left in the processing
+ * folder: their content hash leads to the trigger asset, and from there to the executions.
+ */
 @Injectable()
 export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplicationShutdown {
     private readonly logger = new Logger(LocalFileTriggerService.name);
     private watcher: FSWatcher | undefined;
+    /**
+     * Resolved once at boot. Reading the settings per file hit the settings cache after its TTL expired, which
+     * returned the default folders and lost the file. Changing the folders needs a restart (as the watcher did).
+     */
+    private folders: ImportFolders | undefined;
+    /** Keyed by the path relative to the import (and processing) folder. */
+    private readonly processingFiles = new Map<string, ProcessingFile>();
+    private checkTimer: NodeJS.Timeout | undefined;
+    private checking: Promise<void> | undefined;
+    /** Files of the import folder currently being handled, so the watcher and the sweep never take the same file. */
+    private readonly inFlightFiles = new Set<string>();
 
     constructor(
         private readonly em: EntityManager,
-        private readonly pipelineTriggerService: PipelineTriggerService,
         private readonly settingService: SettingService,
+        private readonly fileImportService: FileImportService,
         private readonly assetService: AssetService,
     ) {}
 
-    public onApplicationBootstrap(): Promise<void> {
-        return this.em.transactional(async (em) => {
+    public async onApplicationBootstrap(): Promise<void> {
+        await this.em.transactional(async (em) => {
             const {
                 localFileTriggerImportFolderSetting,
                 localFileTriggerImportFinishedFolderSetting,
@@ -40,163 +74,321 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
                 'localFileTriggerImportFailedFolder',
             ]);
 
-            for (const folder of [
-                localFileTriggerImportFolderSetting,
-                localFileTriggerImportFinishedFolderSetting,
-                localFileTriggerImportFailedFolderSetting,
-            ]) {
-                await fs.mkdir(folder, { recursive: true });
+            const importFolder = resolve(process.cwd(), localFileTriggerImportFolderSetting);
 
-                this.logger.log(`Created folder ${folder} for local file triggers`);
-            }
-
-            this.watcher = watch('.', {
-                awaitWriteFinish: true,
-                cwd: localFileTriggerImportFolderSetting,
-                alwaysStat: true,
-            });
-            // onFileAdded handles its own errors, but attach a catch as a last line of defence:
-            // an unhandled rejection escaping this fire-and-forget handler would otherwise crash the process.
-            this.watcher.on('add', (filePath, stats) => {
-                void this.onFileAdded(filePath, stats!).catch((error) => {
-                    this.logger.error(`Unexpected error handling added file ${filePath}`, error);
-                });
-            });
-
-            /*const pipelineTriggers = await this.pipelineTriggerService.findMatchingTriggerNodes(
-                em,
-                LocalFileTriggerPipelineModule,
-            );
-
-            for (const { node } of pipelineTriggers) {
-            }*/
+            this.folders = {
+                import: importFolder,
+                processing: `${importFolder}-processing`,
+                finished: resolve(process.cwd(), localFileTriggerImportFinishedFolderSetting),
+                failed: resolve(process.cwd(), localFileTriggerImportFailedFolderSetting),
+            };
         });
+
+        const folders = this.folders!;
+
+        for (const folder of Object.values(folders)) {
+            await fs.mkdir(folder, { recursive: true });
+        }
+
+        this.logger.log(`Watching ${folders.import} for imports`);
+
+        this.watcher = watch('.', {
+            awaitWriteFinish: true,
+            cwd: folders.import,
+            alwaysStat: true,
+        });
+        // onFileAdded handles its own errors, but attach a catch as a last line of defence:
+        // an unhandled rejection escaping this fire-and-forget handler would otherwise crash the process.
+        this.watcher.on('add', (filePath) => {
+            void this.handleAddedFile(filePath);
+        });
+
+        // Not awaited: re-importing files needs the pipeline modules, which register in a later bootstrap hook.
+        void this.reconcileProcessingFolder().catch((error) => {
+            this.logger.error(`Couldn't reconcile the processing folder ${folders.processing}`, error);
+        });
+
+        this.checkTimer = setInterval(() => {
+            void this.checkProcessingFiles();
+            void this.sweepImportFolder();
+        }, CHECK_INTERVAL_MS);
+        this.checkTimer.unref();
     }
 
     public async onApplicationShutdown(): Promise<void> {
+        clearInterval(this.checkTimer);
         await this.watcher?.close();
     }
 
-    private async onFileAdded(filePath: string, stats: Stats): Promise<void> {
-        const {
-            localFileTriggerImportFolderSetting,
-            localFileTriggerImportFinishedFolderSetting,
-            localFileTriggerImportFailedFolderSetting,
-        } = await this.settingService.getSettingValues(this.em.fork(), [
-            'localFileTriggerImportFolder',
-            'localFileTriggerImportFinishedFolder',
-            'localFileTriggerImportFailedFolder',
-        ]);
+    /**
+     * Moves every processing file whose executions all ended to the finished or failed folder. Runs periodically;
+     * overlapping calls share one run.
+     */
+    public checkProcessingFiles(): Promise<void> {
+        this.checking ??= this.doCheckProcessingFiles().finally(() => {
+            this.checking = undefined;
+        });
 
-        const fullRelativeFilePath = join(process.cwd(), localFileTriggerImportFolderSetting, filePath);
+        return this.checking;
+    }
 
-        // Diagnostics collected while matching, so a "no pipeline" failure can explain *why*: which trigger
-        // glob patterns were checked and whether any actually matched the file.
-        const consideredTriggers: { nodeId: number | string; globPatterns: string[] }[] = [];
-        let anyTriggerMatched = false;
+    /**
+     * Safety net for the watcher: chokidar can miss a file written into a directory that was created just before it
+     * (the new directory is only watched after its own event), e.g. when a whole takeout folder is copied in. Picks
+     * up every file that is still in the import folder and has not changed for a few seconds.
+     */
+    public async sweepImportFolder(): Promise<void> {
+        const folders = this.folders;
 
-        // The transaction is scoped to just the database work. Error handling and file moves happen
-        // outside of it: once any statement fails, Postgres aborts the whole transaction, so the commit
-        // attempt at the end of `transactional` would throw on its own. Catching that here (instead of
-        // inside the transaction) keeps a failed import from turning into an unhandled rejection.
+        if (!folders) {
+            return;
+        }
+
+        const entries = await fs.readdir(folders.import, { recursive: true, withFileTypes: true }).catch(() => []);
+        const now = Date.now();
+
+        for (const entry of entries) {
+            if (!entry.isFile()) {
+                continue;
+            }
+
+            const absolutePath = join(entry.parentPath, entry.name);
+            const filePath = relative(folders.import, absolutePath);
+
+            if (this.inFlightFiles.has(filePath)) {
+                continue;
+            }
+
+            const stats = await fs.stat(absolutePath).catch(() => undefined);
+
+            // ctime too: a copy that preserves the source's mtime (cp -p) is still new to this folder.
+            if (!stats || now - Math.max(stats.mtimeMs, stats.ctimeMs) < SWEEP_MIN_AGE_MS) {
+                continue;
+            }
+
+            this.logger.warn(`Picked up ${filePath}, which the file watcher missed`);
+            void this.handleAddedFile(filePath);
+        }
+    }
+
+    private async handleAddedFile(filePath: string): Promise<void> {
+        if (this.inFlightFiles.has(filePath)) {
+            return;
+        }
+
+        this.inFlightFiles.add(filePath);
+
         try {
-            const createdPipelines = await this.em.fork().transactional((em) =>
-                this.pipelineTriggerService.executeBlueprintFromTrigger<LocalFileTriggerInput, LocalFileTriggerOutput>(
-                    em,
-                    LocalFileTriggerPipelineModule,
-                    {
-                        matchNode: ({ node }) => {
-                            const options = node.constantInputData;
+            // The sweep may have taken the file before the watcher's (delayed) event arrived.
+            if (!(await fs.stat(join(this.folders!.import, filePath)).catch(() => undefined))) {
+                return;
+            }
 
-                            if (!options?.globPatterns || !Array.isArray(options?.globPatterns)) {
-                                throw new Error(
-                                    `Invalid glob patterns ${options?.globPatterns} for pipeline trigger node ${node.id}.`,
-                                );
-                            }
+            await this.onFileAdded(filePath);
+        } catch (error) {
+            // onFileAdded handles its own errors; this is the last line of defence against an unhandled rejection.
+            this.logger.error(`Unexpected error handling added file ${filePath}`, error);
+        } finally {
+            this.inFlightFiles.delete(filePath);
+        }
+    }
 
-                            if (!options?.globPatterns.length) {
-                                return false;
-                            }
+    private async onFileAdded(filePath: string): Promise<void> {
+        const folders = this.folders!;
+        const absolutePath = join(folders.import, filePath);
 
-                            consideredTriggers.push({ nodeId: node.id, globPatterns: options.globPatterns });
+        if (this.fileImportService.isIgnored(filePath)) {
+            this.logger.log(`Ignoring ${filePath} (media or system file)`);
+            await this.move(absolutePath, join(folders.failed, filePath), filePath);
 
-                            const matched = micromatch.isMatch(filePath, options.globPatterns);
-                            anyTriggerMatched ||= matched;
+            return;
+        }
 
-                            return matched;
-                        },
-                        buildNodeData: async () => {
-                            const fileAsset = await this.assetService.storeAssetFromLocalFile(em, fullRelativeFilePath, {
-                                type: AssetTypeEnum.PIPELINE,
-                                originalFilePath: filePath,
-                                size: stats.size,
-                                metadata: {},
-                            });
+        if (!(await this.move(absolutePath, join(folders.processing, filePath), filePath))) {
+            return;
+        }
 
-                            // TODO: Add new pipeline id to pipeline asset metadata, maybe do it automatically by scanning output data?
-                            return {
-                                fileAsset,
-                            };
-                        },
-                    },
+        await this.importProcessingFile(filePath);
+    }
+
+    /** Imports a file that already sits in the processing folder. */
+    private async importProcessingFile(filePath: string): Promise<void> {
+        const folders = this.folders!;
+        const result = await this.fileImportService.importFile({
+            absolutePath: join(folders.processing, filePath),
+            relativePath: filePath,
+        });
+
+        if (result.outcome === 'started') {
+            this.processingFiles.set(filePath, {
+                executionIds: result.executions.flatMap((execution) =>
+                    execution.executionId !== undefined ? [execution.executionId] : [],
+                ),
+                hadCreationFailure: result.executions.some((execution) => execution.status === 'failed'),
+            });
+
+            return;
+        }
+
+        if (result.outcome === 'skipped') {
+            // A duplicate import is a normal outcome, not a failure: report it at info level and treat the file as
+            // finished so it does not pile up in the failed folder on every repeated drop.
+            this.logger.log(
+                this.buildSkippedImportMessage(
+                    filePath,
+                    result.triggerResults.filter((r): r is SkippedPipelineTriggerResult => r.status === 'skipped'),
                 ),
             );
+            await this.moveOutOfProcessing(filePath, 'finished');
 
-            if (!createdPipelines.length) {
-                throw new Error(this.buildNoPipelineError(filePath, consideredTriggers, anyTriggerMatched));
-            }
+            return;
+        }
 
-            await moveFile(
-                fullRelativeFilePath,
-                join(process.cwd(), localFileTriggerImportFinishedFolderSetting, filePath),
-            );
+        const reasons = result.executions
+            .filter((execution) => execution.reason)
+            .map((execution) => `"${execution.blueprintTitle}": ${execution.reason}`)
+            .join('; ');
+        this.logger.error(
+            `Couldn't start a pipeline for imported file ${filePath}: ${result.message || reasons || result.outcome}`,
+        );
+        await this.moveOutOfProcessing(filePath, 'failed');
+    }
+
+    private async doCheckProcessingFiles(): Promise<void> {
+        if (!this.processingFiles.size) {
+            return;
+        }
+
+        const executionIds = [...this.processingFiles.values()].flatMap((file) => file.executionIds);
+        let statusById: Map<number, PipelineExecutionStatusEnum>;
+
+        try {
+            const executions = await this.em
+                .fork()
+                .find(PipelineExecutionEntity, { id: { $in: executionIds } }, { fields: ['id', 'executionStatus'] });
+            statusById = new Map(executions.map((execution) => [execution.id, execution.executionStatus]));
         } catch (error) {
-            this.logger.error(`Couldn't start pipeline from local file trigger for imported file ${filePath}`, error);
+            this.logger.warn('Could not check the executions of files being imported', error);
 
-            try {
-                await moveFile(
-                    fullRelativeFilePath,
-                    join(process.cwd(), localFileTriggerImportFailedFolderSetting, filePath),
-                );
-            } catch (moveError) {
-                this.logger.error(`Couldn't move failed import file ${filePath} to failed folder`, moveError);
+            return;
+        }
+
+        for (const [filePath, file] of [...this.processingFiles]) {
+            // A missing execution (deleted with its blueprint) can never succeed.
+            const statuses = file.executionIds.map((id) => statusById.get(id));
+
+            if (statuses.includes(PipelineExecutionStatusEnum.WAITING)) {
+                continue;
             }
+
+            const succeeded =
+                !file.hadCreationFailure && statuses.every((status) => status === PipelineExecutionStatusEnum.SUCCESS);
+
+            this.processingFiles.delete(filePath);
+
+            if (succeeded) {
+                this.logger.log(`Import of ${filePath} finished`);
+            } else {
+                this.logger.error(
+                    `Import of ${filePath} failed (executions ${file.executionIds.join(', ')}: ${statuses.join(', ')})`,
+                );
+            }
+
+            await this.moveOutOfProcessing(filePath, succeeded ? 'finished' : 'failed');
         }
     }
 
     /**
-     * Builds an actionable error explaining why an imported file produced no pipeline, distinguishing the
-     * three possible causes: a blueprint matched but its execution failed, no trigger blueprint was found
-     * at all, or blueprints were found but none of their glob patterns matched the file.
+     * Picks up files left in the processing folder by a previous run. A file whose content already has a trigger
+     * asset with executions is tracked again (latest execution per blueprint); a file without any never got its
+     * executions committed, so it is imported again.
      */
-    private buildNoPipelineError(
-        filePath: string,
-        consideredTriggers: { nodeId: number | string; globPatterns: string[] }[],
-        anyTriggerMatched: boolean,
-    ): string {
-        if (anyTriggerMatched) {
-            return (
-                `Imported file "${filePath}" matched a local-file-trigger blueprint, but no pipeline could be started. ` +
-                `See the preceding "Failed to execute pipeline from trigger" error for the underlying cause.`
-            );
+    private async reconcileProcessingFolder(): Promise<void> {
+        const folders = this.folders!;
+        const entries = await fs.readdir(folders.processing, { recursive: true, withFileTypes: true });
+        const filePaths = entries
+            .filter((entry) => entry.isFile())
+            .map((entry) => relative(folders.processing, join(entry.parentPath, entry.name)));
+
+        if (filePaths.length) {
+            this.logger.log(`Reconciling ${filePaths.length} file(s) left in ${folders.processing}`);
         }
 
-        if (!consideredTriggers.length) {
-            return (
-                `Imported file "${filePath}" matched no pipeline: no blueprint uses the local-file-trigger module ` +
-                `with configured glob patterns. Create a blueprint with a local-file-trigger node whose globPatterns ` +
-                `match this path and re-save it so its used modules are linked.`
-            );
+        for (const filePath of filePaths) {
+            try {
+                const executionIds = await this.findExecutionsForFile(join(folders.processing, filePath));
+
+                if (executionIds.length) {
+                    this.processingFiles.set(filePath, { executionIds, hadCreationFailure: false });
+                } else {
+                    await this.importProcessingFile(filePath);
+                }
+            } catch (error) {
+                this.logger.error(`Couldn't reconcile ${filePath} in the processing folder`, error);
+            }
         }
 
-        const checked = consideredTriggers
-            .map((trigger) => `node ${trigger.nodeId}: [${trigger.globPatterns.join(', ')}]`)
+        await this.checkProcessingFiles();
+    }
+
+    private async findExecutionsForFile(absolutePath: string): Promise<number[]> {
+        const em = this.em.fork();
+        const asset = await this.assetService.findByContent(
+            em,
+            AssetTypeEnum.PIPELINE,
+            await fs.readFile(absolutePath),
+        );
+
+        if (!asset) {
+            return [];
+        }
+
+        const executions = await em.find(
+            PipelineExecutionEntity,
+            { triggerAsset: asset.id, dryRun: false },
+            { fields: ['id', 'blueprint'], orderBy: { id: 'desc' } },
+        );
+        const latestPerBlueprint = new Map<number, number>();
+
+        for (const execution of executions) {
+            if (!latestPerBlueprint.has(execution.blueprint.id)) {
+                latestPerBlueprint.set(execution.blueprint.id, execution.id);
+            }
+        }
+
+        return [...latestPerBlueprint.values()];
+    }
+
+    private async moveOutOfProcessing(filePath: string, target: 'finished' | 'failed'): Promise<void> {
+        const folders = this.folders!;
+
+        await this.move(join(folders.processing, filePath), join(folders[target], filePath), filePath);
+    }
+
+    private async move(from: string, to: string, filePath: string): Promise<boolean> {
+        try {
+            await moveFile(from, to);
+
+            return true;
+        } catch (error) {
+            this.logger.error(`Couldn't move imported file ${filePath} to ${to}`, error);
+
+            return false;
+        }
+    }
+
+    /**
+     * Explains that an imported file was intentionally not reprocessed because its exact content already ran
+     * through the matching blueprint(s).
+     */
+    private buildSkippedImportMessage(filePath: string, skippedPipelines: SkippedPipelineTriggerResult[]): string {
+        const details = skippedPipelines
+            .map((skipped) => `blueprint "${skipped.blueprintTitle}" (${skipped.blueprintId}): ${skipped.reason}`)
             .join('; ');
 
         return (
-            `Imported file "${filePath}" did not match any local-file-trigger glob pattern. ` +
-            `Checked ${consideredTriggers.length} trigger node(s): ${checked}. ` +
-            `Adjust a blueprint's globPatterns or the file's path relative to the import folder.`
+            `Imported file "${filePath}" was skipped as a duplicate import - ${details}. ` +
+            `Set "allowReimport" on the local-file-trigger node to force a re-run.`
         );
     }
 }

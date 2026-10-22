@@ -1,0 +1,43 @@
+{
+    "title": "Place refinement (Mapbox)",
+    "description": "Hourly at :45: names places (POI, address, city) via Mapbox reverse geocoding, most visited first, about 6 requests/s. Needs geocoding.mapboxAccessToken.",
+    "data": {
+        "edges": [
+            {
+                "id": 0,
+                "source": 1,
+                "target": 2,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
+            }
+        ],
+        "nodes": [
+            {
+                "id": 1,
+                "moduleId": "common-pipeline-triggers:schedule-trigger@1",
+                "position": {
+                    "x": 0,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "cron": "45 * * * *",
+                    "timezone": "Europe/Berlin"
+                }
+            },
+            {
+                "id": 2,
+                "moduleId": "enrichment:refine-places-mapbox@1",
+                "position": {
+                    "x": 320,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "maxPlaces": 3000,
+                    "language": "de,en",
+                    "movedMeters": 100,
+                    "maxConsecutiveFailures": 5
+                }
+            }
+        ]
+    }
+}

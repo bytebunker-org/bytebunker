@@ -4,80 +4,256 @@ import type {
     RequiredActivityGraphObjectInterface,
 } from './type/required-activity-graph.interface.js';
 import { extractASObjectId } from './activity-graph.util.js';
-import type { ASObject } from '@bytebunker/event-schema';
+import type { ASObject, ASObjectType } from '@bytebunker/event-schema';
 import { toSnakeCase } from 'js-convert-case';
 import * as R from 'remeda';
 import { relationshipInfoMap } from './schema/graph-schema.constant.js';
 import { v7 as uuidV7 } from 'uuid';
-import { Neode } from '@bytebunker/neode';
+import { Neode, RelationshipDirectionEnum } from '@bytebunker/neode';
 import type { ActivityDto } from './dto/activity.dto.js';
 import type { EntityManager } from '@mikro-orm/postgresql';
-import { NodeStableKeyEntity } from './entity/node-stable-key.entity.js';
 import { NEODE_PROVIDER } from './graph-database/neode.constant.js';
-import { groupByKeySingle } from '../util/util.js';
+import { NodeLabelEnum } from './node-label.enum.js';
+import { ACTIVITY_GRAPH_CHUNK_SIZE } from './activity-graph.constant.js';
+import type {
+    ActivityGraphSampleDto,
+    CreateActivityGraphOptions,
+    CreateActivityGraphResult,
+    ImportProvenance,
+} from './type/create-activity-graph.interface.js';
+import {
+    NodeStableKeyIndexService,
+    type NodeStableKeyRow,
+    truncateStableKey,
+} from './node-stable-key-index.service.js';
+import type { UpsertObjectsOptions, UpsertObjectsResult } from './type/upsert-objects.interface.js';
+
+const ACTIVITY_ALIAS = 'activity';
+const OBJECT_ALIAS_PREFIX = 'obj_';
+const STANDALONE_OBJECT_ALIAS = 'node';
+
+/**
+ * A required object of an activity, resolved to the node it will be written to.
+ * `labels === undefined` means the object carries no `@type` and is looked up by id only.
+ */
+interface PreparedObject {
+    propertyKey: string;
+    alias: string;
+    labels: string[] | undefined;
+    nodeId: string;
+    props: Record<string, unknown>;
+}
+
+interface PreparedRow {
+    shapeKey: string;
+    nodeId: string;
+    labels: string[];
+    props: Record<string, unknown>;
+    objects: PreparedObject[];
+}
+
+/**
+ * The shape of a single `$rows` entry handed to the batched Cypher statement.
+ */
+interface ChunkStats {
+    createdObjectCount: number;
+    samples: CreateActivityGraphResult['samples'];
+    sampleSize: number;
+}
+
+interface CypherRow {
+    id: string;
+    props: Record<string, unknown>;
+    objects: Record<string, { id: string; props: Record<string, unknown> }>;
+}
 
 @Injectable()
 export class ActivityGraphPersisterService {
     private readonly logger = new Logger(ActivityGraphPersisterService.name);
 
-    constructor(@Inject(NEODE_PROVIDER) private readonly neode: Neode) {}
+    constructor(
+        @Inject(NEODE_PROVIDER) private readonly neode: Neode,
+        private readonly nodeStableKeyIndexService: NodeStableKeyIndexService,
+    ) {}
 
+    /**
+     * Writes the given activities and their required objects into the graph.
+     *
+     * Activities are processed in chunks of {@link ACTIVITY_GRAPH_CHUNK_SIZE}. Per chunk the
+     * activities that already exist (by stable key) are dropped, the remaining rows are grouped by
+     * their "shape" (label set of the activity + relationship property keys with the label set of
+     * their target) and each shape is written with a single `UNWIND`-ed Cypher statement.
+     */
     public async createActivityGraph(
         em: EntityManager,
         activities: ActivityDto[],
-    ): Promise<{ createdCount: number; existingCount: number }> {
-        const stableKeys = new Set(activities.flatMap((a) => a.stableKeys).filter(Boolean));
-
+        options: CreateActivityGraphOptions = {},
+    ): Promise<CreateActivityGraphResult> {
         const activityType = activities[0]?.['@type'] ?? 'unknown';
+        const dryRun = options.dryRun ?? false;
+        const stats: ChunkStats = {
+            createdObjectCount: 0,
+            samples: { created: [], existing: [] },
+            sampleSize: options.sampleSize ?? 5,
+        };
 
-        const existingStableKeys = await em.findAll(NodeStableKeyEntity, {
-            fields: ['stableKey'],
-            where: {
-                stableKey: {
-                    $in: [...stableKeys],
-                },
-            },
-        });
-        const existingActivityStableKeys = new Set(existingStableKeys.flatMap((n) => n.stableKey));
+        /**
+         * stable key -> node id for the whole call. Seeded from Postgres per chunk and extended
+         * with every node id assigned in this call, so an object that appears in several chunks
+         * resolves to the same node.
+         */
+        const nodeIdByStableKey = new Map<string, string>();
 
-        const newActivities = activities.filter(
-            (activity) => !activity.stableKeys?.some((stableKey) => existingActivityStableKeys.has(stableKey)),
-        );
+        const chunks = R.chunk(activities, ACTIVITY_GRAPH_CHUNK_SIZE);
 
-        this.logger.log(
-            `Storing ${newActivities.length} ${activityType} activity node graphs, found ${activities.length - newActivities.length} duplicates.`,
-        );
+        let createdCount = 0;
+        let existingCount = 0;
+        let processedCount = 0;
 
-        const newActivityNodes = this.processActivitiesToNodes(newActivities);
-        const newActivityStableKeys = new Set(newActivityNodes.flatMap((a) => a.requiredStableKeys).filter(Boolean));
-
-        const existingASObjectStableKeys = await em.findAll(NodeStableKeyEntity, {
-            where: {
-                stableKey: {
-                    $in: [...newActivityStableKeys],
-                },
-            },
-        });
-        const existingASObjectStableKeyMap = groupByKeySingle(existingASObjectStableKeys, 'stableKey');
-
-        let i = 0;
-        for (const newActivityNode of newActivityNodes) {
-            await em.fork().transactional(async (em) => {
-                await this.insertActivityNodes(em, existingASObjectStableKeyMap, newActivityNode);
-                i++;
-
-                if (i % 100 === 0) {
-                    this.logger.log(`Stored ${i}/${newActivities.length} ${activityType} activity graphs...`);
-                }
+        for (const [chunkIndex, chunk] of chunks.entries()) {
+            const chunkResult = await this.persistChunk(em, chunk, nodeIdByStableKey, stats, {
+                dryRun,
+                provenance: options.provenance,
             });
+
+            createdCount += chunkResult.createdCount;
+            existingCount += chunkResult.existingCount;
+            processedCount += chunk.length;
+            options.onProgress?.({
+                processed: processedCount,
+                total: activities.length,
+                created: createdCount,
+                existing: existingCount,
+            });
+
+            this.logger.log(
+                `Stored ${processedCount}/${activities.length} ${activityType} activity graphs ` +
+                    `(chunk ${chunkIndex + 1}/${chunks.length}, ${chunkResult.createdCount} created, ${chunkResult.existingCount} duplicates).`,
+            );
         }
 
-        this.logger.log(`Done storing ${newActivities.length} ${activityType} activity graphs!`);
+        this.logger.log(
+            `${dryRun ? '[dry run] Would store' : 'Done storing'} ${createdCount} ${activityType} activity graphs, found ${existingCount} duplicates!`,
+        );
 
         return {
-            createdCount: newActivities.length,
-            existingCount: activities.length - newActivities.length,
+            createdCount,
+            existingCount,
+            createdObjectCount: stats.createdObjectCount,
+            dryRun,
+            samples: stats.samples,
         };
+    }
+
+    private async persistChunk(
+        em: EntityManager,
+        activities: ActivityDto[],
+        nodeIdByStableKey: Map<string, string>,
+        stats: ChunkStats,
+        { dryRun, provenance }: { dryRun: boolean; provenance?: ImportProvenance },
+    ): Promise<{ createdCount: number; existingCount: number }> {
+        const newStableKeys: NodeStableKeyRow[] = [];
+
+        // 1. Drop activities that already exist, either in the Postgres index or earlier in this call.
+        const unknownActivityStableKeys = activities
+            .flatMap((activity) => activity.stableKeys ?? [])
+            .filter(Boolean)
+            .map((stableKey) => truncateStableKey(stableKey))
+            .filter((stableKey) => !nodeIdByStableKey.has(stableKey));
+
+        this.rememberStableKeys(
+            nodeIdByStableKey,
+            await this.nodeStableKeyIndexService.findNodeIds(em, unknownActivityStableKeys),
+        );
+
+        const newActivities: { activity: ActivityDto; nodeId: string }[] = [];
+        let existingCount = 0;
+
+        for (const activity of activities) {
+            const stableKeys = (activity.stableKeys ?? []).filter(Boolean).map((key) => truncateStableKey(key));
+
+            if (stableKeys.some((stableKey) => nodeIdByStableKey.has(stableKey))) {
+                existingCount++;
+                addSample(stats.samples.existing, activity, stats.sampleSize);
+                continue;
+            }
+
+            addSample(stats.samples.created, activity, stats.sampleSize);
+
+            const nodeId = uuidV7();
+            newActivities.push({ activity, nodeId });
+
+            for (const stableKey of stableKeys) {
+                nodeIdByStableKey.set(stableKey, nodeId);
+                newStableKeys.push({ stableKey, nodeId });
+            }
+        }
+
+        if (newActivities.length === 0) {
+            return { createdCount: 0, existingCount };
+        }
+
+        // 2. Collect the required objects of the surviving activities and resolve their node ids.
+        const activityGraphs = this.processActivitiesToNodes(newActivities.map(({ activity }) => activity));
+
+        const unknownObjectStableKeys = activityGraphs
+            .flatMap((activityGraph) => activityGraph.requiredStableKeys)
+            .filter(Boolean)
+            .map((stableKey) => truncateStableKey(stableKey))
+            .filter((stableKey) => !nodeIdByStableKey.has(stableKey));
+
+        this.rememberStableKeys(
+            nodeIdByStableKey,
+            await this.nodeStableKeyIndexService.findNodeIds(em, unknownObjectStableKeys),
+        );
+
+        const objectKeyCountBefore = newStableKeys.length;
+        const rows = activityGraphs.map((activityGraph, index) =>
+            this.prepareRow(activityGraph, newActivities[index]!.nodeId, nodeIdByStableKey, newStableKeys),
+        );
+        stats.createdObjectCount += new Set(newStableKeys.slice(objectKeyCountBefore).map((row) => row.nodeId)).size;
+
+        if (dryRun) {
+            return { createdCount: newActivities.length, existingCount };
+        }
+
+        const provenanceParameter = {
+            executionId: provenance?.executionId ?? null,
+            assetId: provenance?.assetId ?? null,
+            importedAt: new Date().toISOString(),
+        };
+
+        // 3. One Cypher statement per shape, plus one batched stable key insert, in one transaction.
+        const rowsByShape = new Map<string, PreparedRow[]>();
+
+        for (const row of rows) {
+            const shapeRows = rowsByShape.get(row.shapeKey);
+
+            if (shapeRows) {
+                shapeRows.push(row);
+            } else {
+                rowsByShape.set(row.shapeKey, [row]);
+            }
+        }
+
+        await em.fork().transactional(async (transactionalEm) => {
+            for (const shapeRows of rowsByShape.values()) {
+                await this.neode.writeCypher(this.buildShapeCypher(shapeRows[0]!), {
+                    rows: shapeRows.map((row) => this.toCypherRow(row)),
+                    provenance: provenanceParameter,
+                });
+            }
+
+            await this.nodeStableKeyIndexService.insertMissing(transactionalEm, newStableKeys);
+        });
+
+        return { createdCount: newActivities.length, existingCount };
+    }
+
+    private rememberStableKeys(nodeIdByStableKey: Map<string, string>, found: Map<string, string>): void {
+        for (const [stableKey, nodeId] of found) {
+            nodeIdByStableKey.set(stableKey, nodeId);
+        }
     }
 
     private processActivitiesToNodes(activities: ActivityDto[]): RequiredActivityGraphInterface[] {
@@ -96,7 +272,7 @@ export class ActivityGraphPersisterService {
                     } satisfies RequiredActivityGraphObjectInterface;
 
                     requiredStableKeys.push(...(value['stableKeys']?.filter(Boolean) ?? []));
-                } else if (value && typeof value === 'object' && key !== 'stableKeys') {
+                } else if (value && typeof value === 'object' && key !== 'stableKeys' && key !== '@secondaryTypes') {
                     // TODO: Implement json properties in neode
                     // @ts-ignore
                     activity[key] = JSON.stringify(value);
@@ -111,118 +287,400 @@ export class ActivityGraphPersisterService {
         });
     }
 
-    private async insertActivityNodes(
-        em: EntityManager,
-        existingASObjectStableKeyMap: Partial<Record<string, NodeStableKeyEntity>>,
+    private prepareRow(
         activityGraph: RequiredActivityGraphInterface,
-    ): Promise<void> {
-        const builder = this.neode.query();
+        activityNodeId: string,
+        nodeIdByStableKey: Map<string, string>,
+        newStableKeys: NodeStableKeyRow[],
+    ): PreparedRow {
+        const activityType = activityGraph.activity['@type'];
+        const activityLabels = this.resolveLabels(
+            activityType,
+            activityGraph.activity['@secondaryTypes'],
+            `activity ${activityType}`,
+        );
 
-        const relationships: { propertyKey: string; targetNodeAlias: string }[] = [];
+        const objects: PreparedObject[] = [];
 
-        const createdNodeStableKeys: NodeStableKeyEntity[] = [];
-
-        for (const [propertyKey, object] of Object.entries(activityGraph.requiredObjects)) {
-            const existingNodeId = object.originalObject.stableKeys
-                ?.map((sk) => existingASObjectStableKeyMap[sk]?.nodeId)
-                .find(Boolean);
-
-            // If there is an existing node (based on stable key) then reference it
-            const newNodeId = existingNodeId ?? object.id ?? uuidV7();
-
-            const targetNodeAlias = `${toSnakeCase(propertyKey)}_node`;
-            const targetNodeType = object.type;
-
-            relationships.push({ propertyKey, targetNodeAlias });
-
-            if (newNodeId && targetNodeType && object.originalObject.stableKeys?.length) {
-                for (const stableKey of object.originalObject.stableKeys) {
-                    createdNodeStableKeys.push(
-                        em.create(
-                            NodeStableKeyEntity,
-                            {
-                                stableKey: stableKey.slice(0, 512),
-                                nodeId: newNodeId,
-                            },
-                            { persist: false },
-                        ),
-                    );
-                }
+        for (const [propertyKey, object] of Object.entries(activityGraph.requiredObjects).sort(([a], [b]) =>
+            a.localeCompare(b),
+        )) {
+            if (!relationshipInfoMap[propertyKey]) {
+                throw new Error(`Unknown relationship on property ${propertyKey} of activity ${activityType}`);
             }
 
-            // TODO: How should the properties of existing nodes be updated (or not)?
-            if (targetNodeType) {
-                const nodeProperties = R.omit(object.originalObject, ['@id', '@type', 'stableKeys', '@secondaryTypes']);
+            const labels = object.type
+                ? this.resolveLabels(
+                      object.type,
+                      object.originalObject['@secondaryTypes'],
+                      `property ${propertyKey} of activity ${activityType}`,
+                  )
+                : undefined;
 
-                for (const [key, value] of Object.entries(nodeProperties)) {
-                    if (value && typeof value === 'object') {
-                        // @ts-ignore
-                        nodeProperties[key] = JSON.stringify(value);
-                    }
-                }
-
-                builder.merge(targetNodeAlias, targetNodeType, { id: newNodeId });
-
-                for (const [key, value] of Object.entries(nodeProperties)) {
-                    builder
-                        .onCreateSet(`${targetNodeAlias}.${key}`, value)
-                        .onMatchSet(`${targetNodeAlias}.${key}`, value);
-                }
-            } else {
-                builder.match(targetNodeAlias, undefined, { id: object.id });
-            }
-        }
-
-        const newActivityNodeId = uuidV7();
-        const activityNodeAlias = 'activityNode';
-        const nodeProperties = R.omit(activityGraph.activity, [
-            '@type',
-            'stableKeys',
-            '@secondaryTypes',
-            ...relationships.map((r) => r.propertyKey as keyof ActivityDto),
-        ]);
-
-        builder.create(activityNodeAlias, activityGraph.activity['@type'], {
-            id: newActivityNodeId,
-            ...nodeProperties,
-        });
-        for (const stableKey of activityGraph.activity.stableKeys ?? []) {
-            // Don't immediately persist, the changes will get upserted all at once
-            createdNodeStableKeys.push(
-                em.create(
-                    NodeStableKeyEntity,
-                    {
-                        stableKey: stableKey.slice(0, 512),
-                        nodeId: newActivityNodeId,
-                    },
-                    { persist: false },
-                ),
-            );
-        }
-
-        for (const relationship of relationships) {
-            const relationshipInfo = relationshipInfoMap[relationship.propertyKey];
-
-            if (!relationshipInfo) {
+            if (!labels && !object.id) {
                 throw new Error(
-                    `Unknown relationship on property ${relationship.propertyKey} of activity ${activityGraph.activity['@type']}`,
+                    `Object on property ${propertyKey} of activity ${activityType} has neither a @type nor a resolvable @id`,
                 );
             }
 
-            builder
-                .merge(activityNodeAlias)
-                .relationship(relationshipInfo.type, relationshipInfo.direction)
-                .to(relationship.targetNodeAlias);
+            objects.push({
+                propertyKey,
+                alias: `${OBJECT_ALIAS_PREFIX}${toSnakeCase(propertyKey)}`,
+                labels,
+                nodeId: labels
+                    ? this.resolveObjectNodeId(object, nodeIdByStableKey, newStableKeys)
+                    : // No `@type` - the node is matched by its id only, exactly like before.
+                      object.id!,
+                props: buildNodeProps(object.originalObject as unknown as Record<string, unknown>, [
+                    '@id',
+                    '@type',
+                    '@secondaryTypes',
+                    'stableKeys',
+                ]),
+            });
         }
 
-        await builder.execute();
+        const labelsKey = (labels: string[] | undefined): string => labels?.join(':') ?? '';
 
-        if (createdNodeStableKeys.length) {
-            const uniqueCreatedNodeStableKeys = createdNodeStableKeys.filter(
-                (item, pos) => createdNodeStableKeys.findIndex((s) => s.stableKey === item.stableKey) === pos,
+        return {
+            shapeKey: [
+                labelsKey(activityLabels),
+                ...objects.map((object) => `${object.propertyKey}=${labelsKey(object.labels)}`),
+            ].join('|'),
+            nodeId: activityNodeId,
+            labels: activityLabels,
+            props: buildNodeProps(activityGraph.activity as unknown as Record<string, unknown>, [
+                '@id',
+                '@type',
+                '@secondaryTypes',
+                'stableKeys',
+                ...objects.map((object) => object.propertyKey),
+            ]),
+            objects,
+        };
+    }
+
+    private resolveObjectNodeId(
+        object: RequiredActivityGraphObjectInterface,
+        nodeIdByStableKey: Map<string, string>,
+        newStableKeys: NodeStableKeyRow[],
+    ): string {
+        const stableKeys = (object.originalObject.stableKeys ?? [])
+            .filter(Boolean)
+            .map((stableKey) => truncateStableKey(stableKey));
+
+        for (const stableKey of stableKeys) {
+            const existingNodeId = nodeIdByStableKey.get(stableKey);
+
+            if (existingNodeId) {
+                return existingNodeId;
+            }
+        }
+
+        const nodeId = object.id ?? uuidV7();
+
+        for (const stableKey of stableKeys) {
+            nodeIdByStableKey.set(stableKey, nodeId);
+            newStableKeys.push({ stableKey, nodeId });
+        }
+
+        return nodeId;
+    }
+
+    private resolveLabels(type: ASObjectType, secondaryTypes: ASObjectType[] | undefined, context: string): string[] {
+        const labels = new Set(this.modelLabels(type, context));
+
+        for (const secondaryType of secondaryTypes ?? []) {
+            for (const label of this.modelLabels(secondaryType, context)) {
+                labels.add(label);
+            }
+        }
+
+        return [...labels].sort();
+    }
+
+    private modelLabels(type: string, context: string): string[] {
+        const model = this.neode.models.get(type);
+
+        if (!model) {
+            throw new Error(
+                `Unknown graph node type "${type}" on ${context}. Register it as a neode model in registerGraphSchemas().`,
             );
+        }
 
-            await em.upsertMany(uniqueCreatedNodeStableKeys);
+        return model.labels;
+    }
+
+    private toCypherRow(row: PreparedRow): CypherRow {
+        return {
+            id: row.nodeId,
+            props: row.props,
+            objects: Object.fromEntries(
+                row.objects.map((object) => [object.propertyKey, { id: object.nodeId, props: object.props }]),
+            ),
+        };
+    }
+
+    /**
+     * Writes objects that exist on their own, without an activity (e.g. persons synced from my-hub).
+     *
+     * Each object resolves to a node like a required object of an activity: the first of its stable keys that is
+     * already indexed (in Postgres or earlier in this call) picks the node, otherwise a new node is created (with the
+     * object's `@id` if it has one). Unlike the activity path, an existing node is updated: its properties are
+     * overwritten with the ones the object carries (`+=`), labels are added, and stable keys the node did not have yet
+     * are indexed to it, so e.g. a person that gained an email is found by it from then on. A key that is already
+     * indexed to a different node stays there and is counted in `conflictingKeyCount`.
+     */
+    public async upsertObjects(
+        em: EntityManager,
+        objects: ASObject[],
+        options: UpsertObjectsOptions = {},
+    ): Promise<UpsertObjectsResult> {
+        const result: UpsertObjectsResult = {
+            createdCount: 0,
+            updatedCount: 0,
+            conflictingKeyCount: 0,
+            dryRun: options.dryRun ?? false,
+        };
+        const nodeIdByStableKey = new Map<string, string>();
+        let processedCount = 0;
+
+        for (const chunk of R.chunk(objects, ACTIVITY_GRAPH_CHUNK_SIZE)) {
+            await this.upsertObjectChunk(em, chunk, nodeIdByStableKey, result, options.provenance);
+
+            processedCount += chunk.length;
+            options.onProgress?.({
+                processed: processedCount,
+                total: objects.length,
+                created: result.createdCount,
+                updated: result.updatedCount,
+            });
+        }
+
+        this.logger.log(
+            `${result.dryRun ? '[dry run] Would upsert' : 'Upserted'} ${objects.length} standalone objects: ` +
+                `${result.createdCount} created, ${result.updatedCount} updated, ${result.conflictingKeyCount} conflicting keys`,
+        );
+
+        return result;
+    }
+
+    private async upsertObjectChunk(
+        em: EntityManager,
+        objects: ASObject[],
+        nodeIdByStableKey: Map<string, string>,
+        result: UpsertObjectsResult,
+        provenance: ImportProvenance | undefined,
+    ): Promise<void> {
+        const stableKeysOf = (object: ASObject): string[] => [
+            ...new Set((object.stableKeys ?? []).filter(Boolean).map((stableKey) => truncateStableKey(stableKey))),
+        ];
+
+        this.rememberStableKeys(
+            nodeIdByStableKey,
+            await this.nodeStableKeyIndexService.findNodeIds(
+                em,
+                objects.flatMap(stableKeysOf).filter((stableKey) => !nodeIdByStableKey.has(stableKey)),
+            ),
+        );
+
+        const newStableKeys: NodeStableKeyRow[] = [];
+        const rowsByLabels = new Map<
+            string,
+            { labels: string[]; rows: { id: string; props: Record<string, unknown> }[] }
+        >();
+
+        for (const object of objects) {
+            const type = object['@type'];
+
+            if (!type) {
+                throw new Error('Standalone objects need a @type to be written to the graph');
+            }
+
+            const labels = this.resolveLabels(type, object['@secondaryTypes'], `standalone object ${type}`);
+            const stableKeys = stableKeysOf(object);
+            const existingNodeId = stableKeys
+                .map((stableKey) => nodeIdByStableKey.get(stableKey))
+                .find((nodeId) => nodeId !== undefined);
+            const nodeId = existingNodeId ?? extractASObjectId(object['@id']) ?? uuidV7();
+
+            if (existingNodeId) {
+                result.updatedCount++;
+            } else {
+                result.createdCount++;
+            }
+
+            for (const stableKey of stableKeys) {
+                const indexedNodeId = nodeIdByStableKey.get(stableKey);
+
+                if (indexedNodeId === undefined) {
+                    nodeIdByStableKey.set(stableKey, nodeId);
+                    newStableKeys.push({ stableKey, nodeId });
+                } else if (indexedNodeId !== nodeId) {
+                    result.conflictingKeyCount++;
+                }
+            }
+
+            const labelsKey = labels.join(':');
+            const group = rowsByLabels.get(labelsKey) ?? { labels, rows: [] };
+            group.rows.push({
+                id: nodeId,
+                props: buildNodeProps(object as unknown as Record<string, unknown>, [
+                    '@id',
+                    '@type',
+                    '@secondaryTypes',
+                    'stableKeys',
+                ]),
+            });
+            rowsByLabels.set(labelsKey, group);
+        }
+
+        if (result.dryRun || rowsByLabels.size === 0) {
+            return;
+        }
+
+        const provenanceParameter = {
+            executionId: provenance?.executionId ?? null,
+            assetId: provenance?.assetId ?? null,
+            importedAt: new Date().toISOString(),
+        };
+
+        await em.fork().transactional(async (transactionalEm) => {
+            for (const { labels, rows } of rowsByLabels.values()) {
+                await this.neode.writeCypher(
+                    ['UNWIND $rows AS row', ...buildNodeMergeLines(STANDALONE_OBJECT_ALIAS, labels, 'row')].join('\n'),
+                    { rows, provenance: provenanceParameter },
+                );
+            }
+
+            await this.nodeStableKeyIndexService.insertMissing(transactionalEm, newStableKeys);
+        });
+    }
+
+    /**
+     * Builds the batched Cypher statement for one shape. Labels and relationship types are the only
+     * interpolated values and they always come from a registered neode model / the relationship
+     * enum (and are backtick escaped on top of that); every property value travels as a parameter.
+     */
+    private buildShapeCypher(row: PreparedRow): string {
+        const lines: string[] = ['UNWIND $rows AS row'];
+
+        // Objects without a `@type` are matched by id only, so they have to come first.
+        for (const object of row.objects.filter((object) => !object.labels)) {
+            lines.push(`MATCH (${object.alias} { id: ${objectRowPath(object.propertyKey)}.id })`);
+        }
+
+        for (const object of row.objects.filter((object) => object.labels)) {
+            lines.push(...buildNodeMergeLines(object.alias, object.labels!, objectRowPath(object.propertyKey)));
+        }
+
+        lines.push(...buildNodeMergeLines(ACTIVITY_ALIAS, row.labels, 'row'));
+
+        for (const object of row.objects) {
+            const relationshipInfo = relationshipInfoMap[object.propertyKey]!;
+            const relationshipType = escapeIdentifier(relationshipInfo.type);
+
+            lines.push(
+                relationshipInfo.direction === RelationshipDirectionEnum.IN
+                    ? `MERGE (${object.alias})-[:${relationshipType}]->(${ACTIVITY_ALIAS})`
+                    : `MERGE (${ACTIVITY_ALIAS})-[:${relationshipType}]->(${object.alias})`,
+            );
+        }
+
+        return lines.join('\n');
+    }
+}
+
+function objectRowPath(propertyKey: string): string {
+    return `row.objects.${escapeIdentifier(propertyKey)}`;
+}
+
+/**
+ * `MERGE`s a node on its anchor label + id and then applies the remaining labels and the property
+ * map. The anchor label is used on its own (instead of the full label set) because the unique
+ * constraint lives on the anchor label and nodes written before a secondary type existed would
+ * otherwise not be found by a full-label `MERGE` and collide on the `id` constraint.
+ *
+ * Update policy: last import wins - `+=` overwrites the properties it carries on both create and
+ * match, and labels are only ever added, never removed.
+ */
+function buildNodeMergeLines(alias: string, labels: string[], rowPath: string): string[] {
+    const [anchorLabel, ...additionalLabels] = orderNodeLabels(labels);
+
+    const setItems = [`${alias} += ${rowPath}.props`];
+
+    if (additionalLabels.length > 0) {
+        setItems.push(`${alias}${additionalLabels.map((label) => `:${escapeIdentifier(label)}`).join('')}`);
+    }
+
+    return [
+        `MERGE (${alias}:${escapeIdentifier(anchorLabel!)} { id: ${rowPath}.id })`,
+        // Provenance: which execution (and imported file) created the node. Only on create, so re-imports and
+        // other sources that touch the node later don't overwrite where it came from.
+        `ON CREATE SET ${alias}.importExecutionId = $provenance.executionId, ${alias}.importAssetId = $provenance.assetId, ${alias}.importedAt = $provenance.importedAt`,
+        `SET ${setItems.join(', ')}`,
+    ];
+}
+
+/**
+ * Puts the label carrying the unique `id` constraint first so it can be used as the `MERGE` anchor.
+ */
+function orderNodeLabels(labels: string[]): string[] {
+    if (!labels.includes(NodeLabelEnum.AS_OBJECT)) {
+        return [...labels];
+    }
+
+    return [NodeLabelEnum.AS_OBJECT, ...labels.filter((label) => label !== NodeLabelEnum.AS_OBJECT)];
+}
+
+function escapeIdentifier(identifier: string): string {
+    return `\`${identifier.replaceAll('`', '``')}\``;
+}
+
+/**
+ * Drops the keys that are handled separately (or not at all), removes `undefined` values and
+ * serialises nested objects/arrays.
+ */
+function buildNodeProps(source: Record<string, unknown>, excludedKeys: string[]): Record<string, unknown> {
+    const excluded = new Set(excludedKeys);
+    const props: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(source)) {
+        if (excluded.has(key) || value === undefined) {
+            continue;
+        }
+
+        // TODO: Implement json properties in neode
+        props[key] = value !== null && typeof value === 'object' ? JSON.stringify(value) : value;
+    }
+
+    return props;
+}
+
+function addSample(target: ActivityGraphSampleDto[], activity: ActivityDto, sampleSize: number): void {
+    if (target.length >= sampleSize) {
+        return;
+    }
+
+    const record = activity as unknown as Record<string, unknown>;
+    const objects: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(record)) {
+        if (key === 'actor' || key === 'generator' || !value || typeof value !== 'object') {
+            continue;
+        }
+
+        const object = value as Record<string, unknown>;
+
+        if (object['@type']) {
+            objects[key] = String(object['name'] ?? object['identifier'] ?? object['@type']);
         }
     }
+
+    target.push({
+        type: String(record['@type']),
+        startTime: record['startTime'] ? String(record['startTime']) : undefined,
+        summary: record['summary'] ? String(record['summary']) : undefined,
+        objects,
+    });
 }

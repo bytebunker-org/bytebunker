@@ -11,6 +11,8 @@
 	import LucideWorkflow from '~icons/lucide/workflow';
 	import LucideCircuitBoard from '~icons/lucide/circuit-board';
 	import LucideSettings from '~icons/lucide/settings';
+	import LucideUpload from '~icons/lucide/upload';
+	import LucideChartNoAxesGantt from '~icons/lucide/chart-no-axes-gantt';
 	import LogoIcon from '~icons/custom/logo';
 	import { toastManager } from '$lib/util/toastManager.svelte.js';
 	import { AuthApi } from '$lib/api/AuthApi.js';
@@ -82,7 +84,19 @@
 				</details>
 			</li>
 			<li>
-				<a href="/settings" class:menu-active={page.route.id === '/(app)/settings'}>
+				<a href="/import" class:menu-active={page.route.id === '/(app)/import'}>
+					<LucideUpload />
+					Import
+				</a>
+			</li>
+			<li>
+				<a href="/coverage" class:menu-active={page.route.id === '/(app)/coverage'}>
+					<LucideChartNoAxesGantt />
+					Datenabdeckung
+				</a>
+			</li>
+			<li>
+				<a href="/settings" class:menu-active={page.route.id?.startsWith('/(app)/settings')}>
 					<LucideSettings />
 					Settings
 				</a>
