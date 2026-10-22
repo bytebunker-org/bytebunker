@@ -47,12 +47,8 @@ describe('TransformSpotifyStreamingHistoryPipelineModule', () => {
     let graphNodeService: Mocked<ActivityGraphNodeService>;
 
     const transform = (rows: unknown[], mediaType: 'audio' | 'video' = 'audio') =>
-        module.transformStreamingHistory(
-            JSON.stringify(rows),
-            mediaType,
-            FAKE_GENERATOR,
-            FAKE_ACTOR_ID,
-        ) as unknown as ActivityRecord[];
+        module.transformStreamingHistory(JSON.stringify(rows), mediaType, FAKE_GENERATOR, FAKE_ACTOR_ID)
+            .activities as unknown as ActivityRecord[];
 
     beforeEach(async () => {
         const { unit, unitRef } = await TestBed.solitary(TransformSpotifyStreamingHistoryPipelineModule).compile();
@@ -127,7 +123,7 @@ describe('TransformSpotifyStreamingHistoryPipelineModule', () => {
         expect(activity.summary).toBe('Listened to audiobook "The Imaginary Case": Chapter 1');
         expect(activity.object).toEqual({
             '@type': 'Audio',
-            '@secondaryTypes': ['AudiobookChapter'],
+            '@secondaryTypes': ['AudiobookChapter', 'SpotifyAudiobookChapter'],
             stableKeys: ['object:Audio:spotify:episode:0000000000000000000004'],
             identifier: 'spotify:episode:0000000000000000000004',
             name: 'Chapter 1',
@@ -136,14 +132,14 @@ describe('TransformSpotifyStreamingHistoryPipelineModule', () => {
         });
     });
 
-    it('marks plays from the video history and links them to the same track node', () => {
+    it('turns plays from the video history into views of their own video node', () => {
         const [video] = transform([VIDEO_TRACK_ROW], 'video');
 
-        expect(video).toMatchObject({ '@type': 'Listen', mediaType: 'video', skipped: true });
+        expect(video).toMatchObject({ '@type': 'View', mediaType: 'video', skipped: true });
         expect(video.summary).toBe('Watched "Musical Number (Live)" by Stage Cast');
         expect(video).not.toHaveProperty('offline');
-        expect(video.object?.['@secondaryTypes']).toEqual(['MusicRecording', 'SpotifyTrack']);
-        expect(video.object?.stableKeys).toEqual(['object:Audio:spotify:track:0000000000000000000005']);
+        expect(video.object?.['@secondaryTypes']).toEqual(['SpotifyVideo']);
+        expect(video.object?.stableKeys).toEqual(['object:Video:spotify:track:0000000000000000000005']);
     });
 
     it('emits rows without a URI without an object', () => {
@@ -159,11 +155,29 @@ describe('TransformSpotifyStreamingHistoryPipelineModule', () => {
         expect(activities).toHaveLength(2);
     });
 
-    it('never writes the IP address', () => {
+    it('keeps the IP address on the play', () => {
         const activities = transform([TRACK_ROW, EPISODE_ROW, AUDIOBOOK_ROW]);
 
-        expect(JSON.stringify(activities)).not.toContain('192.0.2.10');
-        expect(activities.every((activity) => !('ipAddress' in activity))).toBe(true);
+        expect(activities.every((activity) => activity['ipAddress'] === '192.0.2.10')).toBe(true);
+    });
+
+    it('reports skipped and repeated rows', () => {
+        const { skipped } = module.transformStreamingHistory(
+            JSON.stringify([TRACK_ROW, { ...TRACK_ROW, ip_addr: '198.51.100.7' }, null]),
+            'audio',
+            FAKE_GENERATOR,
+            FAKE_ACTOR_ID,
+        );
+
+        expect(skipped).toEqual({ total: 2, byReason: { 'not-an-object': 1, 'duplicate-row': 1 } });
+    });
+
+    it('turns video history plays into views of a Spotify video', () => {
+        const [activity] = transform([TRACK_ROW], 'video');
+
+        expect(activity['@type']).toBe('View');
+        expect(activity['@secondaryTypes']).toEqual(['SpotifyViewActivity']);
+        expect(activity['object']).toMatchObject({ '@type': 'Video', '@secondaryTypes': ['SpotifyVideo'] });
     });
 
     it('reads the asset and derives the media type from the file name', async () => {

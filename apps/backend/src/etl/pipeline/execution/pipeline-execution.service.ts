@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PipelineBlueprintEntity } from '../blueprint/entity/pipeline-blueprint.entity.js';
 import { type EntityManager } from '@mikro-orm/postgresql';
 import { Blueprint } from '../blueprint/util/blueprint.class.js';
@@ -21,6 +21,7 @@ import type { JobDataType } from '../../../queue/queue-data.type.js';
 import { serializeError } from 'serialize-error';
 import type { QueueConsumerJob } from '../../../queue/abstract-queue-consumer.class.js';
 import { PipelineProgressService, type ThrottledReporter } from '../progress/pipeline-progress.service.js';
+import { PipelineOutputStoreService } from './pipeline-output-store.service.js';
 
 @Injectable()
 export class PipelineExecutionService {
@@ -35,9 +36,15 @@ export class PipelineExecutionService {
         @InjectQueue(QueueNameEnum.START_PIPELINE_EXECUTION)
         private readonly startPipelineExecutionQueue: Queue,
         private readonly progressService: PipelineProgressService,
+        private readonly outputStore: PipelineOutputStoreService,
     ) {}
 
-    public async executeBlueprintFromTrigger(
+    /**
+     * Creates an execution from a trigger's output but does not schedule it: the start job must only be queued once
+     * the creating transaction has committed, otherwise a worker can pick it up before the rows are visible. Call
+     * {@link schedulePipelineExecution} after `transactional` resolves.
+     */
+    public async createExecutionFromTrigger(
         em: EntityManager,
         blueprintId: number,
         triggerNodeId: number,
@@ -80,18 +87,17 @@ export class PipelineExecutionService {
 
         await em.flush();
 
-        this.logger.debug(`Executing pipeline ${pipelineExecution.id} from trigger node ${triggerNodeId}`);
-
-        await this.schedulePipelineExecution(pipelineExecution.id);
+        this.logger.debug(`Created pipeline execution ${pipelineExecution.id} from trigger node ${triggerNodeId}`);
 
         return pipelineExecution;
     }
 
     /**
      * Starts a new execution of the same blueprint with the same trigger output as an existing one, e.g. to apply a
-     * dry run for real, or to preview a re-import. The source execution is left untouched.
+     * dry run for real, or to preview a re-import. The source execution is left untouched. Like
+     * {@link createExecutionFromTrigger}, the caller schedules the new execution after commit.
      */
-    public async rerunFromTrigger(
+    public async createRerunFromTrigger(
         em: EntityManager,
         sourceExecutionId: number,
         options: { dryRun: boolean },
@@ -99,7 +105,7 @@ export class PipelineExecutionService {
         const source = await em.findOneOrFail(
             PipelineExecutionEntity,
             { id: sourceExecutionId },
-            { populate: ['blueprint', 'executionData'] },
+            { populate: ['blueprint', 'executionData'], exclude: ['executionData.data'] },
         );
         const blueprint = new Blueprint(source.blueprint.$.data);
         const triggerNodeIds = new Set(
@@ -112,18 +118,24 @@ export class PipelineExecutionService {
                 )
                 .map((node) => node.id),
         );
-        const triggerData = source.executionData.find((d) => triggerNodeIds.has(d.nodeId));
+        const triggerNode = source.executionData.find((d) => triggerNodeIds.has(d.nodeId));
 
-        if (!triggerData) {
+        if (!triggerNode) {
             throw new Error(`Execution ${sourceExecutionId} has no stored trigger output to re-run from`);
         }
 
-        return this.executeBlueprintFromTrigger(em, source.blueprint.id, triggerData.nodeId, triggerData.data, {
+        const [triggerData] = await this.loadNodeOutputs(em, sourceExecutionId, [triggerNode.nodeId]);
+
+        return this.createExecutionFromTrigger(em, source.blueprint.id, triggerNode.nodeId, triggerData?.data, {
             triggerAssetId: source.triggerAsset?.id,
             dryRun: options.dryRun,
         });
     }
 
+    /**
+     * Queues the start job. Only call this outside of (after) the transaction that created or reset the execution.
+     * With `forceExecute`, failed and aborted nodes are reset to waiting first ("retry all failed").
+     */
     public async schedulePipelineExecution(pipelineId: number, forceExecute = false): Promise<void> {
         await this.startPipelineExecutionQueue.add(
             QueueNameEnum.START_PIPELINE_EXECUTION,
@@ -132,7 +144,6 @@ export class PipelineExecutionService {
                 forceExecute,
             } satisfies JobDataType<QueueNameEnum.START_PIPELINE_EXECUTION>,
             {
-                delay: 500,
                 attempts: 1,
             },
         );
@@ -264,8 +275,100 @@ export class PipelineExecutionService {
                 em.persist(pipelineExecution);
 
                 this.logger.debug(`Finished pipeline execution ${pipelineExecution.id}!`);
+            } else {
+                // Nothing left to run but some node did not succeed, e.g. after retrying one branch while another
+                // one stays failed. Without this the execution would stay "waiting" forever.
+                const statuses = new Set(executionDataList.map((d) => d.executionStatus));
+                const finalStatus = statuses.has(PipelineExecutionStatusEnum.FAILED)
+                    ? PipelineExecutionStatusEnum.FAILED
+                    : statuses.has(PipelineExecutionStatusEnum.ABORTED)
+                      ? PipelineExecutionStatusEnum.ABORTED
+                      : undefined;
+
+                if (finalStatus) {
+                    pipelineExecution.executionStatus = finalStatus;
+                    em.persist(pipelineExecution);
+                }
             }
         }
+    }
+
+    /**
+     * Prepares a retry starting at `nodeId`: the node and everything downstream of it lose their execution data
+     * (so they run again with fresh input), and the execution goes back to waiting. Trigger nodes keep their output,
+     * it cannot be recomputed. Returns the ids of the reset nodes. Schedule the execution after the transaction
+     * committed.
+     */
+    public async resetFromNode(em: EntityManager, executionId: number, nodeId: number): Promise<number[]> {
+        const pipelineExecution = await em.findOne(
+            PipelineExecutionEntity,
+            { id: executionId },
+            { populate: ['blueprint'] },
+        );
+
+        if (!pipelineExecution) {
+            throw new NotFoundException(`Pipeline execution ${executionId} not found`);
+        }
+
+        const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
+        const node = blueprint.getNode(nodeId);
+
+        if (!node) {
+            throw new NotFoundException(`Pipeline execution ${executionId} has no node ${nodeId}`);
+        }
+
+        const resetNodeIds = [node, ...blueprint.getDependantNodesRecursive(node)]
+            .filter(
+                (n) => this.moduleService.getPipelineModuleOptions(n.moduleId)?.type !== PipelineModuleTypeEnum.TRIGGER,
+            )
+            .map((n) => n.id);
+
+        if (resetNodeIds.length) {
+            await em.nativeDelete(PipelineExecutionDataEntity, {
+                pipelineExecution: executionId,
+                nodeId: { $in: resetNodeIds },
+            });
+        }
+
+        pipelineExecution.executionStatus = PipelineExecutionStatusEnum.WAITING;
+
+        if (
+            pipelineExecution.latestErrorNodeId !== undefined &&
+            resetNodeIds.includes(pipelineExecution.latestErrorNodeId)
+        ) {
+            pipelineExecution.latestErrorNodeId = undefined;
+            pipelineExecution.latestErrorStatus = undefined;
+            pipelineExecution.latestErrorMessage = undefined;
+            pipelineExecution.latestErrorData = undefined;
+        }
+
+        await em.flush();
+
+        this.logger.log(`Reset nodes ${resetNodeIds.join(', ')} of pipeline execution ${executionId} for a retry`);
+
+        return resetNodeIds;
+    }
+
+    /**
+     * Stops scheduling further nodes. A module that is running right now finishes and stores its output, but its
+     * successors never start; queued modules skip themselves (see {@link executeModule}). Finished executions are
+     * left alone.
+     */
+    public async abortExecution(em: EntityManager, executionId: number): Promise<void> {
+        const pipelineExecution = await em.findOne(PipelineExecutionEntity, { id: executionId });
+
+        if (!pipelineExecution) {
+            throw new NotFoundException(`Pipeline execution ${executionId} not found`);
+        }
+
+        if (pipelineExecution.executionStatus !== PipelineExecutionStatusEnum.WAITING) {
+            return;
+        }
+
+        pipelineExecution.executionStatus = PipelineExecutionStatusEnum.ABORTED;
+        await em.flush();
+
+        this.logger.log(`Aborted pipeline execution ${executionId}`);
     }
 
     public async createExecutionData(
@@ -281,7 +384,9 @@ export class PipelineExecutionService {
                 pipelineExecution,
                 nodeId,
                 executionStatus,
-                data: outputData,
+                data: (await this.outputStore.externalize(em, pipelineExecution.id, nodeId, outputData)) as
+                    | Record<string, unknown>
+                    | undefined,
             }),
         );
         pipelineExecution.executionData.add(executionData);
@@ -314,7 +419,7 @@ export class PipelineExecutionService {
         nodeId: number,
         job: QueueConsumerJob<QueueNameEnum.PIPELINE_SINGLE_MODULE_EXECUTION>,
     ): Promise<Error | void> {
-        // TODO: Optimize to only load necessary execution data
+        // Node outputs are not loaded here: only the outputs feeding this node are read, below.
         const pipelineExecution = await em.findOneOrFail(
             PipelineExecutionEntity,
             {
@@ -322,6 +427,7 @@ export class PipelineExecutionService {
             },
             {
                 populate: ['blueprint', 'executionData'],
+                exclude: ['executionData.data'],
             },
         );
         const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
@@ -331,7 +437,13 @@ export class PipelineExecutionService {
             throw new Error(`Pipeline execution ${pipelineExecution.id} node ${nodeId} not found`);
         }
 
-        const inputData = this.buildNodeInputData(pipelineExecution, node);
+        if (pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED) {
+            this.logger.log(`Skipping node ${node.id} of aborted pipeline execution ${pipelineExecution.id}`);
+
+            return;
+        }
+
+        const inputData = await this.buildNodeInputData(em, pipelineExecution, node);
         let progress: ThrottledReporter | undefined;
 
         try {
@@ -346,7 +458,9 @@ export class PipelineExecutionService {
                 );
             }
 
-            progress = await this.progressService.startNode(pipelineExecution.id, node.id);
+            progress = await this.progressService.startNode(pipelineExecution.id, node.id, (percent) =>
+                job.updateProgress(percent),
+            );
             const moduleProgress = progress;
 
             const outputDataOrHoldExecution = await em.fork().transactional((em) =>
@@ -442,7 +556,12 @@ export class PipelineExecutionService {
         em.persist(executionLog);
         pipelineExecution.executionLogs.add(executionLog);
 
-        if (isUnexpectedError) {
+        // The execution may have been aborted while this module ran; that decision wins over the module's outcome.
+        const wasAborted = await this.isAborted(em, pipelineExecution.id);
+
+        if (wasAborted) {
+            pipelineExecution.executionStatus = PipelineExecutionStatusEnum.ABORTED;
+        } else if (isUnexpectedError) {
             // Nothing retries automatically, so an execution left "waiting" here would hang forever. Mark it failed;
             // scheduling it again (force execute) resets it to waiting. errorRetryCount counts the attempts.
             pipelineExecution.executionStatus = PipelineExecutionStatusEnum.FAILED;
@@ -476,21 +595,56 @@ export class PipelineExecutionService {
         em.persist(pipelineExecution);
     }
 
-    private buildNodeInputData(
+    /** Reads the committed status, not the one loaded when the module started. */
+    private async isAborted(em: EntityManager, executionId: number): Promise<boolean> {
+        const current = await em
+            .fork()
+            .findOne(PipelineExecutionEntity, { id: executionId }, { fields: ['executionStatus'] });
+
+        return current?.executionStatus === PipelineExecutionStatusEnum.ABORTED;
+    }
+
+    /**
+     * Reads the stored outputs of the given nodes with a plain query: no entities, so no ORM snapshot copies of what can
+     * be a large JSON value.
+     */
+    private async loadNodeOutputs(
+        em: EntityManager,
+        executionId: number,
+        nodeIds: number[],
+    ): Promise<{ nodeId: number; data: Record<string, unknown> | undefined }[]> {
+        if (!nodeIds.length) {
+            return [];
+        }
+
+        const rows = await em
+            .getConnection()
+            .execute<
+                { node_id: number; data: Record<string, unknown> | null }[]
+            >(`SELECT node_id, data FROM pipeline_execution_data_entity WHERE pipeline_execution_id = ? AND node_id IN (${nodeIds.map(() => '?').join(', ')})`, [executionId, ...nodeIds]);
+
+        return rows.map((row) => ({ nodeId: row.node_id, data: row.data ?? undefined }));
+    }
+
+    private async buildNodeInputData(
+        em: EntityManager,
         pipelineExecution: Loaded<PipelineExecutionEntity, 'blueprint' | 'executionData'>,
         node: BlueprintNodeDto,
-    ): Record<string, unknown> {
+    ): Promise<Record<string, unknown>> {
         // TODO Validate inputData via Json Schema
 
         const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
         const inputEdges = blueprint.getInputEdgesAtNode(node);
+        const outputs = await this.loadNodeOutputs(em, pipelineExecution.id, [
+            ...new Set(inputEdges.map((edge) => edge.source)),
+        ]);
 
         const inputData: Record<string, unknown> = node.constantInputData
             ? structuredClone(node.constantInputData)
             : {};
 
         for (const edge of inputEdges) {
-            const sourceNodeExecutionData = pipelineExecution.executionData.find((d) => d.nodeId === edge.source);
+            const sourceNodeExecutionData = outputs.find((d) => d.nodeId === edge.source);
 
             if (!sourceNodeExecutionData) {
                 throw new Error(
@@ -502,21 +656,28 @@ export class PipelineExecutionService {
                 // Automatically merge into one array, if multiple connections are connected to the same (array-types) socket
                 if (inputData[edge.targetHandle]) {
                     let data = inputData[edge.targetHandle];
-                    const additionalData = sourceNodeExecutionData.data?.[edge.sourceHandle];
+                    const additionalData = await this.outputStore.resolve(
+                        em,
+                        sourceNodeExecutionData.data?.[edge.sourceHandle],
+                    );
 
                     if (!Array.isArray(data)) {
                         data = [data];
                     }
 
                     if (additionalData !== undefined && additionalData !== null) {
-                        (data as unknown[]).push(
-                            ...(Array.isArray(additionalData) ? additionalData : [additionalData]),
-                        );
+                        // A loop, not push(...items): spreading 200k+ items overflows the call stack.
+                        for (const item of Array.isArray(additionalData) ? additionalData : [additionalData]) {
+                            (data as unknown[]).push(item);
+                        }
                     }
 
                     inputData[edge.targetHandle] = data;
                 } else {
-                    inputData[edge.targetHandle] = sourceNodeExecutionData.data?.[edge.sourceHandle];
+                    inputData[edge.targetHandle] = await this.outputStore.resolve(
+                        em,
+                        sourceNodeExecutionData.data?.[edge.sourceHandle],
+                    );
                 }
             } catch (error) {
                 console.log(
@@ -535,8 +696,8 @@ export class PipelineExecutionService {
                         targetHandle: edge.targetHandle,
                     },
                     error,
-                    'sourceNodeExecutionData:',
-                    sourceNodeExecutionData.data,
+                    'source node:',
+                    sourceNodeExecutionData.nodeId,
                 );
 
                 throw error;

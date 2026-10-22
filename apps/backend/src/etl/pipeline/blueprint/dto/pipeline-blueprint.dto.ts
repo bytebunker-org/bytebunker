@@ -1,4 +1,4 @@
-import { IsArray, IsInt, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsInt, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BlueprintDataDto } from './blueprint-data.dto.js';
 import { PipelineExecutionDto } from '../../dto/pipeline-execution.dto.js';
@@ -22,6 +22,15 @@ export class PipelineBlueprintDto extends TimestampDto {
     @IsOptional()
     @IsString()
     public description?: string;
+
+    /** Stable key of a blueprint shipped by an extension (e.g. `google/timeline`); unset for user blueprints */
+    @IsOptional()
+    @IsString()
+    public key?: string;
+
+    /** True if the blueprint comes from an extension and is kept up to date unless edited */
+    @IsBoolean()
+    public managed!: boolean;
 
     /** The data associated with the pipeline blueprint */
     @Type(() => BlueprintDataDto)

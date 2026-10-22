@@ -5,7 +5,7 @@ export type SpotifyPlayKind = 'track' | 'episode' | 'audiobook' | 'unknown';
 
 export type SpotifySkipReason = 'not-an-object' | 'invalid-ts' | 'invalid-ms-played';
 
-/** A validated row with normalised values; `null`/empty fields are dropped, `ip_addr` never makes it here. */
+/** A validated row with normalised values; `null`/empty fields are dropped. */
 export interface SpotifyPlay {
     kind: SpotifyPlayKind;
     /** The track, episode or audiobook chapter URI, if the row has one. */
@@ -28,6 +28,8 @@ export interface SpotifyPlay {
 
     platform?: string;
     connCountry?: string;
+    /** `ip_addr` as logged by Spotify. Ignored for duplicate detection (Spotify repeats rows with another IP). */
+    ipAddress?: string;
     reasonStart?: string;
     reasonEnd?: string;
     shuffle?: boolean;
@@ -63,9 +65,10 @@ export function parseSpotifyStreamingHistory(json: string): SpotifyStreamingHist
 
     const plays: SpotifyPlay[] = [];
     const skipped: SpotifyStreamingHistoryParseResult['skipped'] = {};
-    // Distinct rows (by content) seen per base key, so repeated rows collapse and different plays sharing a key
-    // get an ordinal.
-    const fingerprintsByBaseKey = new Map<string, string[]>();
+    // Distinct rows (by content hash) seen per base key, so repeated rows collapse and different plays sharing a key
+    // get an ordinal. Hashes instead of the row JSON keep memory flat for 200k+ rows; the base key already pins end
+    // time, item and duration, so a collision inside one group is not a practical concern.
+    const fingerprintsByBaseKey = new Map<string, number[]>();
     let duplicateRows = 0;
 
     for (const row of data) {
@@ -77,7 +80,8 @@ export function parseSpotifyStreamingHistory(json: string): SpotifyStreamingHist
         }
 
         const baseKey = buildBasePlayKey(result);
-        const fingerprint = JSON.stringify(result);
+        const { ipAddress: _ipAddress, ...comparable } = result;
+        const fingerprint = hashString(JSON.stringify(comparable));
         const fingerprints = fingerprintsByBaseKey.get(baseKey) ?? [];
 
         if (fingerprints.includes(fingerprint)) {
@@ -153,6 +157,7 @@ export function normalizeSpotifyRow(row: unknown): Omit<SpotifyPlay, 'playKey'> 
 
     assign(play, 'platform', text(raw.platform));
     assign(play, 'connCountry', text(raw.conn_country));
+    assign(play, 'ipAddress', text(raw.ip_addr));
     assign(play, 'reasonStart', text(raw.reason_start));
     assign(play, 'reasonEnd', text(raw.reason_end));
     assign(play, 'shuffle', bool(raw.shuffle));
@@ -201,4 +206,16 @@ function assign<K extends keyof SpotifyPlay>(target: Partial<SpotifyPlay>, key: 
     if (value !== undefined) {
         target[key] = value;
     }
+}
+
+/** FNV-1a, 32 bit. */
+function hashString(value: string): number {
+    let hash = 0x811c9dc5;
+
+    for (let i = 0; i < value.length; i++) {
+        hash ^= value.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+    }
+
+    return hash >>> 0;
 }

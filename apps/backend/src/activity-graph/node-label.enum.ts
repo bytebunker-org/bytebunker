@@ -5,22 +5,27 @@ export enum NodeLabelEnum {
     PLACE = 'Place',
     GOOGLE_PLACE = 'GooglePlace',
     ICS_LOCATION = 'IcsLocation',
+    /** Derived by enrichment: one node per real place, raw places point at it with SAME_AS. Not a Place itself. */
+    CANONICAL_PLACE = 'CanonicalPlace',
     AUDIO = 'Audio',
     MUSIC_RECORDING = 'MusicRecording',
     SPOTIFY_TRACK = 'SpotifyTrack',
     PODCAST_EPISODE = 'PodcastEpisode',
     SPOTIFY_EPISODE = 'SpotifyEpisode',
+    AUDIOBOOK_CHAPTER = 'AudiobookChapter',
+    SPOTIFY_AUDIOBOOK_CHAPTER = 'SpotifyAudiobookChapter',
     VIDEO = 'Video',
     YOUTUBE_VIDEO = 'YouTubeVideo',
     NOTE = 'Note',
     PAGE = 'Page',
-    AUDIOBOOK_CHAPTER = 'AudiobookChapter',
     AIRBNB_LISTING = 'AirbnbListing',
     MY_HUB_PERSON = 'MyHubPerson',
+    SPOTIFY_VIDEO = 'SpotifyVideo',
 
     ACTIVITY = 'Activity',
     GOOGLE_TIMELINE_ACTIVITY = 'GoogleTimelineActivity',
     SPOTIFY_LISTEN_ACTIVITY = 'SpotifyListenActivity',
+    SPOTIFY_VIEW_ACTIVITY = 'SpotifyViewActivity',
     YOUTUBE_VIEW_ACTIVITY = 'YouTubeViewActivity',
     ACTIVITY_ARRIVE = 'Arrive',
     ACTIVITY_MOVE = 'Move',
@@ -40,4 +45,8 @@ export enum NodeLabelEnum {
     SAVED_PLACE = 'SavedPlace',
     BROWSER_VISIT = 'BrowserVisit',
     GOOGLE_MY_ACTIVITY = 'GoogleMyActivity',
+    /** Derived by enrichment: a trip away from home (an Activity, so it shows up in activity queries). */
+    ACTIVITY_TRAVEL = 'Travel',
+    /** Derived by enrichment: per-day aggregates (counts, places, distances, listening time). Not an Activity. */
+    DAILY_SUMMARY = 'DailySummary',
 }

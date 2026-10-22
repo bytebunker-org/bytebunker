@@ -9,6 +9,8 @@ export interface TransformReportRow {
     predictedCreated?: number;
     idealCreated?: number;
     analysis?: ActivityAnalysis;
+    /** Rows the transform skipped (and counted) instead of failing the file. */
+    skippedRows?: Record<string, number>;
     error?: string;
 }
 
@@ -45,6 +47,7 @@ interface SourceTotals {
     conflictingObjectKeySets: number;
     objectsWithoutKeys: number;
     skippedProblems: Record<string, number>;
+    skippedRows: Record<string, number>;
     byType: Record<string, number>;
     stringified: Record<string, number>;
     timeMin?: string;
@@ -71,6 +74,7 @@ function totalsBySource(report: TransformReport): Map<string, SourceTotals> {
             conflictingObjectKeySets: 0,
             objectsWithoutKeys: 0,
             skippedProblems: {},
+            skippedRows: {},
             byType: {},
             stringified: {},
         };
@@ -98,6 +102,10 @@ function totalsBySource(report: TransformReport): Map<string, SourceTotals> {
 
         for (const [type, count] of Object.entries(a.byType)) {
             t.byType[type] = (t.byType[type] ?? 0) + count;
+        }
+
+        for (const [reason, count] of Object.entries(row.skippedRows ?? {})) {
+            t.skippedRows[reason] = (t.skippedRows[reason] ?? 0) + count;
         }
 
         for (const [property, count] of Object.entries(a.problems.stringifiedProperties)) {
@@ -131,8 +139,8 @@ export function formatTransformReport(report: TransformReport, previous?: Transf
         `Generated ${report.generatedAt}${previous ? `, deltas vs ${previous.generatedAt}` : ''}.`,
         '',
         '`created (today)` = what store-activity would write given everything earlier in the corpus, with',
-        'today\'s dedup (only keys already in Postgres are skipped). `created (ideal)` = each new stable key',
-        'once. The gap is duplicate activity nodes from keys repeated inside one file.',
+        'the pre-batching dedup (only keys already in Postgres are skipped). `created (ideal)` = each new stable key',
+        'once, which is what the batched persister writes. The gap is keys repeated inside one file.',
         '',
         '| Source | Files | Errors | Activities | Created (today) | Created (ideal) | Dup keys in file | …conflicting | Objects refs → distinct | Output MB (max file) | Transform s | Range |',
         '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | --- |',
@@ -149,10 +157,37 @@ export function formatTransformReport(report: TransformReport, previous?: Transf
 
     for (const [sourceId, t] of current) {
         lines.push(`### ${sourceId}`, '');
-        lines.push(`- Types: ${Object.entries(t.byType).map(([k, v]) => `${k} ${num(v)}`).join(', ') || '—'}`);
-        lines.push(`- Stringified nested properties: ${Object.entries(t.stringified).map(([k, v]) => `${k} ${num(v)}`).join(', ') || '—'}`);
-        lines.push(`- Objects without stable keys: ${num(t.objectsWithoutKeys)}; objects linking separate key groups: ${num(t.conflictingObjectKeySets)}`);
-        lines.push(`- Other: ${Object.entries(t.skippedProblems).map(([k, v]) => `${k} ${num(v)}`).join(', ') || '—'}`);
+        lines.push(
+            `- Types: ${
+                Object.entries(t.byType)
+                    .map(([k, v]) => `${k} ${num(v)}`)
+                    .join(', ') || '—'
+            }`,
+        );
+        lines.push(
+            `- Stringified nested properties: ${
+                Object.entries(t.stringified)
+                    .map(([k, v]) => `${k} ${num(v)}`)
+                    .join(', ') || '—'
+            }`,
+        );
+        lines.push(
+            `- Objects without stable keys: ${num(t.objectsWithoutKeys)}; objects linking separate key groups: ${num(t.conflictingObjectKeySets)}`,
+        );
+        lines.push(
+            `- Skipped rows: ${
+                Object.entries(t.skippedRows)
+                    .map(([k, v]) => `${k} ${num(v)}`)
+                    .join(', ') || '—'
+            }`,
+        );
+        lines.push(
+            `- Other: ${
+                Object.entries(t.skippedProblems)
+                    .map(([k, v]) => `${k} ${num(v)}`)
+                    .join(', ') || '—'
+            }`,
+        );
 
         const rows = report.rows.filter((r) => r.sourceId === sourceId);
         const errors = rows.filter((r) => r.error);
@@ -161,7 +196,9 @@ export function formatTransformReport(report: TransformReport, previous?: Transf
             lines.push(`- **Error** in \`${row.importPath}\`: ${row.error}`);
         }
 
-        const examples = rows.flatMap((r) => Object.entries(r.analysis?.examples ?? {}).map(([k, v]) => [k, v] as const));
+        const examples = rows.flatMap((r) =>
+            Object.entries(r.analysis?.examples ?? {}).map(([k, v]) => [k, v] as const),
+        );
         const shown = new Set<string>();
 
         for (const [problem, values] of examples) {
@@ -170,7 +207,13 @@ export function formatTransformReport(report: TransformReport, previous?: Transf
             }
 
             shown.add(problem);
-            lines.push(`- Example \`${problem}\`:`, '', '```json', JSON.stringify(values.slice(0, 2), null, 2).slice(0, 1500), '```');
+            lines.push(
+                `- Example \`${problem}\`:`,
+                '',
+                '```json',
+                JSON.stringify(values.slice(0, 2), null, 2).slice(0, 1500),
+                '```',
+            );
         }
 
         lines.push('');

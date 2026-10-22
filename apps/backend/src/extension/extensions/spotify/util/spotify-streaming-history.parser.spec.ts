@@ -63,10 +63,10 @@ describe('parseSpotifyStreamingHistory', () => {
         expect(play.playKey).toBe('spotify:play:2025-01-02T11:42:36Z:unknown:android:4677');
     });
 
-    it('never carries the IP address', () => {
+    it('keeps the IP address', () => {
         const [play] = parse([TRACK_ROW]).plays;
 
-        expect(JSON.stringify(play)).not.toContain('192.0.2.10');
+        expect(play?.ipAddress).toBe('192.0.2.10');
     });
 
     it('skips and counts malformed rows without failing the file', () => {

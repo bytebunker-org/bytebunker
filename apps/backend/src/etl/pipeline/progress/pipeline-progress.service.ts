@@ -41,13 +41,30 @@ export class PipelineProgressService {
      * Marks the node as running and returns a throttled reporter for the module. Call {@link finishNode} when the
      * module returns or throws; it flushes the last pending update.
      */
-    public async startNode(executionId: number, nodeId: number): Promise<ThrottledReporter> {
+    public async startNode(
+        executionId: number,
+        nodeId: number,
+        /** Optional extra sink for every (throttled) update, e.g. the BullMQ job progress shown in Bull Board. */
+        mirror?: (percent: number) => Promise<void>,
+    ): Promise<ThrottledReporter> {
         const now = new Date().toISOString();
         const initial: StoredNodeProgress = { status: 'running', startedAt: now, updatedAt: now };
 
         await this.write(executionId, nodeId, initial);
 
-        return new ThrottledReporter(initial, (state) => this.write(executionId, nodeId, state), this.logger);
+        return new ThrottledReporter(
+            initial,
+            async (state) => {
+                await this.write(executionId, nodeId, state);
+
+                const percent = toPercent(state);
+
+                if (mirror && percent !== undefined) {
+                    await mirror(percent);
+                }
+            },
+            this.logger,
+        );
     }
 
     public async finishNode(
@@ -56,6 +73,13 @@ export class PipelineProgressService {
         message?: string,
     ): Promise<void> {
         await reporter.finish(status, message);
+    }
+
+    /** Forgets the live state of nodes that are about to run again, so they show as waiting until they start. */
+    public async clearNodes(executionId: number, nodeIds: number[]): Promise<void> {
+        if (nodeIds.length) {
+            await this.redis.hdel(KEY_PREFIX + executionId, ...nodeIds.map(String));
+        }
     }
 
     public async getProgress(em: EntityManager, executionId: number): Promise<PipelineProgressDto> {
@@ -237,6 +261,16 @@ export class ThrottledReporter implements ModuleProgressReporter {
             .then(() => this.persist(snapshot))
             .catch((error: unknown) => this.logger.warn('Could not store pipeline progress', error));
     }
+}
+
+function toPercent(state: StoredNodeProgress): number | undefined {
+    if (state.status === 'success') {
+        return 100;
+    }
+
+    return state.total && state.current !== undefined
+        ? Math.min(100, Math.round((state.current / state.total) * 100))
+        : undefined;
 }
 
 function stripUndefined<T extends object>(value: T): Partial<T> {

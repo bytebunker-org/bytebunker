@@ -9,6 +9,7 @@ import { ServiceAlternativesConfig } from '../../shared/service-alternatives/ser
 import { Neo4jConfig } from './neo4j.config.js';
 import { RedisConfig } from '../../shared/redis/redis.config.js';
 import { MyHubConfig } from '../../extension/extensions/my-hub/my-hub.config.js';
+import { GeocodingConfig } from './geocoding.config.js';
 
 export enum NodeEnvironment {
     DEVELOPMENT = 'development',
@@ -67,6 +68,13 @@ export class AppConfig {
     @Type(() => ServiceAlternativesConfig)
     @IsObject()
     public readonly serviceAlternatives!: ServiceAlternativesConfig;
+
+    /** Optional: reverse geocoding of canonical places (GeoNames offline, Nominatim online). */
+    @Type(() => GeocodingConfig)
+    @IsOptional()
+    @IsObject()
+    @ValidateNested()
+    public readonly geocoding?: GeocodingConfig;
 
     @Type(() => SwaggerConfig)
     @IsOptional()

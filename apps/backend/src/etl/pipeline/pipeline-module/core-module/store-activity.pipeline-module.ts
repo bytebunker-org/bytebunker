@@ -41,6 +41,8 @@ export class StoreActivityOutput {
     outputType: StoreActivityOutput,
     // Writing the graph is usually most of an import's time.
     progressWeight: 4,
+    description:
+        'Writes activities into the activity graph (skipping ones already stored). Normally the last node of an import blueprint.',
 })
 export class StoreActivityPipelineModule implements IPipelineModule<StoreActivityInput, StoreActivityOutput> {
     private readonly logger = new Logger(StoreActivityPipelineModule.name);

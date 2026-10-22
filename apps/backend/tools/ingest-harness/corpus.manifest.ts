@@ -25,12 +25,20 @@ export type ImporterId =
 
 export interface ImporterDefinition {
     id: ImporterId;
-    /** Blueprint file in `tools/ingest-harness/blueprints/`. */
-    blueprintFile: string;
+    /**
+     * Key of the blueprint the extension ships (`src/extension/extensions/<ext>/blueprints/<name>.blueprint.json`,
+     * installed by the backend at boot). The harness tests exactly what users get.
+     */
+    shippedBlueprint: string;
     /** Blueprint node id of the module that turns the raw file into activities. */
     transformNodeId: number;
     /** Blueprint node id of the store-activity module. */
     storeNodeId: number;
+    /**
+     * Tier 1 fails a file above these counts: activities sharing a key with different content (the key is too coarse,
+     * real events merge) and object keys linking otherwise separate identities. Known leftovers are listed here.
+     */
+    maxConflicts: { activityKeys: number; objectKeySets: number };
 }
 
 export type CorpusRoot = 'takeout' | 'home';
@@ -59,81 +67,96 @@ export interface CorpusSource {
 export const importers: Record<ImporterId, ImporterDefinition> = {
     'google-timeline': {
         id: 'google-timeline',
-        blueprintFile: 'google-timeline.blueprint.json',
+        shippedBlueprint: 'google/timeline',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'google-semantic-location-history': {
         id: 'google-semantic-location-history',
-        blueprintFile: 'google-semantic-location-history.blueprint.json',
+        shippedBlueprint: 'google/semantic-location-history',
         transformNodeId: 2,
         storeNodeId: 3,
+        // One 30 s Move followed by another Move in the same minute; start+end keys would fix it but lose ~60 matches
+        // against Timeline.json.
+        maxConflicts: { activityKeys: 1, objectKeySets: 0 },
     },
     'youtube-watch-history': {
         id: 'youtube-watch-history',
-        blueprintFile: 'youtube-watch-history.blueprint.json',
+        shippedBlueprint: 'youtube/watch-history',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'ics-calendar': {
         id: 'ics-calendar',
-        blueprintFile: 'ics-calendar.blueprint.json',
+        shippedBlueprint: 'ics-calendar/calendar',
         transformNodeId: 2,
         storeNodeId: 3,
-    },
-    'google-maps-places': {
-        id: 'google-maps-places',
-        blueprintFile: 'google-maps-places.blueprint.json',
-        transformNodeId: 2,
-        storeNodeId: 3,
-    },
-    'airbnb-export': {
-        id: 'airbnb-export',
-        blueprintFile: 'airbnb-export.blueprint.json',
-        transformNodeId: 2,
-        storeNodeId: 3,
-    },
-    whatsapp: {
-        id: 'whatsapp',
-        blueprintFile: 'whatsapp.blueprint.json',
-        transformNodeId: 2,
-        storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'spotify-streaming-history': {
         id: 'spotify-streaming-history',
-        blueprintFile: 'spotify-streaming-history.blueprint.json',
+        shippedBlueprint: 'spotify/streaming-history',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
+    },
+    'google-maps-places': {
+        id: 'google-maps-places',
+        shippedBlueprint: 'google/maps-places',
+        transformNodeId: 2,
+        storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
+    },
+    'airbnb-export': {
+        id: 'airbnb-export',
+        shippedBlueprint: 'airbnb/export',
+        transformNodeId: 2,
+        storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
+    },
+    whatsapp: {
+        id: 'whatsapp',
+        shippedBlueprint: 'whatsapp/chat',
+        transformNodeId: 2,
+        storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'browser-history-database': {
         id: 'browser-history-database',
-        blueprintFile: 'browser-history-database.blueprint.json',
+        shippedBlueprint: 'browser-history/database',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'chrome-takeout-history': {
         id: 'chrome-takeout-history',
-        blueprintFile: 'chrome-takeout-history.blueprint.json',
+        shippedBlueprint: 'browser-history/chrome-takeout-history',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'browser-bookmarks-html': {
         id: 'browser-bookmarks-html',
-        blueprintFile: 'browser-bookmarks-html.blueprint.json',
+        shippedBlueprint: 'browser-history/bookmarks-html',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'google-my-activity': {
         id: 'google-my-activity',
-        blueprintFile: 'google-my-activity.blueprint.json',
+        shippedBlueprint: 'google/my-activity',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'youtube-search-history': {
         id: 'youtube-search-history',
-        blueprintFile: 'youtube-search-history.blueprint.json',
+        shippedBlueprint: 'youtube/search-history',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
 };
 
@@ -238,7 +261,7 @@ export const corpusSources: CorpusSource[] = [
         importer: 'spotify-streaming-history',
         from: 'Spotify Extended Streaming History/Streaming_History_Video_*.json',
         to: (path) => `spotify/${basename(path)}`,
-        notes: 'Music videos and video podcasts; same row shape as audio.',
+        notes: 'Music videos and video podcasts; same row shape as audio, imported as View activities.',
     },
     {
         id: 'maps-saved-places-2025',

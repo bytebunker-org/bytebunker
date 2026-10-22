@@ -19,7 +19,7 @@ describe('MyHubSyncTriggerService', () => {
     });
 
     it('starts every blueprint with the sync trigger and summarises the results', async () => {
-        void pipelineTriggerService.executeBlueprintFromTrigger.mockResolvedValue([
+        void pipelineTriggerService.createExecutionsFromTrigger.mockResolvedValue([
             {
                 status: 'created',
                 blueprintId: 1,
@@ -35,15 +35,16 @@ describe('MyHubSyncTriggerService', () => {
                 error: new Error('boom'),
             },
         ]);
-        const em = {} as EntityManager;
+        const em = { transactional: (callback: (em: unknown) => unknown) => callback(em) } as unknown as EntityManager;
 
         const results = await service.trigger(em, { dryRun: true, now: new Date('2026-10-22T08:00:00Z') });
 
-        const [calledEm, triggerClass, options] = pipelineTriggerService.executeBlueprintFromTrigger.mock.calls[0]!;
+        const [calledEm, triggerClass, options] = pipelineTriggerService.createExecutionsFromTrigger.mock.calls[0]!;
         expect(calledEm).toBe(em);
         expect(triggerClass).toBe(MyHubSyncTriggerPipelineModule);
         expect(options.dryRun).toBe(true);
         expect(await options.buildNodeData({} as never)).toEqual({ triggeredAt: '2026-10-22T08:00:00.000Z' });
+        expect(pipelineTriggerService.scheduleCreatedExecutions).toHaveBeenCalledTimes(1);
         expect(results).toEqual([
             { blueprintId: 1, blueprintTitle: 'my-hub persons', status: 'created', executionId: 77 },
             { blueprintId: 2, blueprintTitle: 'my-hub calendar', status: 'failed', error: 'Error: boom' },

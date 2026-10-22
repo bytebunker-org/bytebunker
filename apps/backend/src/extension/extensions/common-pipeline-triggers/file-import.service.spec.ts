@@ -149,3 +149,51 @@ describe('FileImportService routing', () => {
         expect(service.isIgnored('google/timeline/timeline.json')).toBe(false);
     });
 });
+
+describe('FileImportService.importFile', () => {
+    it('queues the created executions only after the import transaction committed', async () => {
+        const order: string[] = [];
+        const triggerResults = [
+            { status: 'created', blueprintId: 1, blueprintTitle: 'Timeline', nodeId: 1, execution: { id: 5 } },
+        ];
+        const em = {
+            fork: () => ({
+                transactional: async <T>(callback: (em: EntityManager) => Promise<T>) => {
+                    const result = await callback({} as EntityManager);
+                    order.push('commit');
+
+                    return result;
+                },
+            }),
+        } as unknown as EntityManager;
+        const pipelineTriggerService = {
+            createExecutionsFromTrigger: vi.fn(() => {
+                order.push('create');
+
+                return Promise.resolve(triggerResults);
+            }),
+            scheduleCreatedExecutions: vi.fn(() => {
+                order.push('schedule');
+
+                return Promise.resolve();
+            }),
+        } as unknown as PipelineTriggerService;
+        const service = new FileImportService(
+            em,
+            pipelineTriggerService,
+            {} as PipelineModuleService,
+            {} as AssetService,
+        );
+        vi.spyOn(service, 'route').mockResolvedValue({
+            sample: { relativePath: 'timeline.json', size: 3 } as FileSample,
+            matches: [{ blueprintId: 1, matchedBy: 'glob' }],
+            considered: [],
+        });
+
+        const result = await service.importFile({ absolutePath: '/tmp/timeline.json', relativePath: 'timeline.json' });
+
+        expect(order).toEqual(['create', 'commit', 'schedule']);
+        expect(pipelineTriggerService.scheduleCreatedExecutions).toHaveBeenCalledWith(triggerResults);
+        expect(result.outcome).toBe('started');
+    });
+});

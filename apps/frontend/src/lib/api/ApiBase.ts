@@ -237,11 +237,12 @@ export abstract class ApiBase {
 			for (const cookieHeader of response.headers.getSetCookie()) {
 				const cookie = parseString(cookieHeader);
 
-				if (cookie.name !== 'sid') {
+				// Git worktrees run the backend with a slot-specific cookie name (sid-wt1, …, see docs/WORKTREES.md)
+				if (!/^sid(-wt\d+)?$/.test(cookie.name)) {
 					continue;
 				}
 
-				ssrCookies.set('sid', cookie.value, {
+				ssrCookies.set(cookie.name, cookie.value, {
 					expires: cookie.expires,
 					path: '/',
 					sameSite: 'strict',

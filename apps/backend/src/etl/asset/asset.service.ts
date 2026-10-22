@@ -76,6 +76,7 @@ export class AssetService implements OnApplicationBootstrap {
 
         if (existingAsset) {
             this.logger.log(`Asset ${options.originalFilePath ?? id} already exists with id ${existingAsset.id}`);
+            await this.restoreMissingObject(existingAsset, data);
 
             return this.enrich(existingAsset);
         }
@@ -163,6 +164,17 @@ export class AssetService implements OnApplicationBootstrap {
         return this.enrich(asset);
     }
 
+    /** Finds the asset that stored exactly this content, the same lookup {@link storeAsset} dedups with. */
+    public async findByContent(
+        em: EntityManager,
+        type: AssetTypeEnum,
+        data: string | Buffer,
+    ): Promise<AssetEntity | null> {
+        const hashBuffer = Buffer.from(await blake3(data), 'hex');
+
+        return em.findOne(AssetEntity, { type, hash: hashBuffer });
+    }
+
     public async findById(em: EntityManager, id: string): Promise<AssetDto> {
         const asset = await em.findOne(AssetEntity, { id });
         if (!asset) {
@@ -235,6 +247,26 @@ export class AssetService implements OnApplicationBootstrap {
         }
 
         return this.getStorageService(asset.type).retrieveAssetString(asset.storagePath!, encoding);
+    }
+
+    /**
+     * The row alone doesn't prove the object exists: rows copied from another environment point at objects that
+     * were never uploaded here, and reusing them would make the content unreadable forever. Same hash means same
+     * bytes, so uploading them to the row's storage path repairs it.
+     */
+    private async restoreMissingObject(asset: AssetEntity, data: string | Buffer): Promise<void> {
+        if (this.isExternal(asset) || !asset.storagePath) {
+            return;
+        }
+
+        const storage = this.getStorageService(asset.type);
+
+        if (await storage.assetExists(asset.storagePath)) {
+            return;
+        }
+
+        this.logger.warn(`Asset ${asset.id} is missing from storage at ${asset.storagePath}, uploading it again`);
+        await storage.storeAsset(asset.storagePath, data, Buffer.byteLength(data), asset.metadata);
     }
 
     private enrich<T extends AssetEntity>(asset: T): T {

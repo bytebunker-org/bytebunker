@@ -75,7 +75,8 @@
 
 <style>
 	.draggable-node {
-		background: linear-gradient(200deg, rgba(255, 255, 255, 0.4), transparent 100%),
+		background:
+			linear-gradient(200deg, rgba(255, 255, 255, 0.4), transparent 100%),
 			linear-gradient(0deg, var(--bg-color), var(--bg-color));
 		color: var(--fg-color);
 		border-color: var(--fg-color);

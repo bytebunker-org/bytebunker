@@ -20,6 +20,8 @@ export const BROWSER_HISTORY_EXTENSION_ID = '01a163c8-c191-7548-94ff-1e727b3aa54
 export const BROWSER_HISTORY_EXTENSION = 'browser-history';
 export const MY_HUB_EXTENSION_ID = '01a163c8-c1af-73dc-816d-53c911877f99';
 export const MY_HUB_EXTENSION = 'my-hub';
+export const ENRICHMENT_EXTENSION_ID = '01a163e4-c3ae-70cf-9f51-1027a9f82a59';
+export const ENRICHMENT_EXTENSION = 'enrichment';
 
 export const localExtensions = [
     {
@@ -65,6 +67,10 @@ export const localExtensions = [
     {
         id: MY_HUB_EXTENSION_ID,
         name: MY_HUB_EXTENSION,
+    } as const,
+    {
+        id: ENRICHMENT_EXTENSION_ID,
+        name: ENRICHMENT_EXTENSION,
     } as const,
 ] satisfies { id: string; name: string }[];
 

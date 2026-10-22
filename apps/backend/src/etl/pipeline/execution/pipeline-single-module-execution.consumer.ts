@@ -22,7 +22,6 @@ export class PipelineSingleModuleExecutionConsumer extends AbstractQueueConsumer
             try {
                 const { pipelineId, nodeId } = job.data;
 
-                // TODO: Also give executeModule the job instance to track granular progress
                 error = (await this.pipelineExecutionService.executeModule(em, pipelineId, nodeId, job)) ?? undefined;
             } catch (error) {
                 console.error(error);

@@ -205,6 +205,29 @@ async function cleanJsFileImports() {
     );
 }
 
+/** Packages that only run on the server; a runtime import of one breaks the frontend in the browser. */
+const serverOnlyImportRegex = /from\s+['"](@nestjs\/(?:common|core|swagger|mapped-types)|@mikro-orm\/[\w-]+|neode|neo4j-driver|bullmq|ioredis)['"]/;
+
+async function checkServerOnlyImports() {
+    const jsFiles = await glob(libraryDirectory + '/**/*.js');
+    const offenders: string[] = [];
+
+    for (const file of jsFiles) {
+        const match = serverOnlyImportRegex.exec(await fs.readFile(file, 'utf8'));
+
+        if (match) {
+            offenders.push(`${path.relative(libraryDirectory, file)} imports ${match[1]}`);
+        }
+    }
+
+    if (offenders.length) {
+        throw new Error(
+            'The library imports server-only packages; keep services and entities out of the files it includes ' +
+                `(*.dto.ts, *.type.ts, *.interface.ts, *.enum.ts, *.constant.ts):\n  ${offenders.join('\n  ')}`,
+        );
+    }
+}
+
 async function main() {
     const project = new Project({
         tsConfigFilePath: './tsconfig.lib.json',
@@ -223,6 +246,8 @@ async function main() {
     generateIndexFiles(project);
 
     console.info('Writing library files...');
+    // Start from an empty folder: files of sources that left the library would otherwise stay and still be loaded.
+    await fs.rm(libraryDirectory, { recursive: true, force: true });
     const compilationResult = await project.emit();
 
     if (compilationResult.getDiagnostics().length) {
@@ -242,8 +267,10 @@ async function main() {
 
     console.info('Cleaning empty js files');
     await cleanJsFileImports();
+    await checkServerOnlyImports();
 }
 
 main().catch((error) => {
     console.error(error);
+    process.exitCode = 1;
 });

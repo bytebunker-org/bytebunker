@@ -86,7 +86,11 @@ export class PipelineTriggerService {
         return results.filter(Boolean);
     }
 
-    public async executeBlueprintFromTrigger<Input, Output>(
+    /**
+     * Creates an execution for every blueprint whose trigger node matches. The executions are not queued yet: call
+     * {@link scheduleCreatedExecutions} with the results once the surrounding transaction has committed.
+     */
+    public async createExecutionsFromTrigger<Input, Output>(
         em: EntityManager,
         triggerModuleClass: Constructable<AbstractTriggerPipelineModule<Input, Output>>,
         {
@@ -146,7 +150,7 @@ export class PipelineTriggerService {
                     }
                 }
 
-                const execution = await this.pipelineExecutionService.executeBlueprintFromTrigger(
+                const execution = await this.pipelineExecutionService.createExecutionFromTrigger(
                     em,
                     blueprintEntity.id,
                     node.id,
@@ -184,7 +188,7 @@ export class PipelineTriggerService {
             const result = settledResult.value;
 
             if (result.status === 'created') {
-                this.logger.debug('Successfully executed pipeline from trigger', {
+                this.logger.debug('Created pipeline execution from trigger', {
                     pipelineExecutionId: result.execution.id,
                 });
             } else if (result.status === 'skipped') {
@@ -195,6 +199,15 @@ export class PipelineTriggerService {
 
             return result;
         });
+    }
+
+    /** Queues the executions created by {@link createExecutionsFromTrigger}. Call after the transaction committed. */
+    public async scheduleCreatedExecutions(results: PipelineTriggerResult[]): Promise<void> {
+        for (const result of results) {
+            if (result.status === 'created') {
+                await this.pipelineExecutionService.schedulePipelineExecution(result.execution.id);
+            }
+        }
     }
 
     /**

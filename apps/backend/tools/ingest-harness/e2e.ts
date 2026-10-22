@@ -24,7 +24,6 @@ import pg from 'pg';
 import { importers, type ImporterId } from './corpus.manifest.js';
 import {
     BACKEND_DIR,
-    BLUEPRINT_DIR,
     CORPUS_DIR,
     REPORT_DIR,
     corpusFilePath,
@@ -34,7 +33,6 @@ import {
 import type { TransformReport } from './lib/report.js';
 import { loadHarnessEnv, type HarnessEnv } from './lib/worktree-env.js';
 
-const HARNESS_BLUEPRINT_PREFIX = '[ingest-harness] ';
 const POLL_MS = 1000;
 
 const { values: args } = parseArgs({
@@ -152,6 +150,8 @@ async function importFolders(db: pg.Client) {
         import: await folder('localFileTriggerImportFolder', './data/import'),
         finished: await folder('localFileTriggerImportFinishedFolder', './data/import-finished'),
         failed: await folder('localFileTriggerImportFailedFolder', './data/import-failed'),
+        // Not a setting: the watcher derives it from the import folder.
+        processing: `${await folder('localFileTriggerImportFolder', './data/import')}-processing`,
     };
 }
 
@@ -179,33 +179,28 @@ async function resetInstance(db: pg.Client, graph: Driver, folders: Awaited<Retu
     }
 }
 
-async function installBlueprints(db: pg.Client, importerIds: ImporterId[]): Promise<void> {
-    for (const importerId of importerIds) {
-        const definition = importers[importerId];
-        const title = `${HARNESS_BLUEPRINT_PREFIX}${importerId}`;
-        const data = JSON.parse(await fs.readFile(join(BLUEPRINT_DIR, definition.blueprintFile), 'utf8')) as {
-            nodes: { moduleId: string }[];
-        };
+/**
+ * The backend installs the blueprints its extensions ship when it boots (in the background). Wait until those the
+ * corpus needs exist, so dropped files have something to match.
+ */
+async function waitForShippedBlueprints(db: pg.Client, importerIds: ImporterId[]): Promise<void> {
+    const keys = [...new Set(importerIds.map((id) => importers[id].shippedBlueprint))];
+    const deadline = Date.now() + 90_000;
 
-        await db.query('BEGIN');
-        await db.query(`DELETE FROM pipeline_blueprint_entity WHERE title = $1`, [title]);
-        const { rows } = await db.query<{ id: number }>(
-            `INSERT INTO pipeline_blueprint_entity (title, description, data) VALUES ($1, $2, $3) RETURNING id`,
-            [title, `Installed by tools/ingest-harness from ${definition.blueprintFile}`, JSON.stringify(data)],
+    while (Date.now() < deadline) {
+        const { rows } = await db.query<{ key: string }>(
+            'SELECT key FROM pipeline_blueprint_entity WHERE key = ANY($1)',
+            [keys],
         );
 
-        // The trigger lookup joins blueprints to modules through this table (PipelineBlueprintService does the
-        // same when a blueprint is saved through the API).
-        for (const moduleId of new Set(data.nodes.map((n) => n.moduleId))) {
-            await db.query(
-                `INSERT INTO pipeline_blueprint_entity_used_modules (pipeline_blueprint_entity_id, pipeline_module_entity_id)
-                 VALUES ($1, $2)`,
-                [rows[0]!.id, moduleId],
-            );
+        if (rows.length === keys.length) {
+            return;
         }
 
-        await db.query('COMMIT');
+        await sleep(1000);
     }
+
+    throw new Error(`Shipped blueprints ${keys.join(', ')} were not installed within 90 s, see the backend log`);
 }
 
 interface GraphCounts {
@@ -308,6 +303,13 @@ async function executionsAfter(db: pg.Client, afterId: number): Promise<Executio
     return snapshots;
 }
 
+/** The file landed at `path` after `since` (a move updates ctime), not left over from an earlier pass. */
+async function movedSince(path: string, since: number): Promise<boolean> {
+    const stat = await fs.stat(path).catch(() => undefined);
+
+    return Boolean(stat && stat.ctimeMs >= since - 1000);
+}
+
 const fingerprint = (executions: ExecutionSnapshot[]) =>
     JSON.stringify(executions.map((e) => [e.status, e.updatedAt, e.nodes.map((n) => [n.status, n.updatedAt])]));
 
@@ -351,9 +353,11 @@ async function sampledCopy(file: CorpusFile, size: number): Promise<string> {
 
 interface FileResult {
     sourceId: string;
+    importer: ImporterId;
     importPath: string;
     pass: 'import' | 'reimport';
-    outcome: 'success' | 'failed' | 'stalled' | 'timeout' | 'no-pipeline' | 'multiple-pipelines';
+    /** skipped: the duplicate-import guard recognised the content and started nothing. */
+    outcome: 'success' | 'skipped' | 'failed' | 'stalled' | 'timeout' | 'no-pipeline' | 'multiple-pipelines';
     executions: {
         id: number;
         blueprint: string;
@@ -429,13 +433,10 @@ async function importFile(
             lastChange = Date.now();
         }
 
-        const movedToFailed = await fs.stat(join(folders.failed, file.importPath)).then(
-            () => true,
-            () => false,
-        );
-
         if (!executions.length) {
-            if (movedToFailed) {
+            if (await movedSince(join(folders.finished, file.importPath), start)) {
+                outcome = 'skipped';
+            } else if (await movedSince(join(folders.failed, file.importPath), start)) {
                 outcome = 'no-pipeline';
             } else if (Date.now() - start > 60_000) {
                 outcome = 'no-pipeline';
@@ -474,24 +475,27 @@ async function importFile(
         outcome = 'multiple-pipelines';
     }
 
-    // Let the trigger move the file before checking where it went.
-    await sleep(500);
-    const movedTo = (await fs.stat(join(folders.finished, file.importPath)).then(
-        () => true,
-        () => false,
-    ))
-        ? 'finished'
-        : (await fs.stat(join(folders.failed, file.importPath)).then(
-                () => true,
-                () => false,
-            ))
-          ? 'failed'
-          : undefined;
+    // The watcher moves the file out of the processing folder once its executions ended (checked every few
+    // seconds); give it time before recording where it went.
+    let movedTo: FileResult['fileMovedTo'];
+
+    for (let waited = 0; waited < 20_000 && !movedTo; waited += 500) {
+        movedTo = (await movedSince(join(folders.finished, file.importPath), start))
+            ? 'finished'
+            : (await movedSince(join(folders.failed, file.importPath), start))
+              ? 'failed'
+              : undefined;
+
+        if (!movedTo) {
+            await sleep(500);
+        }
+    }
 
     const definition = importers[file.importer];
 
     const result: FileResult = {
         sourceId: file.sourceId,
+        importer: file.importer,
         importPath: file.importPath,
         pass,
         outcome,
@@ -615,7 +619,7 @@ function formatReport(report: {
 
     for (const r of report.results) {
         const e = r.executions[0];
-        const definition = Object.values(importers).find((i) => e?.blueprint.endsWith(i.id));
+        const definition = importers[r.importer];
         const store = e?.storeOutput as { createdCount?: number; existingCount?: number } | undefined;
         lines.push(
             `| ${r.pass} | ${r.importPath} | ${r.outcome}${r.executions.length > 1 ? ` (${r.executions.length} pipelines)` : ''} | ${s(r.wallMs)} | ${s(definition ? e?.nodeMs[definition.transformNodeId] : undefined)} | ${s(definition ? e?.nodeMs[definition.storeNodeId] : undefined)} | ${definition && e ? ((e.nodeOutputBytes[definition.transformNodeId] ?? 0) / 1024 / 1024).toFixed(1) : ''} | ${fmt(store?.createdCount)} | ${fmt(store?.existingCount)} | ${fmt(r.predictedCreated)} | ${fmt(r.graphDelta.labels['Activity'])} | ${fmt(r.stableKeyDelta)} | ${r.fileMovedTo ?? ''} | ${(e?.error ?? '').slice(0, 120)} |`,
@@ -624,7 +628,7 @@ function formatReport(report: {
 
     const totalStoreMs = report.results.reduce((sum, r) => {
         const e = r.executions[0];
-        const definition = Object.values(importers).find((i) => e?.blueprint.endsWith(i.id));
+        const definition = importers[r.importer];
         return sum + (definition && e?.nodeMs[definition.storeNodeId] ? e.nodeMs[definition.storeNodeId]! : 0);
     }, 0);
     const totalCreated = report.results.reduce(
@@ -717,9 +721,7 @@ async function main(): Promise<void> {
             await backend.start();
         }
 
-        // After the backend started: it registers pipeline modules on boot, and blueprints reference them by
-        // foreign key, so modules added since the last boot must exist first.
-        await installBlueprints(db, [...new Set(corpus.map((f) => f.importer))]);
+        await waitForShippedBlueprints(db, [...new Set(corpus.map((f) => f.importer))]);
 
         const ctx = { db, graph, folders, backend };
         const results: FileResult[] = [];
@@ -757,7 +759,7 @@ async function main(): Promise<void> {
         await fs.writeFile(join(REPORT_DIR, 'e2e-latest.md'), markdown);
         console.log(`\n${markdown}\nReport: ${join(REPORT_DIR, 'e2e-latest.md')}`);
 
-        const failures = results.filter((r) => r.outcome !== 'success');
+        const failures = results.filter((r) => r.outcome !== 'success' && r.outcome !== 'skipped');
         process.exitCode = failures.length ? 1 : 0;
     } finally {
         if (startedBackend && !args['keep-running']) {

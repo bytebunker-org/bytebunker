@@ -15,7 +15,46 @@
 	import MainLayout from '$lib/components/MainLayout.svelte';
 	import ToolbarButton from '$lib/components/ToolbarButton.svelte';
 	import LucideCircuitBoard from '~icons/lucide/circuit-board';
-	import LucidePlus from '~icons/lucide/plus';
+	import LucideFileJson from '~icons/lucide/file-json';
+	import { createMutation, useQueryClient } from '@tanstack/svelte-query';
+	import type { PipelineBlueprintDto } from '@bytebunker/backend';
+	import BlueprintJsonImportDialog from '$lib/components/pipeline/json/BlueprintJsonImportDialog.svelte';
+	import CopyForAiButton from '$lib/components/pipeline/json/CopyForAiButton.svelte';
+	import type { ParsedBlueprintJson } from '$lib/components/pipeline/json/blueprintJson.js';
+	import { toastManager } from '$lib/util/toastManager.svelte.js';
+
+	const queryClient = useQueryClient();
+
+	let importOpen = $state(false);
+
+	const createBlueprintMutation = createMutation<
+		PipelineBlueprintDto,
+		Error,
+		ParsedBlueprintJson & { title?: string }
+	>(() => ({
+		mutationFn: (value) =>
+			PipelineBlueprintApi.create({
+				title: value.title ?? 'Neuer Blueprint',
+				description: value.description,
+				data: value.data
+			}),
+		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pipeline-blueprint'] })
+	}));
+
+	async function createFromJson(value: ParsedBlueprintJson & { title?: string }) {
+		try {
+			const created = await createBlueprintMutation.mutateAsync(value);
+
+			toastManager.showSuccess('Blueprint wurde erstellt');
+			await goto(`/pipelines/blueprints/${created.id}`);
+		} catch (error) {
+			console.error(error);
+			toastManager.showError('Blueprint konnte nicht erstellt werden!');
+
+			// keep the dialog open so the pasted JSON is not lost
+			throw error;
+		}
+	}
 
 	type ListEntry = PipelineBlueprintDatatableDto;
 
@@ -70,7 +109,13 @@
 	breadcrumbs={[['Pipelines', '/pipelines']]}
 >
 	{#snippet toolbar()}
-		<ToolbarButton icon={LucidePlus} tooltip="Blueprint erstellen" class="btn-success" />
+		<CopyForAiButton />
+		<ToolbarButton
+			icon={LucideFileJson}
+			tooltip="Blueprint aus JSON erstellen"
+			class="btn-success"
+			onclick={() => (importOpen = true)}
+		/>
 	{/snippet}
 	<Card class="bg-base-100 border-base-300 rounded-box border shadow">
 		<CardBody class="overflow-hidden p-4 pb-8">
@@ -78,3 +123,5 @@
 		</CardBody>
 	</Card>
 </MainLayout>
+
+<BlueprintJsonImportDialog bind:open={importOpen} mode="create" onsubmit={createFromJson} />

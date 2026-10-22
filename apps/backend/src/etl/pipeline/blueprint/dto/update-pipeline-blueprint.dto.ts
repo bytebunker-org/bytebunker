@@ -1,4 +1,19 @@
-import { PickType } from '@nestjs/swagger';
-import { PipelineBlueprintDto } from './pipeline-blueprint.dto.js';
+import { IsObject, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { BlueprintDataDto } from './blueprint-data.dto.js';
 
-export class UpdatePipelineBlueprintDto extends PickType(PipelineBlueprintDto, ['title', 'description', 'data']) {}
+// See CreatePipelineBlueprintDto for why this is not a mapped type.
+export class UpdatePipelineBlueprintDto {
+    @IsString()
+    @MaxLength(255)
+    public title!: string;
+
+    @IsOptional()
+    @IsString()
+    public description?: string;
+
+    @Type(() => BlueprintDataDto)
+    @IsObject()
+    @ValidateNested()
+    public data!: BlueprintDataDto;
+}

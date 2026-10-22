@@ -1,6 +1,6 @@
-import { Items, Optional, Required } from 'ts-decorator-json-schema-generator';
+import { Items, Optional, Required, Type as SType } from 'ts-decorator-json-schema-generator';
 import { Logger } from '@nestjs/common';
-import type { ASObject, Audio, Listen } from '@bytebunker/event-schema';
+import type { ASObject, Audio, Listen, View } from '@bytebunker/event-schema';
 import { createUnknownASType } from '@bytebunker/event-schema';
 import { AssetDto } from '../../../../etl/asset/dto/asset.dto.js';
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
@@ -37,17 +37,24 @@ export class TransformSpotifyStreamingHistoryOutput {
     @Required()
     @Items(ActivityDto)
     public activities!: ActivityDto[];
+
+    /** Rows not imported, by reason: unreadable rows and rows Spotify logged twice. */
+    @Optional()
+    @SType('object')
+    public skipped?: { total: number; byReason: Record<string, number> };
 }
 
 /**
- * Turns a Spotify Extended Streaming History file into one Listen activity per play: tracks, podcast episodes,
- * audiobook chapters, and the music videos / video podcasts of the video history. Rows that cannot be read are
- * skipped and counted; the file never fails because of one row.
+ * Turns a Spotify Extended Streaming History file into one activity per play: a `Listen` for tracks, podcast
+ * episodes and audiobook chapters, a `View` of a `SpotifyVideo` for the music videos / video podcasts of the video
+ * history. Rows that cannot be read are skipped and counted; the file never fails because of one row.
  */
 @PipelineModule({
     extensionName: SPOTIFY_EXTENSION,
     inputType: TransformSpotifyStreamingHistoryInput,
     outputType: TransformSpotifyStreamingHistoryOutput,
+    description:
+        'Reads a Spotify Extended Streaming History file (audio or video) into Listen / View activities, one per play.',
 })
 export class TransformSpotifyStreamingHistoryPipelineModule
     implements IPipelineModule<TransformSpotifyStreamingHistoryInput, TransformSpotifyStreamingHistoryOutput>
@@ -62,7 +69,7 @@ export class TransformSpotifyStreamingHistoryPipelineModule
     ) {}
 
     public detectFile(sample: FileSample): FileDetection | undefined {
-        if (sample.extension !== 'json' || !/^\uFEFF?\s*\[\s*{/.test(sample.head)) {
+        if (sample.extension !== 'json' || !/^﻿?\s*\[\s*{/.test(sample.head)) {
             return undefined;
         }
 
@@ -99,9 +106,7 @@ export class TransformSpotifyStreamingHistoryPipelineModule
         progress.message(`Reading ${fileName || 'streaming history'}`);
         const json = await this.assetService.getAssetString(em, inputData.streamingHistoryFile);
 
-        return {
-            activities: this.transformStreamingHistory(json, mediaType, generatorExtensionObject, actorId, progress),
-        };
+        return this.transformStreamingHistory(json, mediaType, generatorExtensionObject, actorId, progress);
     }
 
     public transformStreamingHistory(
@@ -110,51 +115,53 @@ export class TransformSpotifyStreamingHistoryPipelineModule
         generatorExtensionObject: ASObject,
         actorId: string,
         progress?: PipelineModuleExecutionContext<unknown>['progress'],
-    ): ActivityDto[] {
+    ): TransformSpotifyStreamingHistoryOutput {
         const { plays, rowCount, skipped, duplicateRows } = parseSpotifyStreamingHistory(json);
         const activities: ActivityDto[] = [];
 
         progress?.report({ current: 0, total: plays.length, unit: 'plays', message: `Found ${rowCount} rows` });
 
         for (const play of plays) {
-            activities.push(this.buildListenActivity(play, mediaType, generatorExtensionObject, actorId) as never);
+            activities.push(this.buildActivity(play, mediaType, generatorExtensionObject, actorId) as never);
 
             if (activities.length % PROGRESS_INTERVAL === 0) {
                 progress?.report({ current: activities.length, total: plays.length, unit: 'plays' });
             }
         }
 
-        progress?.report({ current: activities.length, total: plays.length, unit: 'plays' });
+        const byReason: Record<string, number> = { ...skipped };
 
-        const skippedSummary = Object.entries(skipped)
-            .map(([reason, count]) => `${count} ${reason}`)
-            .join(', ');
-        const summary =
-            `Read ${rowCount} ${mediaType} rows: ${activities.length} plays, ${duplicateRows} repeated rows dropped` +
-            (skippedSummary ? `, skipped ${skippedSummary}` : '');
-
-        if (skippedSummary) {
-            this.logger.warn(summary);
-        } else {
-            this.logger.log(summary);
+        if (duplicateRows) {
+            byReason['duplicate-row'] = duplicateRows;
         }
 
-        progress?.message(summary);
+        const total = Object.values(byReason).reduce((sum, count) => sum + count, 0);
+        const summary =
+            `Read ${rowCount} ${mediaType} rows: ${activities.length} plays` +
+            (total
+                ? `, skipped ${Object.entries(byReason)
+                      .map(([reason, count]) => `${count} ${reason}`)
+                      .join(', ')}`
+                : '');
 
-        return activities;
+        this.logger.log(summary);
+        progress?.report({ current: activities.length, total: plays.length, unit: 'plays', message: summary });
+
+        return { activities, ...(total ? { skipped: { total, byReason } } : {}) };
     }
 
-    public buildListenActivity(
+    public buildActivity(
         play: SpotifyPlay,
         mediaType: SpotifyMediaType,
         generatorExtensionObject: ASObject,
         actorId: string,
-    ): Listen & SpotifyListenActivityInterface {
-        const object = this.buildObject(play);
+    ): (Listen | View) & SpotifyListenActivityInterface {
+        const isVideo = mediaType === 'video';
+        const object = isVideo ? this.buildVideo(play) : this.buildAudio(play);
 
         return {
-            '@type': 'Listen',
-            '@secondaryTypes': [createUnknownASType('SpotifyListenActivity')],
+            '@type': isVideo ? 'View' : 'Listen',
+            '@secondaryTypes': [createUnknownASType(isVideo ? 'SpotifyViewActivity' : 'SpotifyListenActivity')],
             generator: generatorExtensionObject,
             stableKeys: [play.playKey],
             actor: {
@@ -170,6 +177,7 @@ export class TransformSpotifyStreamingHistoryPipelineModule
             ...pick(play, [
                 'platform',
                 'connCountry',
+                'ipAddress',
                 'reasonStart',
                 'reasonEnd',
                 'shuffle',
@@ -178,14 +186,14 @@ export class TransformSpotifyStreamingHistoryPipelineModule
                 'offlineTimestamp',
                 'incognitoMode',
             ]),
-        } satisfies Listen & SpotifyListenActivityInterface;
+        } as (Listen | View) & SpotifyListenActivityInterface;
     }
 
     /**
-     * One node per Spotify URI, keyed like the former script importer (`Audio` + `identifier`) so plays imported
-     * by it link to the same nodes. `byArtist` is a plain string, as for YouTube Music listens.
+     * One node per Spotify URI, keyed like the former script importer (`Audio` + `identifier`) so plays imported by
+     * it link to the same nodes. `byArtist` is a plain string, as for YouTube Music listens.
      */
-    private buildObject(play: SpotifyPlay): Audio | undefined {
+    private buildAudio(play: SpotifyPlay): Audio | undefined {
         if (!play.uri) {
             return undefined;
         }
@@ -215,12 +223,34 @@ export class TransformSpotifyStreamingHistoryPipelineModule
             default:
                 return {
                     ...base,
-                    '@secondaryTypes': [createUnknownASType('AudiobookChapter')],
+                    '@secondaryTypes': [
+                        createUnknownASType('AudiobookChapter'),
+                        createUnknownASType('SpotifyAudiobookChapter'),
+                    ],
                     name: play.audiobookChapterTitle ?? play.audiobookTitle ?? play.uri,
                     ...(play.audiobookTitle ? { audiobookTitle: play.audiobookTitle } : {}),
                     ...(play.audiobookUri ? { audiobookUri: play.audiobookUri } : {}),
                 } as Audio;
         }
+    }
+
+    /** Its own node, not the audio track: a music video or video podcast is a different medium of the same URI. */
+    private buildVideo(play: SpotifyPlay): ASObject | undefined {
+        if (!play.uri) {
+            return undefined;
+        }
+
+        return {
+            '@type': 'Video',
+            '@secondaryTypes': [createUnknownASType('SpotifyVideo')],
+            stableKeys: [this.activityStableKeyService.createASObjectStableKey('Video', { identifier: play.uri })],
+            identifier: play.uri,
+            contentType: play.kind,
+            name: play.trackName ?? play.episodeName ?? play.audiobookChapterTitle ?? play.uri,
+            ...(play.artistName ? { byArtist: play.artistName } : {}),
+            ...(play.albumName ? { inAlbum: play.albumName } : {}),
+            ...(play.showName ? { showName: play.showName } : {}),
+        } as unknown as ASObject;
     }
 }
 

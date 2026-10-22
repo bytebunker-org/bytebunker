@@ -148,7 +148,7 @@ export class FileImportService {
         // The transaction only wraps database work; errors are turned into a result so callers (watcher, upload)
         // can report per file and move on.
         try {
-            return await this.em.fork().transactional(async (em) => {
+            const output = await this.em.fork().transactional(async (em) => {
                 const routing = await this.route(em, request);
                 const matchedIds = new Set(routing.matches.map((match) => match.blueprintId));
 
@@ -156,7 +156,7 @@ export class FileImportService {
                     return this.buildResult(request, routing, [], dryRun);
                 }
 
-                const triggerResults = await this.pipelineTriggerService.executeBlueprintFromTrigger<
+                const triggerResults = await this.pipelineTriggerService.createExecutionsFromTrigger<
                     LocalFileTriggerInput,
                     LocalFileTriggerOutput
                 >(em, LocalFileTriggerPipelineModule, {
@@ -179,6 +179,11 @@ export class FileImportService {
 
                 return this.buildResult(request, routing, triggerResults, dryRun);
             });
+
+            // Queued only now that the executions are committed, so a worker can never miss their rows.
+            await this.pipelineTriggerService.scheduleCreatedExecutions(output.triggerResults);
+
+            return output;
         } catch (error) {
             this.logger.error(`Import of ${request.relativePath} failed`, error);
 

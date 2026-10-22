@@ -60,6 +60,9 @@ Tier 2 (real pipeline, worktree instance):
 
 ### Correctness
 
+> **Update (C1, 2026-10-22):** findings 1–4 are addressed for the key design: Spotify module (`spotify` extension),
+> ICS keys `ics:<UID>[:<RECURRENCE-ID>]`, nested-visit keys, places by `placeId`. See "Key redesign results" below.
+
 1. **Duplicate activities inside one file.** The persister only skips keys that already exist in
    Postgres. Two activities in the same file with the same key are both written; the key index keeps
    one, the other node becomes unreachable for dedup. Spotify alone produces ~20,800 of these.
@@ -119,6 +122,32 @@ Tier 2 (real pipeline, worktree instance):
     "should be defined" specs still fail on DI.
 17. Blueprints lived only in the database (and in untracked JSON in the main checkout). The harness
     now versions them in `tools/ingest-harness/blueprints/`.
+
+### Key redesign results (tier 1, C1)
+
+| Source                   |                         Activities | Created (ideal) before → after | Conflicting keys in file | Objects refs → distinct (per file)  |
+| ------------------------ | ---------------------------------: | -----------------------------: | -----------------------: | ----------------------------------- |
+| Timeline.json            |                    34,560 → 34,552 |                33,037 → 34,552 |                1,515 → 0 | 52,603 → 26,718 / 27,255            |
+| Timeline_old.json        |                    27,901 → 27,894 |                        24 → 24 |                1,133 → 0 | 42,189 → 20,821 / 21,342            |
+| Semantic history 2017–19 |                              3,765 |                  2,164 → 2,164 |                    1 → 1 | 5,769 → 1,981 / 2,454               |
+| ICS (both sources)       |                                491 |                      353 → 491 |                  100 → 0 | unchanged                           |
+| Spotify audio            | 198,912 (3 files failed) → 236,026 |              178,123 → 236,024 |               17,172 → 0 | 198,912 → 67,689 / 236,026 → 86,081 |
+| Spotify video (new)      |                                564 |                            564 |                        0 | 564 → 258                           |
+
+- **Timeline:** every conflict was a parent visit and its nested child (`hierarchyLevel` 1) starting in the same minute.
+  Top-level visits keep the start-minute key, nested visits add level + place; identical segments are collapsed. Moves
+  have no in-file conflicts with start-minute keys. Evaluated alternatives: start+end minute leaves 1,063 conflicts and
+  loses 59 semantic↔Timeline matches (2,223 created instead of 2,164); start+activity type changes nothing for Timeline
+  and loses 9 matches. Arrive keeps `semanticType` and `hierarchyLevel`.
+- **Places:** `placeId` is the only key of a named place, coordinates (5 decimals) only key anonymous points. Across the
+  three location sources: 27,522 → 28,244 places; before, 230 placeIds were merged into 34 nodes through shared
+  coordinates. The increase is 526 Move endpoints that sat exactly on a named place's coordinate and no longer merge
+  into it; linking those is left to place clustering. Coarser grids for anonymous points would give 9,393 (4 decimals)
+  or 2,439 (3 decimals) instead of 26,605, but snapping is not clustering, so it is not used.
+- **Spotify:** activity key = end second + URI, object key = URI. 4,811 rows are plays logged twice (same end second and
+  URI, mostly differing in `ms_played`/offline fields) and are merged; 1 video row without URI is skipped. A name+artist
+  key is not added: 3,290 name+artist pairs span 6,942 track URIs (single vs album versions, 2,092 with different
+  albums) and 109 URIs changed name/artist, so any-key matching would merge distinct recordings and chain groups.
 
 ## Plan
 
@@ -279,17 +308,69 @@ Ideas that build on the fixes above, grouped by what they give you. Each lists w
 
 ### Next, by workstream
 
-| # | Workstream | Owner | Depends on |
-| - | --- | --- | --- |
-| A | Live verification: schema (`dry_run` column), harness update for the new context, e2e smoke + full Timeline benchmark, restart scenario, upload/dry-run/apply through the API | main thread | auth for API calls |
-| B1 | Frontend import page: drop zone (files, folders, zips), dry-run toggle, per-file results, apply | agent | backend lib build |
-| B2 | Frontend execution page: live progress (overall + per node, status messages), dry-run badge + apply, import report, provenance summary, stop loading full execution data | agent | backend lib build |
-| B3 | Frontend blueprint editor: JSON import/export (paste generated blueprints), validate + issue panel, validate before save | agent | B2's node contract |
-| C1 | Spotify module (audio, episodes, audiobooks, video; `ts` = end time; per-row errors) and stable-key redesign (Spotify, ICS UID+RECURRENCE-ID, Arrive/Move start+end, places by placeId) | agent | tier-1 corpus |
-| C2 | Reliability rest: enqueue after commit, move files when the run ends, asset dedup checks storage, retry-from-node API | agent | — |
-| C3 | Chunked outputs: large node outputs as assets, load only needed execution data | later | C2 |
-| C4 | Blueprints as code (install shipped blueprints on boot), generic filter/map/dedupe modules | agent | — |
-| D | Graph enrichment and new sources: see questions | after answers | C1 |
+| #   | Workstream                                                                                                                                                                              | Owner         | Depends on         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------ |
+| A   | Live verification: schema (`dry_run` column), harness update for the new context, e2e smoke + full Timeline benchmark, restart scenario, upload/dry-run/apply through the API           | main thread   | auth for API calls |
+| B1  | Frontend import page: drop zone (files, folders, zips), dry-run toggle, per-file results, apply                                                                                         | agent         | backend lib build  |
+| B2  | Frontend execution page: live progress (overall + per node, status messages), dry-run badge + apply, import report, provenance summary, stop loading full execution data                | agent         | backend lib build  |
+| B3  | Frontend blueprint editor: JSON import/export (paste generated blueprints), validate + issue panel, validate before save                                                                | agent         | B2's node contract |
+| C1  | Spotify module (audio, episodes, audiobooks, video; `ts` = end time; per-row errors) and stable-key redesign (Spotify, ICS UID+RECURRENCE-ID, Arrive/Move start+end, places by placeId) | agent         | tier-1 corpus      |
+| C2  | Reliability rest: enqueue after commit, move files when the run ends, asset dedup checks storage, retry-from-node API                                                                   | agent         | —                  |
+| C3  | Chunked outputs: large node outputs as assets, load only needed execution data                                                                                                          | later         | C2                 |
+| C4  | Blueprints as code (install shipped blueprints on boot), generic filter/map/dedupe modules                                                                                              | agent         | —                  |
+| D   | Graph enrichment and new sources: see questions                                                                                                                                         | after answers | C1                 |
 
 Agents work in their own git worktrees, run unit tests/typecheck/svelte-check, and hand back commits; the
 main thread merges and runs the e2e harness against this worktree's instance.
+
+## Status (2026-10-22, end of day)
+
+Verified live in this worktree (full corpus re-imported from an empty graph):
+
+|                                    | Before                                      | Now                                            |
+| ---------------------------------- | ------------------------------------------- | ---------------------------------------------- |
+| Full corpus import (59 files)      | Spotify alone 2–3 h, 3 Spotify files failed | 276,183 activities in 429 s, all files succeed |
+| Timeline.json                      | 959 s                                       | 22 s                                           |
+| Duplicate nodes (not in key index) | Place 48 %, Audio 35 %, Activity 4 %        | 0 everywhere                                   |
+| Re-dropping every file             | re-ran the whole pipeline                   | skipped as duplicates (59/59)                  |
+| Tier-1 prediction vs. real import  | —                                           | identical created counts for every file        |
+
+Built: dry runs + apply, import report, provenance (`importExecutionId`/`importAssetId`), live progress (SSE, per node and pipeline),
+retry from node, abort, enqueue after commit, processing folder, content routing + `POST /imports` (files and zips),
+blueprint validation, blueprints as code, module catalog for AI, filter/sample/dedupe modules, Spotify module and stable-key
+redesign, schedule trigger, enrichment framework, place consolidation (28,201 → 2,635 places), home/work periods,
+coverage heatmap, and the frontend for all of it (import page, execution page, editor validation and JSON import/export).
+
+Derived activities ran live on the full graph (whole enrichment chain ~20 s): 35 trips, 52,122 listens/views linked to
+the move they happened during, 170 of 491 calendar events confirmed (4 by place name, 128 at an unnamed place, 38 by
+overlap), 3,248 daily summaries. Trip names are weak ("Trip to Lidl" for a week-long trip) because most canonical places
+have no name yet; geocoding fixes that.
+
+Large outputs (plan step 4, first half): handles over 4 MB go to asset storage, modules load only their inputs. A single
+240k-play file now imports in 16 s at 2.5 GB peak RSS (a 235k-activity Firefox history previously ran the 4 GB heap
+out). The remaining cost is the transform holding all activities at once; streaming/chunked transforms are the next step
+if bigger sources appear.
+
+Spotify: the importer from the importer-gaps thread is merged (play key = end time + URI + ms played, nothing lost:
+236,890 plays; IP kept; video history as `View` of `SpotifyVideo`; that thread's extension id). Full re-import: 59/59
+files, 0 duplicate nodes.
+
+Geocoding: offline GeoNames lookup (city, country, timezone; seconds for all places) runs in the nightly places chain;
+OpenStreetMap Nominatim refines names and addresses in the background (`enrichment/geocoding-refine`, hourly, 600
+places/run at 1 request/s, resumable). Trips are named by destination city ("Trip to Osaka, Japan").
+
+Mapbox (`enrichment/mapbox-refine`, hourly at :45) uses only the temporary Geocoding API v5 (100k requests/month free);
+every request URL is checked against the permanent API, which is never called. Results are stored on the place anyway
+(private use). Full run over 2,635 places: 2,599 found, 36 not found, 0 failures, 6.6 minutes. The Geocoding API no
+longer returns POIs (Mapbox moved them to the Search Box API), so Mapbox fills addresses, postcodes and cities. Search
+Box `/reverse` was tested and not adopted: the nearest POI is usually a neighbour or a business in the same building
+(a home would be named "VISUAL CULT"), so POIs make worse names than addresses.
+
+Place names: custom place > source name (Google's semantic place) > OSM POI > Mapbox POI > address. The source name
+comes before OSM because the nearest OSM POI is often a neighbour ("McDonald's" for the Trier Christmas market).
+
+Custom places (`/settings/places`) come before every provider: each place within the radius takes the custom name, and
+home/work custom places with a validity range replace the derived home/work periods for that range. Suggestions list
+the most visited places not yet covered, with the inferred role. "Jetzt anwenden" runs the places chain (~15 s).
+
+Open: "exports that could fill gaps" on the coverage page, streaming transforms.

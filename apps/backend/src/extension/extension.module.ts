@@ -16,6 +16,7 @@ import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.m
 import { SpotifyExtensionModule } from './extensions/spotify/spotify-extension.module.js';
 import { MyHubExtensionModule } from './extensions/my-hub/my-hub-extension.module.js';
 import { BrowserHistoryExtensionModule } from './extensions/browser-history/browser-history-extension.module.js';
+import { EnrichmentExtensionModule } from './extensions/enrichment/enrichment-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
@@ -27,6 +28,7 @@ const manuallyLoadedExtensions = [
     SpotifyExtensionModule,
     MyHubExtensionModule,
     BrowserHistoryExtensionModule,
+    EnrichmentExtensionModule,
 ];
 
 @Module({

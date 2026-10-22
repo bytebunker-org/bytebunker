@@ -17,6 +17,12 @@
 	import { getModalContext } from '$lib/context.js';
 	import { ModalTypeEnum } from '$lib/components/modal/modalTypeEnum.js';
 	import { PipelineExecutionStatusEnum } from '@bytebunker/backend';
+	import LucideAlertTriangle from '~icons/lucide/triangle-alert';
+	import LucideCircleAlert from '~icons/lucide/circle-alert';
+	import LucideRotateCcw from '~icons/lucide/rotate-ccw';
+	import { useQueryClient } from '@tanstack/svelte-query';
+	import { PipelineApi } from '$lib/api/PipelineApi.js';
+	import { toastManager } from '$lib/util/toastManager.svelte.js';
 
 	const { updateNodeData } = $derived(useSvelteFlow());
 
@@ -32,6 +38,60 @@
 	let executionData: PipelineExecutionDataDto | undefined = $derived(
 		pipelineExecution?.executionData.find((d) => d.nodeId === Number(nodeId))
 	);
+	let queryClient = useQueryClient();
+	let progress = $derived(editorContext.nodeProgress?.[Number(nodeId)]);
+	let issues = $derived(editorContext.nodeIssues?.[Number(nodeId)] ?? []);
+	let errorIssues = $derived(issues.filter((i) => i.severity === 'error'));
+	let warningIssues = $derived(issues.filter((i) => i.severity === 'warning'));
+	let issueTooltip = $derived(
+		issues.map((i) => `${i.severity === 'error' ? '✖' : '⚠'} ${i.message}`).join('\n')
+	);
+
+	/** Live status wins over the stored one. */
+	let status: string | undefined = $derived(progress?.status ?? executionData?.executionStatus);
+	let running = $derived(status === 'running');
+	let hasProgress = $derived(
+		!!progress && (running || progress.message || progress.fraction !== undefined)
+	);
+	let progressPercent = $derived(
+		progress?.fraction === undefined
+			? undefined
+			: Math.round(Math.min(1, Math.max(0, progress.fraction)) * 100)
+	);
+	let retrying = $state(false);
+
+	const numberFormat = new Intl.NumberFormat('de-DE');
+
+	let progressCounts = $derived(
+		progress?.current === undefined
+			? ''
+			: `${numberFormat.format(progress.current)}${
+					progress.total === undefined ? '' : ` / ${numberFormat.format(progress.total)}`
+				}${progress.unit ? ` ${progress.unit}` : ''}`
+	);
+
+	async function retryFromHere(event: MouseEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+
+		if (!pipelineExecution || retrying) {
+			return;
+		}
+
+		retrying = true;
+		try {
+			await PipelineApi.retryNode(pipelineExecution.id, Number(nodeId));
+			toastManager.showSuccess('Knoten und alle folgenden werden erneut ausgeführt');
+			await queryClient.invalidateQueries({ queryKey: ['pipeline', pipelineExecution.id] });
+		} catch (e) {
+			toastManager.showError(
+				`Erneutes Ausführen ab diesem Knoten fehlgeschlagen${e instanceof Error ? `: ${e.message}` : ''}`
+			);
+		} finally {
+			retrying = false;
+		}
+	}
+
 	let maxHandleAmount = $derived(
 		Math.max(
 			getHandles('input', module.inputTypeSchema).length,
@@ -118,18 +178,14 @@
 		selected ? 'ring-accent ring-2' : '',
 		{
 			'ring-2': executionData || pipelineExecution,
-			'ring-6 shadow-xl': (executionData || pipelineExecution) && enlargedTitle,
+			'shadow-xl ring-6': (executionData || pipelineExecution) && enlargedTitle,
 			'shadow-indigo-400 ring-indigo-400':
-				(!executionData && pipelineExecution) ||
-				executionData?.executionStatus === PipelineExecutionStatusEnum.WAITING,
-			'shadow-success ring-success':
-				executionData?.executionStatus === PipelineExecutionStatusEnum.SUCCESS,
-			'shadow-neutral-700 ring-neutral-700':
-				executionData?.executionStatus === PipelineExecutionStatusEnum.ABORTED,
-			'shadow-error ring-error':
-				executionData?.executionStatus === PipelineExecutionStatusEnum.FAILED,
-			'shadow-neutral-400 ring-neutral-400':
-				executionData?.executionStatus === PipelineExecutionStatusEnum.BRANCH_IGNORED
+				(!status && pipelineExecution) || status === PipelineExecutionStatusEnum.WAITING,
+			'shadow-primary ring-primary running-ring': running,
+			'shadow-success ring-success': status === PipelineExecutionStatusEnum.SUCCESS,
+			'shadow-neutral-700 ring-neutral-700': status === PipelineExecutionStatusEnum.ABORTED,
+			'shadow-error ring-error': status === PipelineExecutionStatusEnum.FAILED,
+			'shadow-neutral-400 ring-neutral-400': status === PipelineExecutionStatusEnum.BRANCH_IGNORED
 		}
 	]}
 	style="--header-height: 32px; --handle-height: 36px; --max-handle-amount: {maxHandleAmount}; --bg-color: {blueprintNodeInfo.backgroundColor}; --fg-color: {blueprintNodeInfo.color}"
@@ -138,7 +194,46 @@
 		<Icon class="transition-all {enlargedTitle ? 'size-8 opacity-80' : 'ml-2'}" />
 		<span class="p-2 {enlargedTitle ? 'py-0' : ''}">{toHeaderCase(moduleId.moduleName)}</span>
 		{#if !enlargedTitle}
-			<div class="node-buttons">
+			<div class="node-buttons flex items-center">
+				{#if issues.length}
+					<div
+						class="tooltip tooltip-bottom flex items-center before:z-50 before:whitespace-pre-line"
+						data-tip={issueTooltip}
+					>
+						<span
+							class={[
+								'badge badge-xs mr-1 gap-0.5 border-0 text-white',
+								errorIssues.length ? 'bg-red-600' : 'bg-amber-500'
+							]}
+						>
+							{#if errorIssues.length}
+								<LucideCircleAlert class="size-3" />
+								{errorIssues.length}
+							{:else}
+								<LucideAlertTriangle class="size-3" />
+								{warningIssues.length}
+							{/if}
+							{#if errorIssues.length && warningIssues.length}
+								<span class="text-amber-200">+{warningIssues.length}</span>
+							{/if}
+						</span>
+					</div>
+				{/if}
+				{#if status === PipelineExecutionStatusEnum.FAILED && pipelineExecution}
+					<div class="tooltip tooltip-bottom" data-tip="Ab hier erneut ausführen">
+						<button
+							onclick={retryFromHere}
+							disabled={retrying}
+							class="btn btn-xs btn-ghost aspect-square h-[32px] w-auto rounded-none p-0 hover:bg-white/40"
+						>
+							{#if retrying}
+								<span class="loading loading-spinner loading-xs"></span>
+							{:else}
+								<LucideRotateCcw />
+							{/if}
+						</button>
+					</div>
+				{/if}
 				<button
 					onclick={(e) => (executionData ? viewNodeExecutionInfoModal(e) : editNode(e))}
 					class="btn btn-xs btn-ghost rounded-tr-box aspect-square h-[32px] w-auto rounded-none p-0 hover:bg-white/40"
@@ -171,6 +266,37 @@
 			</div>
 		{/if}
 	</div>
+	{#if hasProgress && !enlargedTitle && progress}
+		<div class="flex w-full max-w-72 min-w-48 flex-col gap-0.5 px-2 pt-1 text-xs">
+			{#if progressPercent !== undefined}
+				<progress
+					class="progress h-1 w-full {status === PipelineExecutionStatusEnum.FAILED
+						? 'progress-error'
+						: status === PipelineExecutionStatusEnum.SUCCESS
+							? 'progress-success'
+							: 'progress-primary'}"
+					value={progressPercent}
+					max="100"
+				></progress>
+			{:else if running}
+				<progress class="progress progress-primary h-1 w-full"></progress>
+			{/if}
+			{#if progressCounts || progressPercent !== undefined}
+				<span class="text-base-content/70 tabular-nums">
+					{progressCounts}{progressPercent !== undefined && progressCounts
+						? ` (${progressPercent} %)`
+						: progressPercent !== undefined
+							? `${progressPercent} %`
+							: ''}
+				</span>
+			{/if}
+			{#if progress.message}
+				<span class="text-base-content/70 truncate" title={progress.message}>
+					{progress.message}
+				</span>
+			{/if}
+		</div>
+	{/if}
 	<div class="node-handles flex flex-row justify-between gap-2">
 		<div class="relative flex flex-col">
 			{#each getHandles('input', module.inputTypeSchema) as [handleName, handleType], i (handleName)}
@@ -200,12 +326,27 @@
 </div>
 
 <style>
+	.running-ring {
+		animation: running-ring 1.6s ease-in-out infinite;
+	}
+
+	@keyframes running-ring {
+		0%,
+		100% {
+			box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 45%, transparent);
+		}
+		50% {
+			box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-primary) 0%, transparent);
+		}
+	}
+
 	.node-handles {
 		height: calc(var(--handle-height) * var(--max-handle-amount));
 	}
 
 	.node-header {
-		background: linear-gradient(200deg, rgba(255, 255, 255, 0.4), transparent 100%),
+		background:
+			linear-gradient(200deg, rgba(255, 255, 255, 0.4), transparent 100%),
 			linear-gradient(0deg, var(--bg-color), var(--bg-color));
 		color: var(--fg-color);
 	}

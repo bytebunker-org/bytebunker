@@ -30,13 +30,18 @@ export class MyHubSyncTriggerService {
         em: EntityManager,
         { dryRun = false, now = new Date() }: { dryRun?: boolean; now?: Date } = {},
     ): Promise<MyHubSyncTriggerResult[]> {
-        const results = await this.pipelineTriggerService.executeBlueprintFromTrigger<
-            MyHubSyncTriggerInput,
-            MyHubSyncTriggerOutput
-        >(em, MyHubSyncTriggerPipelineModule, {
-            buildNodeData: () => ({ triggeredAt: now.toISOString() }),
-            dryRun,
-        });
+        // Executions are created inside the transaction and queued only after it committed.
+        const results = await em.transactional((txEm) =>
+            this.pipelineTriggerService.createExecutionsFromTrigger<MyHubSyncTriggerInput, MyHubSyncTriggerOutput>(
+                txEm,
+                MyHubSyncTriggerPipelineModule,
+                {
+                    buildNodeData: () => ({ triggeredAt: now.toISOString() }),
+                    dryRun,
+                },
+            ),
+        );
+        await this.pipelineTriggerService.scheduleCreatedExecutions(results);
 
         this.logger.log(`my-hub sync triggered ${results.length} blueprint(s)${dryRun ? ' (dry run)' : ''}`);
 

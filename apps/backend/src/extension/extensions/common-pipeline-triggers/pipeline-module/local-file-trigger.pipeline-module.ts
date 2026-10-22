@@ -15,7 +15,7 @@ export class LocalFileTriggerInput {
     public globPatterns!: string[];
 
     /**
-     * Regular expressions tested against the first 64 KB of the file. A match routes the file here like a glob
+     * Regular expressions tested against the first 256 KB of the file. A match routes the file here like a glob
      * match. For blueprints whose transform cannot recognise files itself, e.g. inline scripts.
      */
     @Optional()

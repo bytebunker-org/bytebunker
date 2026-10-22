@@ -73,7 +73,8 @@ export function analyzeActivities(
     const analysis: ActivityAnalysis = {
         activityCount: activities.length,
         byType: {},
-        outputBytes: Buffer.byteLength(JSON.stringify({ activities })),
+        // Summed per activity below: one JSON string of a 200k-activity output costs hundreds of MB.
+        outputBytes: 0,
         timeRange: {},
         problems: {
             unknownRelationshipKeys: {},
@@ -101,13 +102,17 @@ export function analyzeActivities(
     };
 
     // Activity keys → JSON of the first activity with that key, to tell duplicates from conflicts.
-    const seenActivityKeys = new Map<string, string>();
+    // Key → hash of the first activity's content and its index. Hashes instead of the JSON itself keep memory flat for
+    // large inputs; the index finds the first activity again for an example.
+    const seenActivityKeys = new Map<string, { hash: number; index: number }>();
+    let index = -1;
     const objectGroups = new KeyGroups();
     const objectGroupTypes = new Map<string, string>();
     let minStart: number | undefined;
     let maxStart: number | undefined;
 
     for (const raw of activities) {
+        index++;
         if (!isObject(raw)) {
             analysis.problems.missingType++;
             continue;
@@ -148,7 +153,9 @@ export function analyzeActivities(
         }
 
         const { stableKeys: _ignored, ...withoutKeys } = raw;
-        const fingerprint = JSON.stringify(withoutKeys);
+        const fingerprintJson = JSON.stringify(withoutKeys);
+        const fingerprint = hashString(fingerprintJson);
+        analysis.outputBytes += Buffer.byteLength(fingerprintJson) + 1;
         let isDuplicate = false;
 
         for (const key of stableKeys) {
@@ -163,16 +170,16 @@ export function analyzeActivities(
                 isDuplicate = true;
                 analysis.problems.intraFileDuplicateActivityKeys++;
 
-                if (previous !== fingerprint) {
+                if (previous.hash !== fingerprint) {
                     analysis.problems.intraFileConflictingActivityKeys++;
                     example('intraFileConflictingActivityKeys', {
                         key,
-                        first: summarizeActivity(JSON.parse(previous) as Json),
+                        first: summarizeActivity(withoutStableKeys(activities[previous.index] as Json)),
                         second: summarizeActivity(withoutKeys),
                     });
                 }
             } else if (previous === undefined) {
-                seenActivityKeys.set(key, fingerprint);
+                seenActivityKeys.set(key, { hash: fingerprint, index });
             }
         }
 
@@ -269,4 +276,21 @@ export function hardProblems(analysis: ActivityAnalysis): string[] {
     }
 
     return errors;
+}
+
+function withoutStableKeys(activity: Json): Json {
+    const { stableKeys: _ignored, ...rest } = activity;
+    return rest;
+}
+
+/** FNV-1a (32 bit); collisions only hide a conflict example, they never change what is stored. */
+function hashString(value: string): number {
+    let hash = 0x811c9dc5;
+
+    for (let i = 0; i < value.length; i++) {
+        hash ^= value.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+    }
+
+    return hash >>> 0;
 }
