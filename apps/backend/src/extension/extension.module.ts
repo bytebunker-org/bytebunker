@@ -21,11 +21,8 @@ const manuallyLoadedExtensions = [
     IcsCalendarExtensionModule,
     WhatsappExtensionModule,
     YouTubeExtensionModule,
-<<<<<<< HEAD
     AirbnbExtensionModule,
-=======
     SpotifyExtensionModule,
->>>>>>> feat/import-spotify
 ];
 
 @Module({

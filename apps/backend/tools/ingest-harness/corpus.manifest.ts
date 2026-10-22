@@ -12,14 +12,10 @@ export type ImporterId =
     | 'google-semantic-location-history'
     | 'youtube-watch-history'
     | 'ics-calendar'
-<<<<<<< HEAD
-    | 'spotify-streaming-history-script'
     | 'google-maps-places'
     | 'airbnb-export'
-    | 'whatsapp';
-=======
+    | 'whatsapp'
     | 'spotify-streaming-history';
->>>>>>> feat/import-spotify
 
 export interface ImporterDefinition {
     id: ImporterId;
@@ -69,24 +65,12 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
         transformNodeId: 2,
         storeNodeId: 3,
     },
-<<<<<<< HEAD
     'airbnb-export': {
         id: 'airbnb-export',
         blueprintFile: 'airbnb-export.blueprint.json',
     whatsapp: {
         id: 'whatsapp',
         blueprintFile: 'whatsapp.blueprint.json',
-        transformNodeId: 2,
-        storeNodeId: 3,
-    },
-    'spotify-streaming-history-script': {
-        id: 'spotify-streaming-history-script',
-        blueprintFile: 'spotify-streaming-history-script.blueprint.json',
-=======
-    'spotify-streaming-history': {
-        id: 'spotify-streaming-history',
-        blueprintFile: 'spotify-streaming-history.blueprint.json',
->>>>>>> feat/import-spotify
         transformNodeId: 2,
         storeNodeId: 3,
     },
