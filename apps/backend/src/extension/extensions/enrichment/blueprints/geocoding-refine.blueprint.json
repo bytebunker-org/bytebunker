@@ -1,6 +1,6 @@
 {
     "title": "Place refinement (OpenStreetMap)",
-    "description": "Every hour at :15: refines up to 600 canonical places (most visited first) with Nominatim reverse geocoding: OSM POI name, street, house number, postcode, suburb and city. At most one request per second; each place is written immediately, so runs can be aborted and resume where they stopped. Data © OpenStreetMap contributors, ODbL 1.0.",
+    "description": "Hourly: names up to 600 places (most visited first) via OpenStreetMap Nominatim, 1 request/s, resumable. Data © OpenStreetMap contributors, ODbL 1.0.",
     "data": {
         "edges": [
             {

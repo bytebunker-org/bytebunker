@@ -1,6 +1,6 @@
 {
     "title": "Place enrichment",
-    "description": "Every night at 03:30: consolidates raw places into canonical places, geocodes them offline (city, country, timezone), derives home and work periods, then trips (named after their destination city), music on the move, confirmed calendar events and daily summaries. Run it by hand with POST /pipelines-blueprints/:id/run.",
+    "description": "Nightly 03:30: canonical places, offline geocoding, home/work periods, trips, music on the move, confirmed events, daily summaries. Run by hand: POST /pipelines-blueprints/:id/run.",
     "data": {
         "edges": [
             {

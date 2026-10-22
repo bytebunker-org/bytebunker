@@ -86,6 +86,11 @@ export async function loadShippedBlueprints(
                     throw new Error('expected { title, description?, data: { nodes, edges } }');
                 }
 
+                // Both columns are varchar(255); a longer text makes every install of this blueprint fail on commit.
+                if (parsed.title.length > 255 || (parsed.description?.length ?? 0) > 255) {
+                    throw new Error('title and description must be at most 255 characters');
+                }
+
                 result.push({
                     key: `${folder.name}/${file.slice(0, -FILE_SUFFIX.length)}`,
                     title: parsed.title,
