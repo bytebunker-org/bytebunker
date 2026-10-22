@@ -3,7 +3,7 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { PipelineBlueprintEntity } from './entity/pipeline-blueprint.entity.js';
 import { PipelineBlueprintDto } from './dto/pipeline-blueprint.dto.js';
-import type { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint.dto.js';
+import { CreatePipelineBlueprintDto } from './dto/create-pipeline-blueprint.dto.js';
 import { UpdatePipelineBlueprintDto } from './dto/update-pipeline-blueprint.dto.js';
 import { FindRestApiService } from '../../../shared/find-rest-api/find-rest-api.service.js';
 import { FindAllDto } from '../../../shared/find-rest-api/dto/find-all.dto.js';
