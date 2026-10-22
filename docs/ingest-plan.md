@@ -262,3 +262,34 @@ Ideas that build on the fixes above, grouped by what they give you. Each lists w
 3. Dry run + drop zone + detection — the import UX.
 4. Place consolidation and geocoding, then derived activities and the coverage map.
 5. Editor work and live connectors.
+
+## Execution plan (2026-10-22)
+
+### Done on `feat/ingest-pipeline-test-harness`
+
+- Ingest harness (tier 1 transform, tier 2 e2e), vitest 4.
+- Phase-1 graph-write batching ported from the main checkout (fixes in-file and shared-object duplicates).
+- Live module progress (Redis, weighted pipeline progress, SSE), dry runs + apply, import report from
+  store-activity, provenance on created nodes (`importExecutionId`, `importAssetId`, `importedAt`) and
+  `GET /activities/provenance`.
+- Module errors mark executions `failed`; jobs wait for module discovery (startup race).
+- Content routing (glob → content pattern → `detectFile`), `POST /imports` for files and zips, watcher on the
+  same service with folders resolved at boot (settings-cache bug).
+- `POST /pipelines-blueprints/validate` for hand-written and AI-generated blueprints.
+
+### Next, by workstream
+
+| # | Workstream | Owner | Depends on |
+| - | --- | --- | --- |
+| A | Live verification: schema (`dry_run` column), harness update for the new context, e2e smoke + full Timeline benchmark, restart scenario, upload/dry-run/apply through the API | main thread | auth for API calls |
+| B1 | Frontend import page: drop zone (files, folders, zips), dry-run toggle, per-file results, apply | agent | backend lib build |
+| B2 | Frontend execution page: live progress (overall + per node, status messages), dry-run badge + apply, import report, provenance summary, stop loading full execution data | agent | backend lib build |
+| B3 | Frontend blueprint editor: JSON import/export (paste generated blueprints), validate + issue panel, validate before save | agent | B2's node contract |
+| C1 | Spotify module (audio, episodes, audiobooks, video; `ts` = end time; per-row errors) and stable-key redesign (Spotify, ICS UID+RECURRENCE-ID, Arrive/Move start+end, places by placeId) | agent | tier-1 corpus |
+| C2 | Reliability rest: enqueue after commit, move files when the run ends, asset dedup checks storage, retry-from-node API | agent | — |
+| C3 | Chunked outputs: large node outputs as assets, load only needed execution data | later | C2 |
+| C4 | Blueprints as code (install shipped blueprints on boot), generic filter/map/dedupe modules | agent | — |
+| D | Graph enrichment and new sources: see questions | after answers | C1 |
+
+Agents work in their own git worktrees, run unit tests/typecheck/svelte-check, and hand back commits; the
+main thread merges and runs the e2e harness against this worktree's instance.
