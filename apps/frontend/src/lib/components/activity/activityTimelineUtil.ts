@@ -25,7 +25,7 @@ export function processActivityTimelineDay(activities: ASActivity[]): ActivityTi
 
 	for (let i = 0; i < activities.length; i++) {
 		const current = activities[i] as Activity;
-		const { allowNestedActivities, allowMerging } = getActivityTypeData(current['@type']);
+		const { allowNestedActivities, allowMerging, canMerge } = getActivityTypeData(current['@type']);
 
 		// Prepare an 'activity' entry that might get nested children or merged
 		const entry: ActivityTimelineEntry = {
@@ -92,6 +92,12 @@ export function processActivityTimelineDay(activities: ASActivity[]): ActivityTi
 				const isDifferentType = nextActivity['@type'] !== current['@type'];
 
 				if (isDifferentType || !allowMergingNext) {
+					break;
+				}
+
+				// types can narrow merging further, e.g. messages only merge within one conversation
+				const lastInCollection = collection[collection.length - 1];
+				if (canMerge && !canMerge(lastInCollection, nextActivity)) {
 					break;
 				}
 
