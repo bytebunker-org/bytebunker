@@ -7,6 +7,8 @@ import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
 import { NotFoundError } from './util/rest-error.js';
 import { MikroOrmConfig } from './util/config/mikro-orm.config.js';
 import { UnderscoreNamingStrategy } from '@mikro-orm/core';
+import { Migrator } from '@mikro-orm/migrations';
+import { MIGRATIONS_OPTIONS } from './database/migrations.config.js';
 import metadataCache from './util/generated/mikro-orm-cache/metadata.json' with { type: 'json' };
 
 // TODO We use toml.
@@ -55,6 +57,8 @@ function buildMikroOrmConfig() {
                   }),
         },
         namingStrategy: UnderscoreNamingStrategy,
+        extensions: [Migrator],
+        migrations: MIGRATIONS_OPTIONS,
         ignoreUndefinedInQuery: true,
         findOneOrFailHandler: (entityName: string) => new NotFoundError(`${entityName} not found!`),
     });

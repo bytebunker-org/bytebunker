@@ -72,4 +72,8 @@ COPY --from=build /opt/app/apps/backend/.env.production.toml ./.env.production.t
 COPY --from=build /opt/app/apps/backend/run-mikro-orm.cjs ./run-mikro-orm.cjs
 COPY --from=build /opt/app/apps/backend/dist ./dist
 
-CMD node ./dist/main.js
+ENV NODE_ENV=production
+
+# Apply pending schema migrations (dist/database/migrations) before the backend starts; a failed migration stops
+# the container instead of starting the backend on a half-migrated schema. `exec` hands signals to the backend.
+CMD ["sh", "-c", "node ./dist/database/migrate.js && exec node ./dist/main.js"]

@@ -1,0 +1,3387 @@
+{
+  "namespaces": [
+    "public"
+  ],
+  "name": "public",
+  "tables": [
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "type": {
+          "name": "type",
+          "type": "asset_type_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "nativeEnumName": "asset_type_enum",
+          "enumItems": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ],
+          "mappedType": "enum"
+        },
+        "hash": {
+          "name": "hash",
+          "type": "bytea",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 32,
+          "mappedType": "blob"
+        },
+        "original_filename": {
+          "name": "original_filename",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "size": {
+          "name": "size",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "integer"
+        },
+        "storage_path": {
+          "name": "storage_path",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "external_url": {
+          "name": "external_url",
+          "type": "varchar(2048)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 2048,
+          "mappedType": "string"
+        },
+        "text_asset_preview": {
+          "name": "text_asset_preview",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 512,
+          "mappedType": "text"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "json"
+        }
+      },
+      "name": "asset_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "asset_entity_type_hash_unique",
+          "columnNames": [
+            "type",
+            "hash"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "asset_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {},
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "double precision",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "double"
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "double precision",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "double"
+        },
+        "radius_meters": {
+          "name": "radius_meters",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "75",
+          "mappedType": "integer"
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "'other'",
+          "enumItems": [
+            "home",
+            "work",
+            "other"
+          ],
+          "mappedType": "enum"
+        },
+        "valid_from": {
+          "name": "valid_from",
+          "type": "date",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 0,
+          "mappedType": "date"
+        },
+        "valid_to": {
+          "name": "valid_to",
+          "type": "date",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 0,
+          "mappedType": "date"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "text"
+        }
+      },
+      "name": "custom_place_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "custom_place_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {},
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        }
+      },
+      "name": "extension_developer_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "name"
+          ],
+          "composite": false,
+          "keyName": "extension_developer_entity_name_unique",
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "extension_developer_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {},
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "developer_id": {
+          "name": "developer_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(64)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 64,
+          "mappedType": "string"
+        }
+      },
+      "name": "extension_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "name"
+          ],
+          "composite": false,
+          "keyName": "extension_entity_name_unique",
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "extension_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "extension_entity_developer_id_foreign": {
+          "constraintName": "extension_entity_developer_id_foreign",
+          "columnNames": [
+            "developer_id"
+          ],
+          "localTableName": "public.extension_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.extension_developer_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "schema_uri": {
+          "name": "schema_uri",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "default": "''",
+          "mappedType": "string"
+        },
+        "json_schema": {
+          "name": "json_schema",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "json"
+        },
+        "extension_id": {
+          "name": "extension_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        }
+      },
+      "name": "json_schema_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "json_schema_entity_pkey",
+          "columnNames": [
+            "schema_uri"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "json_schema_entity_extension_id_foreign": {
+          "constraintName": "json_schema_entity_extension_id_foreign",
+          "columnNames": [
+            "extension_id"
+          ],
+          "localTableName": "public.json_schema_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.extension_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "stable_key": {
+          "name": "stable_key",
+          "type": "varchar(512)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 512,
+          "mappedType": "string"
+        },
+        "node_id": {
+          "name": "node_id",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        }
+      },
+      "name": "node_stable_key_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "node_stable_key_entity_pkey",
+          "columnNames": [
+            "stable_key"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {},
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "json"
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "shipped_hash": {
+          "name": "shipped_hash",
+          "type": "varchar(64)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 64,
+          "mappedType": "string"
+        }
+      },
+      "name": "pipeline_blueprint_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "key"
+          ],
+          "composite": false,
+          "keyName": "pipeline_blueprint_entity_key_unique",
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "pipeline_blueprint_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {},
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "blueprint_id": {
+          "name": "blueprint_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "trigger_node_id": {
+          "name": "trigger_node_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "trigger_type": {
+          "name": "trigger_type",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        }
+      },
+      "name": "pipeline_blueprint_trigger_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "pipeline_blueprint_trigger_entity_pkey",
+          "columnNames": [
+            "blueprint_id",
+            "trigger_node_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {},
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "blueprint_id": {
+          "name": "blueprint_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "trigger_asset_id": {
+          "name": "trigger_asset_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "uuid"
+        },
+        "dry_run": {
+          "name": "dry_run",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "false",
+          "mappedType": "boolean"
+        },
+        "execution_status": {
+          "name": "execution_status",
+          "type": "pipeline_execution_status_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "nativeEnumName": "pipeline_execution_status_enum",
+          "default": "'waiting'",
+          "enumItems": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ],
+          "mappedType": "enum"
+        },
+        "error_retry_count": {
+          "name": "error_retry_count",
+          "type": "smallint",
+          "unsigned": true,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "0",
+          "mappedType": "smallint"
+        },
+        "latest_error_node_id": {
+          "name": "latest_error_node_id",
+          "type": "smallint",
+          "unsigned": true,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "smallint"
+        },
+        "latest_error_status": {
+          "name": "latest_error_status",
+          "type": "pipeline_error_status_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "nativeEnumName": "pipeline_error_status_enum",
+          "enumItems": [
+            "aborted",
+            "failed"
+          ],
+          "mappedType": "enum"
+        },
+        "latest_error_message": {
+          "name": "latest_error_message",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "latest_error_data": {
+          "name": "latest_error_data",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "json"
+        }
+      },
+      "name": "pipeline_execution_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "trigger_asset_id"
+          ],
+          "composite": false,
+          "keyName": "pipeline_execution_entity_trigger_asset_id_index",
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "pipeline_execution_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "pipeline_execution_entity_blueprint_id_foreign": {
+          "constraintName": "pipeline_execution_entity_blueprint_id_foreign",
+          "columnNames": [
+            "blueprint_id"
+          ],
+          "localTableName": "public.pipeline_execution_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.pipeline_blueprint_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        },
+        "pipeline_execution_entity_trigger_asset_id_foreign": {
+          "constraintName": "pipeline_execution_entity_trigger_asset_id_foreign",
+          "columnNames": [
+            "trigger_asset_id"
+          ],
+          "localTableName": "public.pipeline_execution_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.asset_entity",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "pipeline_execution_id": {
+          "name": "pipeline_execution_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "node_id": {
+          "name": "node_id",
+          "type": "smallint",
+          "unsigned": true,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "smallint"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "execution_status": {
+          "name": "execution_status",
+          "type": "pipeline_node_execution_status_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "nativeEnumName": "pipeline_node_execution_status_enum",
+          "default": "'waiting'",
+          "enumItems": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ],
+          "mappedType": "enum"
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "json"
+        }
+      },
+      "name": "pipeline_execution_data_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "pipeline_execution_data_entity_pkey",
+          "columnNames": [
+            "pipeline_execution_id",
+            "node_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "pipeline_execution_data_entity_pipeline_execution_id_foreign": {
+          "constraintName": "pipeline_execution_data_entity_pipeline_execution_id_foreign",
+          "columnNames": [
+            "pipeline_execution_id"
+          ],
+          "localTableName": "public.pipeline_execution_data_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.pipeline_execution_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "pipeline_execution_id": {
+          "name": "pipeline_execution_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "node_id": {
+          "name": "node_id",
+          "type": "smallint",
+          "unsigned": true,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "smallint"
+        },
+        "message": {
+          "name": "message",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "json"
+        }
+      },
+      "name": "pipeline_execution_log_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "pipeline_execution_log_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "pipeline_execution_log_entity_pipeline_execution_id_foreign": {
+          "constraintName": "pipeline_execution_log_entity_pipeline_execution_id_foreign",
+          "columnNames": [
+            "pipeline_execution_id"
+          ],
+          "localTableName": "public.pipeline_execution_log_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.pipeline_execution_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(135)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 135,
+          "mappedType": "string"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "extension_id": {
+          "name": "extension_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "version": {
+          "name": "version",
+          "type": "smallint",
+          "unsigned": true,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "smallint"
+        },
+        "type": {
+          "name": "type",
+          "type": "pipeline_module_type_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "nativeEnumName": "pipeline_module_type_enum",
+          "default": "'normal'",
+          "enumItems": [
+            "normal",
+            "trigger"
+          ],
+          "mappedType": "enum"
+        },
+        "input_type_schema_schema_uri": {
+          "name": "input_type_schema_schema_uri",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "output_type_schema_schema_uri": {
+          "name": "output_type_schema_schema_uri",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        }
+      },
+      "name": "pipeline_module_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "pipeline_module_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "pipeline_module_entity_extension_id_foreign": {
+          "constraintName": "pipeline_module_entity_extension_id_foreign",
+          "columnNames": [
+            "extension_id"
+          ],
+          "localTableName": "public.pipeline_module_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.extension_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        },
+        "pipeline_module_entity_input_type_schema_schema_uri_foreign": {
+          "constraintName": "pipeline_module_entity_input_type_schema_schema_uri_foreign",
+          "columnNames": [
+            "input_type_schema_schema_uri"
+          ],
+          "localTableName": "public.pipeline_module_entity",
+          "referencedColumnNames": [
+            "schema_uri"
+          ],
+          "referencedTableName": "public.json_schema_entity",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        },
+        "pipeline_module_entity_output_type_schema_schema_uri_foreign": {
+          "constraintName": "pipeline_module_entity_output_type_schema_schema_uri_foreign",
+          "columnNames": [
+            "output_type_schema_schema_uri"
+          ],
+          "localTableName": "public.pipeline_module_entity",
+          "referencedColumnNames": [
+            "schema_uri"
+          ],
+          "referencedTableName": "public.json_schema_entity",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "pipeline_blueprint_entity_id": {
+          "name": "pipeline_blueprint_entity_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "pipeline_module_entity_id": {
+          "name": "pipeline_module_entity_id",
+          "type": "varchar(135)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 135,
+          "mappedType": "string"
+        }
+      },
+      "name": "pipeline_blueprint_entity_used_modules",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "pipeline_blueprint_entity_used_modules_pkey",
+          "columnNames": [
+            "pipeline_blueprint_entity_id",
+            "pipeline_module_entity_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "pipeline_blueprint_entity_used_modules_pipeline__4c45d_foreign": {
+          "constraintName": "pipeline_blueprint_entity_used_modules_pipeline__4c45d_foreign",
+          "columnNames": [
+            "pipeline_blueprint_entity_id"
+          ],
+          "localTableName": "public.pipeline_blueprint_entity_used_modules",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.pipeline_blueprint_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        },
+        "pipeline_blueprint_entity_used_modules_pipeline__683e2_foreign": {
+          "constraintName": "pipeline_blueprint_entity_used_modules_pipeline__683e2_foreign",
+          "columnNames": [
+            "pipeline_module_entity_id"
+          ],
+          "localTableName": "public.pipeline_blueprint_entity_used_modules",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.pipeline_module_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "varchar(64)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 64,
+          "mappedType": "string"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "parent_category_key": {
+          "name": "parent_category_key",
+          "type": "varchar(64)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 64,
+          "mappedType": "string"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "varchar(32)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 32,
+          "mappedType": "string"
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "false",
+          "mappedType": "boolean"
+        }
+      },
+      "name": "setting_category_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "setting_category_entity_pkey",
+          "columnNames": [
+            "key"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "setting_category_entity_parent_category_key_foreign": {
+          "constraintName": "setting_category_entity_parent_category_key_foreign",
+          "columnNames": [
+            "parent_category_key"
+          ],
+          "localTableName": "public.setting_category_entity",
+          "referencedColumnNames": [
+            "key"
+          ],
+          "referencedTableName": "public.setting_category_entity",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "varchar(128)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 128,
+          "mappedType": "string"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "type": {
+          "name": "type",
+          "type": "setting_type_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "nativeEnumName": "setting_type_enum",
+          "enumItems": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ],
+          "mappedType": "enum"
+        },
+        "parent_category_key": {
+          "name": "parent_category_key",
+          "type": "varchar(64)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 64,
+          "mappedType": "string"
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "setting_target_type_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "nativeEnumName": "setting_target_type_enum",
+          "enumItems": [
+            "global",
+            "user"
+          ],
+          "mappedType": "enum"
+        },
+        "validation_schema_schema_uri": {
+          "name": "validation_schema_schema_uri",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "default_value": {
+          "name": "default_value",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "json"
+        },
+        "required": {
+          "name": "required",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "true",
+          "mappedType": "boolean"
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "false",
+          "mappedType": "boolean"
+        }
+      },
+      "name": "setting_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "parent_category_key"
+          ],
+          "composite": false,
+          "keyName": "setting_entity_parent_category_key_index",
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "setting_entity_pkey",
+          "columnNames": [
+            "key"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "setting_entity_parent_category_key_foreign": {
+          "constraintName": "setting_entity_parent_category_key_foreign",
+          "columnNames": [
+            "parent_category_key"
+          ],
+          "localTableName": "public.setting_entity",
+          "referencedColumnNames": [
+            "key"
+          ],
+          "referencedTableName": "public.setting_category_entity",
+          "updateRule": "cascade"
+        },
+        "setting_entity_validation_schema_schema_uri_foreign": {
+          "constraintName": "setting_entity_validation_schema_schema_uri_foreign",
+          "columnNames": [
+            "validation_schema_schema_uri"
+          ],
+          "localTableName": "public.setting_entity",
+          "referencedColumnNames": [
+            "schema_uri"
+          ],
+          "referencedTableName": "public.json_schema_entity",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "password": {
+          "name": "password",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 6,
+          "mappedType": "datetime"
+        }
+      },
+      "name": "user_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "username"
+          ],
+          "composite": false,
+          "keyName": "user_entity_username_unique",
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "user_entity_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {},
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "json"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "uuid"
+        }
+      },
+      "name": "stored_user_session_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "stored_user_session_entity_pkey",
+          "columnNames": [
+            "session_id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "stored_user_session_entity_user_id_foreign": {
+          "constraintName": "stored_user_session_entity_user_id_foreign",
+          "columnNames": [
+            "user_id"
+          ],
+          "localTableName": "public.stored_user_session_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.user_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "columns": {
+        "setting_key": {
+          "name": "setting_key",
+          "type": "varchar(128)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 128,
+          "mappedType": "string"
+        },
+        "target_user_id": {
+          "name": "target_user_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "default": "now()",
+          "mappedType": "datetime"
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "json"
+        }
+      },
+      "name": "setting_value_entity",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "setting_value_entity_pkey",
+          "columnNames": [
+            "setting_key",
+            "target_user_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "setting_value_entity_setting_key_foreign": {
+          "constraintName": "setting_value_entity_setting_key_foreign",
+          "columnNames": [
+            "setting_key"
+          ],
+          "localTableName": "public.setting_value_entity",
+          "referencedColumnNames": [
+            "key"
+          ],
+          "referencedTableName": "public.setting_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        },
+        "setting_value_entity_target_user_id_foreign": {
+          "constraintName": "setting_value_entity_target_user_id_foreign",
+          "columnNames": [
+            "target_user_id"
+          ],
+          "localTableName": "public.setting_value_entity",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.user_entity",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {
+        "asset_type_enum": {
+          "name": "asset_type_enum",
+          "schema": "public",
+          "items": [
+            "primary",
+            "sidecar",
+            "pipeline"
+          ]
+        },
+        "pipeline_execution_status_enum": {
+          "name": "pipeline_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "failed",
+            "aborted"
+          ]
+        },
+        "pipeline_error_status_enum": {
+          "name": "pipeline_error_status_enum",
+          "schema": "public",
+          "items": [
+            "aborted",
+            "failed"
+          ]
+        },
+        "pipeline_node_execution_status_enum": {
+          "name": "pipeline_node_execution_status_enum",
+          "schema": "public",
+          "items": [
+            "waiting",
+            "success",
+            "aborted",
+            "failed",
+            "branch-ignored"
+          ]
+        },
+        "pipeline_module_type_enum": {
+          "name": "pipeline_module_type_enum",
+          "schema": "public",
+          "items": [
+            "normal",
+            "trigger"
+          ]
+        },
+        "setting_type_enum": {
+          "name": "setting_type_enum",
+          "schema": "public",
+          "items": [
+            "string",
+            "textblock",
+            "number",
+            "boolean",
+            "date",
+            "date-range",
+            "email",
+            "file",
+            "time",
+            "color",
+            "string-array",
+            "number-array",
+            "custom"
+          ]
+        },
+        "setting_target_type_enum": {
+          "name": "setting_target_type_enum",
+          "schema": "public",
+          "items": [
+            "global",
+            "user"
+          ]
+        }
+      }
+    }
+  ],
+  "nativeEnums": {
+    "asset_type_enum": {
+      "name": "asset_type_enum",
+      "schema": "public",
+      "items": [
+        "primary",
+        "sidecar",
+        "pipeline"
+      ]
+    },
+    "pipeline_execution_status_enum": {
+      "name": "pipeline_execution_status_enum",
+      "schema": "public",
+      "items": [
+        "waiting",
+        "success",
+        "failed",
+        "aborted"
+      ]
+    },
+    "pipeline_error_status_enum": {
+      "name": "pipeline_error_status_enum",
+      "schema": "public",
+      "items": [
+        "aborted",
+        "failed"
+      ]
+    },
+    "pipeline_node_execution_status_enum": {
+      "name": "pipeline_node_execution_status_enum",
+      "schema": "public",
+      "items": [
+        "waiting",
+        "success",
+        "aborted",
+        "failed",
+        "branch-ignored"
+      ]
+    },
+    "pipeline_module_type_enum": {
+      "name": "pipeline_module_type_enum",
+      "schema": "public",
+      "items": [
+        "normal",
+        "trigger"
+      ]
+    },
+    "setting_type_enum": {
+      "name": "setting_type_enum",
+      "schema": "public",
+      "items": [
+        "string",
+        "textblock",
+        "number",
+        "boolean",
+        "date",
+        "date-range",
+        "email",
+        "file",
+        "time",
+        "color",
+        "string-array",
+        "number-array",
+        "custom"
+      ]
+    },
+    "setting_target_type_enum": {
+      "name": "setting_target_type_enum",
+      "schema": "public",
+      "items": [
+        "global",
+        "user"
+      ]
+    }
+  }
+}

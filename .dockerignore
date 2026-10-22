@@ -1,12 +1,14 @@
 **/node_modules
 **/dist
-**/lib
+# Build output and coverage reports live at the package roots; `**/lib` and `**/coverage` would also drop source
+# folders (apps/frontend/src/lib, apps/backend/src/activity-graph/coverage).
+apps/*/lib
+packages/*/lib
+apps/*/coverage
+packages/*/coverage
 **/.turbo
 **/.svelte-kit
 .git
-# Test coverage reports only: src/**/coverage holds the data-coverage feature
-apps/*/coverage
-packages/*/coverage
 **/*.log
 # Local scratch data, incl. the ingest harness corpus (personal exports) and import folders
 **/temp
