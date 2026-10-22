@@ -12,6 +12,7 @@ export type ImporterId =
     | 'google-semantic-location-history'
     | 'youtube-watch-history'
     | 'ics-calendar'
+    | 'airbnb-export'
     | 'spotify-streaming-history-script';
 
 export interface ImporterDefinition {
@@ -62,6 +63,12 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
         transformNodeId: 2,
         storeNodeId: 3,
     },
+    'airbnb-export': {
+        id: 'airbnb-export',
+        blueprintFile: 'airbnb-export.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
     'spotify-streaming-history-script': {
         id: 'spotify-streaming-history-script',
         blueprintFile: 'spotify-streaming-history-script.blueprint.json',
@@ -73,6 +80,9 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
 const basename = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
 const takeout2025 = 'takeout-20250203T120614Z-001/Takeout';
 const outlookTakeout = 'kage0x3b@outlook.com-Takeout';
+
+/** Keeps the request folder and puts the file under `airbnb/<request>/json/`, where the blueprint glob finds it. */
+const airbnbTarget = (file: string) => (path: string) => `airbnb/${path.split('/').slice(-3)[0]}/json/${file}.json`;
 
 export const corpusSources: CorpusSource[] = [
     {
@@ -119,6 +129,37 @@ export const corpusSources: CorpusSource[] = [
         to: (path) => `calendar/export-2026/${basename(path)}`,
     },
     {
+        id: 'airbnb-reservations',
+        importer: 'airbnb-export',
+        from: 'Airbnb_data_request_*/json/reservations.json',
+        to: airbnbTarget('reservations'),
+    },
+    {
+        id: 'airbnb-search-history',
+        importer: 'airbnb-export',
+        from: 'Airbnb_data_request_*/json/search_history.json',
+        to: airbnbTarget('search_history'),
+    },
+    {
+        id: 'airbnb-messages',
+        importer: 'airbnb-export',
+        from: 'Airbnb_data_request_*/json/messages.json',
+        to: airbnbTarget('messages'),
+    },
+    {
+        id: 'airbnb-reviews',
+        importer: 'airbnb-export',
+        from: 'Airbnb_data_request_*/json/reviews.json',
+        to: airbnbTarget('reviews'),
+    },
+    {
+        id: 'airbnb-wishlists-unsupported',
+        importer: 'airbnb-export',
+        from: 'Airbnb_data_request_*/json/wishlists.json',
+        to: airbnbTarget('wishlists'),
+        notes: 'Not importable on purpose: the module must return no activities for other files of the folder.',
+    },
+    {
         id: 'spotify-audio',
         importer: 'spotify-streaming-history-script',
         from: 'Spotify Extended Streaming History/Streaming_History_Audio_*.json',
@@ -139,9 +180,9 @@ export const knownUnsupported: { area: string; glob: string; notes: string }[] =
     },
     { area: 'Spotify account export (zip)', glob: 'my_spotify_data_*.zip', notes: 'Archive; not unpacked.' },
     {
-        area: 'Airbnb',
-        glob: 'Airbnb_data_request_*/**',
-        notes: 'Reservations, messages, reviews, search history (JSON).',
+        area: 'Airbnb (other files)',
+        glob: 'Airbnb_data_request_*/json/{account_security,activity_log,experiences,guest_referrals,id_verification,payment_*,profile_information,search_telemetry_signals,third_party_*,wishlists}.json',
+        notes: 'Payments, ID verification, telemetry, wishlists (no timestamps), experiences (no dates): not imported.',
     },
     { area: 'WhatsApp chats', glob: 'whatsapp-exports/**', notes: 'Plain-text chat export.' },
     {
