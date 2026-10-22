@@ -24,7 +24,6 @@ import pg from 'pg';
 import { importers, type ImporterId } from './corpus.manifest.js';
 import {
     BACKEND_DIR,
-    BLUEPRINT_DIR,
     CORPUS_DIR,
     REPORT_DIR,
     corpusFilePath,
@@ -34,7 +33,6 @@ import {
 import type { TransformReport } from './lib/report.js';
 import { loadHarnessEnv, type HarnessEnv } from './lib/worktree-env.js';
 
-const HARNESS_BLUEPRINT_PREFIX = '[ingest-harness] ';
 const POLL_MS = 1000;
 
 const { values: args } = parseArgs({
@@ -181,33 +179,28 @@ async function resetInstance(db: pg.Client, graph: Driver, folders: Awaited<Retu
     }
 }
 
-async function installBlueprints(db: pg.Client, importerIds: ImporterId[]): Promise<void> {
-    for (const importerId of importerIds) {
-        const definition = importers[importerId];
-        const title = `${HARNESS_BLUEPRINT_PREFIX}${importerId}`;
-        const data = JSON.parse(await fs.readFile(join(BLUEPRINT_DIR, definition.blueprintFile), 'utf8')) as {
-            nodes: { moduleId: string }[];
-        };
+/**
+ * The backend installs the blueprints its extensions ship when it boots (in the background). Wait until those the
+ * corpus needs exist, so dropped files have something to match.
+ */
+async function waitForShippedBlueprints(db: pg.Client, importerIds: ImporterId[]): Promise<void> {
+    const keys = [...new Set(importerIds.map((id) => importers[id].shippedBlueprint))];
+    const deadline = Date.now() + 90_000;
 
-        await db.query('BEGIN');
-        await db.query(`DELETE FROM pipeline_blueprint_entity WHERE title = $1`, [title]);
-        const { rows } = await db.query<{ id: number }>(
-            `INSERT INTO pipeline_blueprint_entity (title, description, data) VALUES ($1, $2, $3) RETURNING id`,
-            [title, `Installed by tools/ingest-harness from ${definition.blueprintFile}`, JSON.stringify(data)],
+    while (Date.now() < deadline) {
+        const { rows } = await db.query<{ key: string }>(
+            'SELECT key FROM pipeline_blueprint_entity WHERE key = ANY($1)',
+            [keys],
         );
 
-        // The trigger lookup joins blueprints to modules through this table (PipelineBlueprintService does the
-        // same when a blueprint is saved through the API).
-        for (const moduleId of new Set(data.nodes.map((n) => n.moduleId))) {
-            await db.query(
-                `INSERT INTO pipeline_blueprint_entity_used_modules (pipeline_blueprint_entity_id, pipeline_module_entity_id)
-                 VALUES ($1, $2)`,
-                [rows[0]!.id, moduleId],
-            );
+        if (rows.length === keys.length) {
+            return;
         }
 
-        await db.query('COMMIT');
+        await sleep(1000);
     }
+
+    throw new Error(`Shipped blueprints ${keys.join(', ')} were not installed within 90 s, see the backend log`);
 }
 
 interface GraphCounts {
@@ -712,8 +705,6 @@ async function main(): Promise<void> {
             await resetInstance(db, graph, folders);
         }
 
-        await installBlueprints(db, [...new Set(corpus.map((f) => f.importer))]);
-
         const predictions = sampleSize
             ? undefined
             : await fs
@@ -727,6 +718,8 @@ async function main(): Promise<void> {
             log(`starting backend (log: ${backend['logPath']})`);
             await backend.start();
         }
+
+        await waitForShippedBlueprints(db, [...new Set(corpus.map((f) => f.importer))]);
 
         const ctx = { db, graph, folders, backend };
         const results: FileResult[] = [];

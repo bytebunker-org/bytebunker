@@ -21,7 +21,7 @@ import { TransformYouTubeWatchHistoryPipelineModule } from '../../../src/extensi
 import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ics-calendar/pipeline-module/parse-ics-file.pipeline-module.js';
 import { TransformSpotifyStreamingHistoryPipelineModule } from '../../../src/extension/extensions/spotify/pipeline-module/transform-spotify-streaming-history.pipeline-module.js';
 import { importers, type ImporterId } from '../corpus.manifest.js';
-import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
+import { corpusFilePath, shippedBlueprintPath, type CorpusFile } from './corpus.js';
 
 export const HARNESS_ACTOR_ID = 'ingest-harness-owner';
 
@@ -95,9 +95,9 @@ function createServices(): ModuleServices {
 }
 
 export async function loadBlueprint(importer: ImporterId): Promise<BlueprintDataDto> {
-    const raw = await fs.readFile(join(BLUEPRINT_DIR, importers[importer].blueprintFile), 'utf8');
+    const raw = await fs.readFile(shippedBlueprintPath(importers[importer].shippedBlueprint), 'utf8');
 
-    return JSON.parse(raw) as BlueprintDataDto;
+    return (JSON.parse(raw) as { data: BlueprintDataDto }).data;
 }
 
 export interface TransformRun {
@@ -115,7 +115,7 @@ export async function runTransform(file: CorpusFile): Promise<TransformRun> {
     const node = blueprint.getNode(definition.transformNodeId);
 
     if (!node) {
-        throw new Error(`Blueprint ${definition.blueprintFile} has no node ${definition.transformNodeId}`);
+        throw new Error(`Blueprint ${definition.shippedBlueprint} has no node ${definition.transformNodeId}`);
     }
 
     // Wire the trigger's `fileAsset` output into whichever input handle the blueprint connects it to.

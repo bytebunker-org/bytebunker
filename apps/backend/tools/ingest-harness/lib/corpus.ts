@@ -7,7 +7,14 @@ import { corpusSources, type CorpusSource, type ImporterId } from '../corpus.man
 
 export const HARNESS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const BACKEND_DIR = resolve(HARNESS_DIR, '../..');
-export const BLUEPRINT_DIR = join(HARNESS_DIR, 'blueprints');
+export const SHIPPED_BLUEPRINT_DIR = join(BACKEND_DIR, 'src/extension/extensions');
+
+/** Path of a blueprint shipped by an extension, by its key `<extension folder>/<name>`. */
+export function shippedBlueprintPath(key: string): string {
+    const [extension, name] = key.split('/');
+
+    return join(SHIPPED_BLUEPRINT_DIR, extension!, 'blueprints', `${name}.blueprint.json`);
+}
 export const CORPUS_DIR = resolve(process.env['INGEST_CORPUS_DIR'] ?? join(BACKEND_DIR, 'temp/ingest-corpus'));
 export const REPORT_DIR = resolve(process.env['INGEST_REPORT_DIR'] ?? join(BACKEND_DIR, 'temp/ingest-harness'));
 export const TAKEOUT_DIR = resolve(process.env['INGEST_TAKEOUT_DIR'] ?? join(homedir(), 'Documents/takeout'));

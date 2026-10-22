@@ -16,8 +16,11 @@ export type ImporterId =
 
 export interface ImporterDefinition {
     id: ImporterId;
-    /** Blueprint file in `tools/ingest-harness/blueprints/`. */
-    blueprintFile: string;
+    /**
+     * Key of the blueprint the extension ships (`src/extension/extensions/<ext>/blueprints/<name>.blueprint.json`,
+     * installed by the backend at boot). The harness tests exactly what users get.
+     */
+    shippedBlueprint: string;
     /** Blueprint node id of the module that turns the raw file into activities. */
     transformNodeId: number;
     /** Blueprint node id of the store-activity module. */
@@ -45,14 +48,14 @@ export interface CorpusSource {
 export const importers: Record<ImporterId, ImporterDefinition> = {
     'google-timeline': {
         id: 'google-timeline',
-        blueprintFile: 'google-timeline.blueprint.json',
+        shippedBlueprint: 'google/timeline',
         transformNodeId: 2,
         storeNodeId: 3,
         maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'google-semantic-location-history': {
         id: 'google-semantic-location-history',
-        blueprintFile: 'google-semantic-location-history.blueprint.json',
+        shippedBlueprint: 'google/semantic-location-history',
         transformNodeId: 2,
         storeNodeId: 3,
         // One 30 s Move followed by another Move in the same minute; start+end keys would fix it but lose ~60 matches
@@ -61,21 +64,21 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
     },
     'youtube-watch-history': {
         id: 'youtube-watch-history',
-        blueprintFile: 'youtube-watch-history.blueprint.json',
+        shippedBlueprint: 'youtube/watch-history',
         transformNodeId: 2,
         storeNodeId: 3,
         maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'ics-calendar': {
         id: 'ics-calendar',
-        blueprintFile: 'ics-calendar.blueprint.json',
+        shippedBlueprint: 'ics-calendar/calendar',
         transformNodeId: 2,
         storeNodeId: 3,
         maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'spotify-streaming-history': {
         id: 'spotify-streaming-history',
-        blueprintFile: 'spotify-streaming-history.blueprint.json',
+        shippedBlueprint: 'spotify/streaming-history',
         transformNodeId: 2,
         storeNodeId: 3,
         maxConflicts: { activityKeys: 0, objectKeySets: 0 },

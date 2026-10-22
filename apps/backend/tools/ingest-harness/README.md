@@ -62,8 +62,9 @@ worktree first, its BullMQ workers would take the jobs. It refuses the main chec
 mentioning `syscy.de`.
 
 `--reset` deletes all graph nodes, blueprints, pipeline executions, pipeline asset rows and stable keys of **this
-worktree's** instance, then installs the blueprints from `blueprints/`. Without `--reset`, files are imported on top of
-what is there and the tier-1 predictions are not compared.
+worktree's** instance; the backend then reinstalls the blueprints the extensions ship
+(`src/extension/extensions/*/blueprints/`), and the harness waits for them. Without `--reset`, files are imported on top
+of what is there and the tier-1 predictions are not compared.
 
 Invariants at the end:
 
@@ -73,7 +74,8 @@ Invariants at the end:
 
 ## Adding a source
 
-1. Add a blueprint JSON to `blueprints/` and an `importers` entry in `corpus.manifest.ts`.
+1. Ship a blueprint with the extension (`src/extension/extensions/<ext>/blueprints/<name>.blueprint.json`) and add an
+   `importers` entry with its key (`<ext>/<name>`) in `corpus.manifest.ts`.
 2. Add a `corpusSources` entry (and drop it from `knownUnsupported`).
 3. Add the module to `moduleFactories` in `lib/run-transform.ts`.
 4. `pnpm ingest:corpus sync && pnpm ingest:transform`.
