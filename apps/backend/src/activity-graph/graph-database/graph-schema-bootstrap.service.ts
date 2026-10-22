@@ -1,3 +1,4 @@
+import { NodeLabelEnum } from '../node-label.enum.js';
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { Neode } from '@bytebunker/neode';
 import { toSnakeCase } from 'js-convert-case';
@@ -82,6 +83,14 @@ export class GraphSchemaBootstrapService implements OnModuleInit {
                     );
                 }
             }
+        }
+
+        // Provenance (written by the persister, not part of a neode model): find what an import created.
+        for (const property of ['importExecutionId', 'importAssetId']) {
+            statements.push(
+                `CREATE INDEX ${escapeIdentifier(`as_object_${toSnakeCase(property)}_index`)} IF NOT EXISTS ` +
+                    `FOR (n:${escapeIdentifier(NodeLabelEnum.AS_OBJECT)}) ON (n.${escapeIdentifier(property)})`,
+            );
         }
 
         return statements;
