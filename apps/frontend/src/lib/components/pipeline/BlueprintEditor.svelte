@@ -34,7 +34,13 @@
 		nodeIssues?: Record<number, BlueprintValidationIssueDto[]>;
 	}
 
-	let { blueprint, pipelineExecution, allowEdit = true, nodeProgress, nodeIssues }: Props = $props();
+	let {
+		blueprint,
+		pipelineExecution,
+		allowEdit = true,
+		nodeProgress,
+		nodeIssues
+	}: Props = $props();
 
 	const pipelineModulesQuery = createQuery<
 		PipelineModuleDto[],

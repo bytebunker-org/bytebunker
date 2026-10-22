@@ -1,9 +1,14 @@
 import type { PipelineModuleDto, Blueprint } from '@bytebunker/backend';
 
-export class BlueprintMock {
-	constructor(private readonly nodes: Record<number, { moduleId: string }>) {}
+interface BlueprintMockNode {
+	moduleId: string;
+	constantInputData?: Record<string, unknown>;
+}
 
-	getNode(id: number): { moduleId: string } | undefined {
+export class BlueprintMock {
+	constructor(private readonly nodes: Record<number, BlueprintMockNode>) {}
+
+	getNode(id: number): BlueprintMockNode | undefined {
 		return this.nodes[id];
 	}
 }
@@ -51,7 +56,10 @@ export function createTestPipelineModules(): Record<string, PipelineModuleDto> {
 }
 
 import { describe, it, expect } from 'vitest';
-import { isValidConnection } from '$lib/components/pipeline/blueprintUtil.js';
+import {
+	areSchemaTypesCompatible,
+	isValidConnection
+} from '$lib/components/pipeline/blueprintUtil.js';
 import type { Connection } from '@xyflow/svelte';
 
 describe('isValidConnection', () => {
@@ -171,14 +179,108 @@ describe('isValidConnection', () => {
 		expect(isValidConnection(blueprint, pipelineModules, edgeMismatch)).toBe(false);
 	});
 
-	it('returns true if one or both properties are missing from the schema (default to true at end)', () => {
-		// If we can't find the schema property in either place, the function currently returns true at the end
-		const edgeNoSchemaProperty: Connection = {
-			source: '1',
-			target: '2',
-			sourceHandle: 'notInSchema',
-			targetHandle: 'alsoNotInSchema'
+	it('returns false if a handle does not exist on a module with a schema', () => {
+		expect(
+			isValidConnection(blueprint, pipelineModules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'notInSchema',
+				targetHandle: 'inString'
+			})
+		).toBe(false);
+		expect(
+			isValidConnection(blueprint, pipelineModules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'outString',
+				targetHandle: 'alsoNotInSchema'
+			})
+		).toBe(false);
+	});
+
+	it('accepts any handle on modules without a schema', () => {
+		const modules = {
+			...pipelineModules,
+			'some-extension:my-module@1': {} as unknown as PipelineModuleDto
 		};
-		expect(isValidConnection(blueprint, pipelineModules, edgeNoSchemaProperty)).toBe(true);
+
+		expect(
+			isValidConnection(blueprint, modules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'anything',
+				targetHandle: 'inString'
+			})
+		).toBe(true);
+	});
+
+	it('treats custom execute-code handles as untyped', () => {
+		const customBlueprint = new BlueprintMock({
+			1: {
+				moduleId: 'some-extension:my-module@1',
+				constantInputData: { customOutputParameters: ['dynamicOut'] }
+			},
+			2: {
+				moduleId: 'some-extension:my-module@2',
+				constantInputData: { customInputParameters: ['dynamicIn'] }
+			}
+		}) as unknown as Blueprint;
+
+		// custom output -> typed input
+		expect(
+			isValidConnection(customBlueprint, pipelineModules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'dynamicOut',
+				targetHandle: 'inNumber'
+			})
+		).toBe(true);
+		// typed output -> custom input
+		expect(
+			isValidConnection(customBlueprint, pipelineModules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'outNumber',
+				targetHandle: 'dynamicIn'
+			})
+		).toBe(true);
+		// undeclared handle is still invalid
+		expect(
+			isValidConnection(customBlueprint, pipelineModules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'undeclared',
+				targetHandle: 'inNumber'
+			})
+		).toBe(false);
+	});
+
+	it('does not allow the special handles to be mixed with typed handles', () => {
+		expect(
+			isValidConnection(blueprint, pipelineModules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'outString',
+				targetHandle: 'dependentModules'
+			})
+		).toBe(false);
+		expect(
+			isValidConnection(blueprint, pipelineModules, {
+				source: '1',
+				target: '2',
+				sourceHandle: 'dependentModules',
+				targetHandle: 'success'
+			})
+		).toBe(false);
+	});
+});
+
+describe('areSchemaTypesCompatible', () => {
+	it('accepts equal, untyped and array targets', () => {
+		expect(areSchemaTypesCompatible({ type: 'string' }, { type: 'string' })).toBe(true);
+		expect(areSchemaTypesCompatible({}, { type: 'string' })).toBe(true);
+		expect(areSchemaTypesCompatible({ type: 'string' }, {})).toBe(true);
+		expect(areSchemaTypesCompatible({ type: 'number' }, { type: 'array' })).toBe(true);
+		expect(areSchemaTypesCompatible({ type: 'array' }, { type: 'string' })).toBe(false);
 	});
 });
