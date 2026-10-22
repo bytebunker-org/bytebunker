@@ -366,6 +366,9 @@ longer returns POIs (Mapbox moved them to the Search Box API), so Mapbox fills a
 Box `/reverse` was tested and not adopted: the nearest POI is usually a neighbour or a business in the same building
 (a home would be named "VISUAL CULT"), so POIs make worse names than addresses.
 
+Place names: custom place > source name (Google's semantic place) > OSM POI > Mapbox POI > address. The source name
+comes before OSM because the nearest OSM POI is often a neighbour ("McDonald's" for the Trier Christmas market).
+
 Custom places (`/settings/places`) come before every provider: each place within the radius takes the custom name, and
 home/work custom places with a validity range replace the derived home/work periods for that range. Suggestions list
 the most visited places not yet covered, with the inferred role. "Jetzt anwenden" runs the places chain (~15 s).

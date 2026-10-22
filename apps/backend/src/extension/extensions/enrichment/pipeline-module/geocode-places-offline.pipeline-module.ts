@@ -89,7 +89,7 @@ export class GeocodePlacesOfflineOutput {
 /**
  * Offline reverse geocoding of every canonical place from GeoNames (cities1000, downloaded on first use): nearest
  * city, state, country, IANA timezone and the distance to that city. Picks the best place name (custom place the
- * place lies in > OSM POI name from enrichment:refine-places-online > Mapbox POI name > source name > address) and
+ * place lies in > source name > OSM POI name from enrichment:refine-places-online > Mapbox POI name > address) and
  * stores (or clears) the matched custom place. Merges into the nodes; re-runs are idempotent.
  */
 @PipelineModule({

@@ -105,9 +105,13 @@ describe('mapbox.util', () => {
             name: 'OSM Café',
             nameSource: 'osm',
         });
-        expect(selectPlaceName({ mapboxName: 'Mapbox Café', sourceName: 'Source' })).toEqual({
+        expect(selectPlaceName({ mapboxName: 'Mapbox Café', road: 'Rathausstraße' })).toEqual({
             name: 'Mapbox Café',
             nameSource: 'mapbox',
+        });
+        expect(selectPlaceName({ mapboxName: 'Mapbox Café', sourceName: 'Source' })).toEqual({
+            name: 'Source',
+            nameSource: 'source',
         });
     });
 

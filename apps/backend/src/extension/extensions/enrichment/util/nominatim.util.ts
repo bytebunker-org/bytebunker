@@ -140,12 +140,21 @@ export interface PlaceNameInput {
     houseNumber?: string | null;
 }
 
-/** Custom place name > OSM POI name > Mapbox POI name > name from the source data > road and house number. */
+/**
+ * Custom place name > name from the source data > OSM POI name > Mapbox POI name > road and house number. The source
+ * name (Google's semantic place) is what the user actually visited; the nearest POI is often a neighbour.
+ */
 export function selectPlaceName(input: PlaceNameInput): { name: string; nameSource: PlaceNameSource } | undefined {
     const customName = input.customName?.trim();
 
     if (customName) {
         return { name: customName, nameSource: 'custom' };
+    }
+
+    const sourceName = input.sourceName?.trim();
+
+    if (sourceName) {
+        return { name: sourceName, nameSource: 'source' };
     }
 
     const osmName = input.osmName?.trim();
@@ -158,12 +167,6 @@ export function selectPlaceName(input: PlaceNameInput): { name: string; nameSour
 
     if (mapboxName) {
         return { name: mapboxName, nameSource: 'mapbox' };
-    }
-
-    const sourceName = input.sourceName?.trim();
-
-    if (sourceName) {
-        return { name: sourceName, nameSource: 'source' };
     }
 
     const road = input.road?.trim();

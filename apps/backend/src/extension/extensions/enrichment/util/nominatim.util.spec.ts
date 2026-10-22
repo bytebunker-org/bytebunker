@@ -106,14 +106,14 @@ describe('selectPlaceName', () => {
         });
     });
 
-    it('prefers the OSM POI name, then the source name, then road and house number', () => {
+    it('prefers the source name, then the OSM POI name, then road and house number', () => {
         expect(selectPlaceName({ osmName: 'Café Paris', sourceName: 'Cafe', road: 'Rathausstraße' })).toEqual({
+            name: 'Cafe',
+            nameSource: 'source',
+        });
+        expect(selectPlaceName({ osmName: 'Café Paris', sourceName: ' ', road: 'Rathausstraße' })).toEqual({
             name: 'Café Paris',
             nameSource: 'osm',
-        });
-        expect(selectPlaceName({ osmName: ' ', sourceName: 'Lidl', road: 'Rathausstraße' })).toEqual({
-            name: 'Lidl',
-            nameSource: 'source',
         });
         expect(selectPlaceName({ road: 'Rathausstraße', houseNumber: '4' })).toEqual({
             name: 'Rathausstraße 4',

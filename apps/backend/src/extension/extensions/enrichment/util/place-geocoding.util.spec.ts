@@ -89,11 +89,9 @@ describe('buildOfflineGeocodeProps', () => {
         });
     });
 
-    it('prefers the refined OSM city, country and POI name', () => {
+    it('prefers the refined OSM city, country and POI name over GeoNames and the address', () => {
         const props = buildOfflineGeocodeProps(
             place({
-                sourceName: 'Supermarket',
-                name: 'Supermarket',
                 osmName: 'Cactus',
                 osmCity: 'Luxembourg City',
                 osmCountryCode: 'LU',
@@ -112,6 +110,17 @@ describe('buildOfflineGeocodeProps', () => {
             nameSource: 'osm',
         });
         expect(props).not.toHaveProperty('sourceName');
+    });
+
+    it('keeps the source name over the OSM POI name', () => {
+        const props = buildOfflineGeocodeProps(
+            place({ sourceName: 'Supermarket', name: 'Supermarket', osmName: 'Cactus' }),
+            hamburg,
+            countries,
+            now,
+        );
+
+        expect(props).toMatchObject({ name: 'Supermarket', nameSource: 'source' });
     });
 
     it('clears earlier values when nothing is near', () => {
