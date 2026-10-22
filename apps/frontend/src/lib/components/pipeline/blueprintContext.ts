@@ -1,6 +1,12 @@
 import type { PipelineModuleIdentifier, PipelineModuleDto } from '@bytebunker/backend';
 import { getContext, setContext } from 'svelte';
-import type { Blueprint, BlueprintDataDto, PipelineExecutionDto } from '@bytebunker/backend';
+import type {
+	Blueprint,
+	BlueprintDataDto,
+	PipelineExecutionDto,
+	NodeProgressDto,
+	BlueprintValidationIssueDto
+} from '@bytebunker/backend';
 
 export interface BlueprintEditorContext {
 	blueprint: Blueprint;
@@ -10,6 +16,12 @@ export interface BlueprintEditorContext {
 	pipelineExecution?: PipelineExecutionDto;
 
 	allowEdit: boolean;
+
+	/** Live progress per node id (execution view). Rendered by BlueprintNode. */
+	nodeProgress?: Record<number, NodeProgressDto>;
+
+	/** Validation issues per node id (editor). Rendered by BlueprintNode. */
+	nodeIssues?: Record<number, BlueprintValidationIssueDto[]>;
 }
 
 export const BLUEPRINT_EDITOR_CONTEXT_KEY = 'BLUEPRINT_EDITOR_CONTEXT_KEY';
