@@ -74,6 +74,13 @@ describe('derived graph cypher', () => {
         );
     });
 
+    it('keeps preserved properties when replacing the others', () => {
+        const cypher = buildWriteDerivedNodesCypher(NodeLabelEnum.CANONICAL_PLACE, [], ['city', 'refinedAt']);
+
+        expect(cypher).toContain('WITH n, row, n { .`city`, .`refinedAt` } AS kept');
+        expect(cypher).toContain('SET n = row.props, n += kept, n += $provenance');
+    });
+
     it('only deletes nodes the current execution did not write, in limited batches', () => {
         const cypher = buildDeleteStaleDerivedNodesCypher(NodeLabelEnum.CANONICAL_PLACE);
 

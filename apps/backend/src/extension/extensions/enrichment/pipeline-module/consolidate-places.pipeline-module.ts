@@ -13,6 +13,7 @@ import { RelationshipLabelEnum } from '../../../../activity-graph/relationship-l
 import { ENRICHMENT_EXTENSION } from '../../local-extension.constant.js';
 import { DerivedGraphService } from '../graph/derived-graph.service.js';
 import { buildDerivedProvenance, toPlainNumber } from '../graph/derived-graph.util.js';
+import { GEOCODE_PROPERTY_KEYS } from '../geocoding/geocoding.constant.js';
 import { clusterPlaces, type PlaceCluster, type RawPlacePoint } from '../util/place-clustering.util.js';
 
 const DEFAULT_RADIUS_METERS = 75;
@@ -81,7 +82,8 @@ export class ConsolidatePlacesOutput {
 
 /**
  * Builds one `CanonicalPlace` per real place from the raw `Place` nodes (one per coordinate or placeId), linked
- * from the raw places with `SAME_AS`. Raw places stay untouched; a re-run replaces the previous canonical places.
+ * from the raw places with `SAME_AS`. Raw places stay untouched; a re-run replaces the previous canonical places but
+ * keeps the geocoding properties on the ones it writes again (see `GEOCODE_PROPERTY_KEYS`).
  */
 @PipelineModule({
     extensionName: ENRICHMENT_EXTENSION,
@@ -137,6 +139,8 @@ export class ConsolidatePlacesPipelineModule
                         clusters.map((cluster) => ({ id: cluster.id, props: toNodeProps(cluster) })),
                         provenance,
                         (written) => progress.report({ current: written, total }),
+                        [],
+                        GEOCODE_PROPERTY_KEYS,
                     );
                     progress.message('Linking raw places');
                     await this.derivedGraphService.writeRelationships(
@@ -220,7 +224,8 @@ export class ConsolidatePlacesPipelineModule
 
 function toNodeProps(cluster: PlaceCluster): Record<string, unknown> {
     return {
-        ...(cluster.name ? { name: cluster.name } : {}),
+        // `name` may be replaced by a better one (enrichment:geocode-places-offline); `sourceName` keeps the original.
+        ...(cluster.name ? { name: cluster.name, sourceName: cluster.name } : {}),
         latitude: cluster.latitude,
         longitude: cluster.longitude,
         placeIds: cluster.placeIds,

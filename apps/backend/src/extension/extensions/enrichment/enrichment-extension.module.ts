@@ -10,9 +10,16 @@ import { DailySummaryPipelineModule } from './pipeline-module/daily-summary.pipe
 import { DeriveHomeWorkPipelineModule } from './pipeline-module/derive-home-work.pipeline-module.js';
 import { DeriveTripsPipelineModule } from './pipeline-module/derive-trips.pipeline-module.js';
 import { LinkListensToMovesPipelineModule } from './pipeline-module/link-listens-to-moves.pipeline-module.js';
+import { GeocodePlacesOfflinePipelineModule } from './pipeline-module/geocode-places-offline.pipeline-module.js';
+import { RefinePlacesOnlinePipelineModule } from './pipeline-module/refine-places-online.pipeline-module.js';
+import { PlaceGeocodeService } from './graph/place-geocode.service.js';
+import { GeoNamesDataService } from './geocoding/geonames-data.service.js';
+import { NominatimClientService } from './geocoding/nominatim-client.service.js';
 
 const pipelineModules = [
     ConsolidatePlacesPipelineModule,
+    GeocodePlacesOfflinePipelineModule,
+    RefinePlacesOnlinePipelineModule,
     DeriveHomeWorkPipelineModule,
     DeriveTripsPipelineModule,
     LinkListensToMovesPipelineModule,
@@ -21,12 +28,19 @@ const pipelineModules = [
 ] satisfies Type<IPipelineModule<unknown, unknown>>[];
 
 /**
- * Modules that derive data from the graph (canonical places, home/work periods, trips, music on the move, confirmed
- * events, daily summaries) instead of importing it.
+ * Modules that derive data from the graph (canonical places and their geocoding, home/work periods, trips, music on
+ * the move, confirmed events, daily summaries) instead of importing it.
  */
 @Module({
     imports: [GraphDatabaseModule, ActivityGraphModule],
-    providers: [DerivedGraphService, ActivityInputReaderService, ...pipelineModules],
+    providers: [
+        DerivedGraphService,
+        ActivityInputReaderService,
+        PlaceGeocodeService,
+        GeoNamesDataService,
+        NominatimClientService,
+        ...pipelineModules,
+    ],
     exports: [DerivedGraphService],
 })
 export class EnrichmentExtensionModule {}
