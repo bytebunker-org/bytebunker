@@ -82,7 +82,8 @@ export class S3AssetStorageService extends AssetStorageService {
             await this.minioClient.statObject(this.bucketName, storagePath);
             return true;
         } catch (error) {
-            if (error instanceof S3Error && error.code === 'NotFound') {
+            // statObject is a HEAD request; depending on the server a missing key reports either code.
+            if (error instanceof S3Error && (error.code === 'NotFound' || error.code === 'NoSuchKey')) {
                 return false;
             }
             throw error;
