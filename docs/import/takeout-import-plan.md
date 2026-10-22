@@ -70,15 +70,21 @@ used/installed/other → `View` with an `action` string. Location captions → P
 English timestamp support to the existing YouTube watch history parser. Sizes: Search ~50k, Maps ~14.5k,
 Play Store ~25 MB, News, Image Search, Assistant, Android, Shopping, Lens, Translate, ...
 
-### 4. Browser history and bookmarks
+### 4. Browser history and bookmarks — done
 
-- Firefox: user copies `places.sqlite` (+`-wal`) of each profile into the import folder; parse with built-in
-  `node:sqlite` (Node 22.22 in the image). Visits → `View` of `Page` (title, url, description, preview image,
-  visit type, profile name). Bookmarks → `Add`. Live profiles here: default-release 248,842 visits (2020-05 →
-  now), dev-edition 180,482 (2019-07 → now), overlapping; dedup on (url, visit time).
-- Chrome/Chromium: `History` sqlite (WebKit epoch) and Takeout `Verlauf.json` (per visit, Unix µs);
-  `Lesezeichen.html` Netscape bookmarks (also usable for Firefox HTML backups).
-- `docs/import/firefox-*.md` describe other profiles/host; update numbers.
+Extension `browser-history`, three modules:
+
+- `transform-browser-database`: Firefox `places.sqlite` (visits + bookmarks) and Chrome/Chromium `History`, read
+  with `node:sqlite` from a temp copy. Users import `places.sqlite` with Firefox closed or a `sqlite3 .backup`
+  snapshot (the `-wal` never reaches the module). Options `profileName`, `browser`, `includeBookmarks`,
+  `fromDate`/`toDate` (split a big profile until chunked outputs land).
+- `transform-chrome-takeout-history`: `Chrome/Verlauf.json` / `BrowserHistory.json`.
+- `transform-bookmarks-html`: Netscape bookmark HTML (`Lesezeichen.html`, `Bookmarks.html`, `Leseliste.html`).
+
+Visits → `View` + `BrowserVisit` of `Page` (`page:<normalised url>`), key `browser:visit:<url>:<ms>` (Firefox Sync
+stores received visits at ms precision). Noise dropped: redirect hops (only the chain end is kept), reloads,
+framed loads, browser-internal URLs (`file:` kept). Bookmarks → `Add` + `Bookmark`, key
+`browser:bookmark:<url>:<ms>` plus `browser:bookmark:firefox:<guid>`. Numbers in `docs/import/firefox-overview.md`.
 
 ### 5. WhatsApp chat export
 
