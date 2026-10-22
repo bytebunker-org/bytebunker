@@ -13,6 +13,7 @@ import { IcsCalendarExtensionModule } from './extensions/ics-calendar/ics-calend
 import { AirbnbExtensionModule } from './extensions/airbnb/airbnb-extension.module.js';
 import { WhatsappExtensionModule } from './extensions/whatsapp/whatsapp-extension.module.js';
 import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.module.js';
+import { SpotifyExtensionModule } from './extensions/spotify/spotify-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
@@ -20,7 +21,11 @@ const manuallyLoadedExtensions = [
     IcsCalendarExtensionModule,
     WhatsappExtensionModule,
     YouTubeExtensionModule,
+<<<<<<< HEAD
     AirbnbExtensionModule,
+=======
+    SpotifyExtensionModule,
+>>>>>>> feat/import-spotify
 ];
 
 @Module({

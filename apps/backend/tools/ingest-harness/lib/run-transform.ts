@@ -20,9 +20,13 @@ import { TransformSemanticLocationHistoryPipelineModule } from '../../../src/ext
 import { TransformMapsPlacesPipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-maps-places.pipeline-module.js';
 import { TransformYouTubeWatchHistoryPipelineModule } from '../../../src/extension/extensions/youtube/pipeline-module/transform-youtube-watch-history.pipeline-module.js';
 import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ics-calendar/pipeline-module/parse-ics-file.pipeline-module.js';
+<<<<<<< HEAD
 import { TransformAirbnbExportPipelineModule } from '../../../src/extension/extensions/airbnb/pipeline-module/transform-airbnb-export.pipeline-module.js';
 import { ParseWhatsappChatPipelineModule } from '../../../src/extension/extensions/whatsapp/pipeline-module/parse-whatsapp-chat.pipeline-module.js';
 import { ExecuteCodePipelineModule } from '../../../src/etl/pipeline/pipeline-module/core-module/execute-code.pipeline-module.js';
+=======
+import { TransformSpotifyStreamingHistoryPipelineModule } from '../../../src/extension/extensions/spotify/pipeline-module/transform-spotify-streaming-history.pipeline-module.js';
+>>>>>>> feat/import-spotify
 import { importers, type ImporterId } from '../corpus.manifest.js';
 import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
 
@@ -67,16 +71,24 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
         ) as never,
     'ics-calendar': (s) =>
         new ParseIcsFilePipelineModule(s.assetService, s.stableKeyService, s.graphService, s.graphNodeService) as never,
+<<<<<<< HEAD
     'airbnb-export': (s) =>
         new TransformAirbnbExportPipelineModule(
+=======
+    'spotify-streaming-history': (s) =>
+        new TransformSpotifyStreamingHistoryPipelineModule(
+>>>>>>> feat/import-spotify
             s.assetService,
             s.stableKeyService,
             s.graphService,
             s.graphNodeService,
         ) as never,
+<<<<<<< HEAD
     whatsapp: (s) => new ParseWhatsappChatPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
     'spotify-streaming-history-script': (s) =>
         new ExecuteCodePipelineModule(s.graphService, s.graphNodeService, s.stableKeyService, s.assetService) as never,
+=======
+>>>>>>> feat/import-spotify
 };
 
 /** Same defaults as `settingsConfig` (eventUniqueLocationPrecision / eventUniqueDateTimePrecision). */
