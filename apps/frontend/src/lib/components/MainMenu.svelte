@@ -96,7 +96,7 @@
 				</a>
 			</li>
 			<li>
-				<a href="/settings" class:menu-active={page.route.id === '/(app)/settings'}>
+				<a href="/settings" class:menu-active={page.route.id?.startsWith('/(app)/settings')}>
 					<LucideSettings />
 					Settings
 				</a>
