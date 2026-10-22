@@ -6,3 +6,8 @@
 .git
 **/coverage
 **/*.log
+# Local scratch data, incl. the ingest harness corpus (personal exports) and import folders
+**/temp
+.claude
+.mcp.json
+.worktree
