@@ -152,6 +152,8 @@ async function importFolders(db: pg.Client) {
         import: await folder('localFileTriggerImportFolder', './data/import'),
         finished: await folder('localFileTriggerImportFinishedFolder', './data/import-finished'),
         failed: await folder('localFileTriggerImportFailedFolder', './data/import-failed'),
+        // Not a setting: the watcher derives it from the import folder.
+        processing: `${await folder('localFileTriggerImportFolder', './data/import')}-processing`,
     };
 }
 
@@ -308,6 +310,13 @@ async function executionsAfter(db: pg.Client, afterId: number): Promise<Executio
     return snapshots;
 }
 
+/** The file landed at `path` after `since` (a move updates ctime), not left over from an earlier pass. */
+async function movedSince(path: string, since: number): Promise<boolean> {
+    const stat = await fs.stat(path).catch(() => undefined);
+
+    return Boolean(stat && stat.ctimeMs >= since - 1000);
+}
+
 const fingerprint = (executions: ExecutionSnapshot[]) =>
     JSON.stringify(executions.map((e) => [e.status, e.updatedAt, e.nodes.map((n) => [n.status, n.updatedAt])]));
 
@@ -353,7 +362,8 @@ interface FileResult {
     sourceId: string;
     importPath: string;
     pass: 'import' | 'reimport';
-    outcome: 'success' | 'failed' | 'stalled' | 'timeout' | 'no-pipeline' | 'multiple-pipelines';
+    /** skipped: the duplicate-import guard recognised the content and started nothing. */
+    outcome: 'success' | 'skipped' | 'failed' | 'stalled' | 'timeout' | 'no-pipeline' | 'multiple-pipelines';
     executions: {
         id: number;
         blueprint: string;
@@ -429,13 +439,10 @@ async function importFile(
             lastChange = Date.now();
         }
 
-        const movedToFailed = await fs.stat(join(folders.failed, file.importPath)).then(
-            () => true,
-            () => false,
-        );
-
         if (!executions.length) {
-            if (movedToFailed) {
+            if (await movedSince(join(folders.finished, file.importPath), start)) {
+                outcome = 'skipped';
+            } else if (await movedSince(join(folders.failed, file.importPath), start)) {
                 outcome = 'no-pipeline';
             } else if (Date.now() - start > 60_000) {
                 outcome = 'no-pipeline';
@@ -474,19 +481,21 @@ async function importFile(
         outcome = 'multiple-pipelines';
     }
 
-    // Let the trigger move the file before checking where it went.
-    await sleep(500);
-    const movedTo = (await fs.stat(join(folders.finished, file.importPath)).then(
-        () => true,
-        () => false,
-    ))
-        ? 'finished'
-        : (await fs.stat(join(folders.failed, file.importPath)).then(
-                () => true,
-                () => false,
-            ))
-          ? 'failed'
-          : undefined;
+    // The watcher moves the file out of the processing folder once its executions ended (checked every few
+    // seconds); give it time before recording where it went.
+    let movedTo: FileResult['fileMovedTo'];
+
+    for (let waited = 0; waited < 20_000 && !movedTo; waited += 500) {
+        movedTo = (await movedSince(join(folders.finished, file.importPath), start))
+            ? 'finished'
+            : (await movedSince(join(folders.failed, file.importPath), start))
+              ? 'failed'
+              : undefined;
+
+        if (!movedTo) {
+            await sleep(500);
+        }
+    }
 
     const definition = importers[file.importer];
 
@@ -755,7 +764,7 @@ async function main(): Promise<void> {
         await fs.writeFile(join(REPORT_DIR, 'e2e-latest.md'), markdown);
         console.log(`\n${markdown}\nReport: ${join(REPORT_DIR, 'e2e-latest.md')}`);
 
-        const failures = results.filter((r) => r.outcome !== 'success');
+        const failures = results.filter((r) => r.outcome !== 'success' && r.outcome !== 'skipped');
         process.exitCode = failures.length ? 1 : 0;
     } finally {
         if (startedBackend && !args['keep-running']) {
