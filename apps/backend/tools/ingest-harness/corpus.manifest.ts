@@ -2,8 +2,9 @@
  * Which files of a personal data export feed which importer, and where each one lands in the local-file
  * trigger import folder so the importer's blueprint glob matches it.
  *
- * Paths in `from` are micromatch globs relative to the takeout root (`INGEST_TAKEOUT_DIR`, default
- * `~/Documents/takeout`). The takeout root is read-only: `corpus.ts sync` only ever copies out of it.
+ * Paths in `from` are micromatch globs relative to the source's root: the takeout root (`INGEST_TAKEOUT_DIR`, default
+ * `~/Documents/takeout`) or, for `root: 'home'`, the home directory (`INGEST_HOME_DIR`), e.g. live browser profiles.
+ * Both roots are read-only: `corpus.ts sync` only ever copies out of them.
  * The copied corpus lives in `apps/backend/temp/ingest-corpus/` (gitignored, it is personal data).
  */
 
@@ -12,7 +13,10 @@ export type ImporterId =
     | 'google-semantic-location-history'
     | 'youtube-watch-history'
     | 'ics-calendar'
-    | 'spotify-streaming-history-script';
+    | 'spotify-streaming-history-script'
+    | 'browser-history-database'
+    | 'chrome-takeout-history'
+    | 'browser-bookmarks-html';
 
 export interface ImporterDefinition {
     id: ImporterId;
@@ -24,16 +28,26 @@ export interface ImporterDefinition {
     storeNodeId: number;
 }
 
+export type CorpusRoot = 'takeout' | 'home';
+
 export interface CorpusSource {
     /** Stable id, used for `--only` filters and report rows. */
     id: string;
     importer: ImporterId;
-    /** Glob(s) relative to the takeout root. */
+    /** Where `from` is resolved. Defaults to the takeout root. */
+    root?: CorpusRoot;
+    /** Glob(s) relative to the root. For the home root, keep the part before the first glob specific: it is walked. */
     from: string | string[];
-    /** Target path inside the import folder for a matched file (relative to the takeout root). */
+    /** Target path inside the import folder for a matched file (relative to the root). */
     to: (relativePath: string) => string;
     /** Optional: decompress before use. */
     gunzip?: boolean;
+    /**
+     * Optional: the file is a SQLite database possibly in WAL mode (a live browser profile). Its `-wal` is copied too
+     * and checkpointed into the corpus copy, so the corpus holds one self-contained file, the way a user would export
+     * it with the browser closed.
+     */
+    sqlite?: boolean;
     notes?: string;
 }
 
@@ -65,6 +79,24 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
     'spotify-streaming-history-script': {
         id: 'spotify-streaming-history-script',
         blueprintFile: 'spotify-streaming-history-script.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
+    'browser-history-database': {
+        id: 'browser-history-database',
+        blueprintFile: 'browser-history-database.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
+    'chrome-takeout-history': {
+        id: 'chrome-takeout-history',
+        blueprintFile: 'chrome-takeout-history.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
+    'browser-bookmarks-html': {
+        id: 'browser-bookmarks-html',
+        blueprintFile: 'browser-bookmarks-html.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
@@ -125,6 +157,69 @@ export const corpusSources: CorpusSource[] = [
         to: (path) => `spotify/${basename(path)}`,
         notes: 'Imported through the execute-code blueprint (inline script), there is no Spotify module yet.',
     },
+    {
+        id: 'firefox-default-release',
+        importer: 'browser-history-database',
+        root: 'home',
+        from: '.mozilla/firefox/*.default-release/places.sqlite',
+        to: () => 'browser/firefox/default-release/places.sqlite',
+        sqlite: true,
+        notes: 'Live Firefox profile, 2020-05 onwards; overlaps dev-edition through Firefox Sync.',
+    },
+    {
+        id: 'firefox-dev-edition',
+        importer: 'browser-history-database',
+        root: 'home',
+        from: '.mozilla/firefox/*.dev-edition-default/places.sqlite',
+        to: () => 'browser/firefox/dev-edition-default/places.sqlite',
+        sqlite: true,
+        notes: 'Live Firefox Developer Edition profile (in use), 2019-07 onwards.',
+    },
+    {
+        id: 'firefox-default',
+        importer: 'browser-history-database',
+        root: 'home',
+        from: '.mozilla/firefox/*.default/places.sqlite',
+        to: () => 'browser/firefox/default/places.sqlite',
+        sqlite: true,
+        notes: 'Almost unused profile.',
+    },
+    {
+        id: 'chrome-local',
+        importer: 'browser-history-database',
+        root: 'home',
+        from: ['.config/google-chrome/Default/History', '.config/google-chrome/Profile 1/History'],
+        to: (path) => `browser/chrome/${path.split('/').slice(-2, -1)[0]}/History`,
+        sqlite: true,
+    },
+    {
+        id: 'chromium-local',
+        importer: 'browser-history-database',
+        root: 'home',
+        from: '.config/chromium/Default/History',
+        to: () => 'browser/chromium/Default/History',
+        sqlite: true,
+    },
+    {
+        id: 'chrome-takeout-history',
+        importer: 'chrome-takeout-history',
+        from: [`${takeout2025}/Chrome/Verlauf.json`, `${outlookTakeout}/Chrome/BrowserHistory.json`],
+        to: (path) =>
+            path.startsWith(outlookTakeout)
+                ? 'browser/chrome-takeout-2020/BrowserHistory.json'
+                : 'browser/chrome-takeout-2025/Verlauf.json',
+        notes: 'German (2025, qualifier only) and English (2019/2020, with page_transition) exports.',
+    },
+    {
+        id: 'chrome-takeout-bookmarks',
+        importer: 'browser-bookmarks-html',
+        from: [`${takeout2025}/Chrome/{Lesezeichen,Leseliste}.html`, `${outlookTakeout}/Chrome/Bookmarks.html`],
+        to: (path) =>
+            path.startsWith(outlookTakeout)
+                ? 'browser/chrome-takeout-2020/Chrome/Bookmarks.html'
+                : `browser/chrome-takeout-2025/Chrome/${basename(path)}`,
+        notes: 'Netscape bookmark HTML; ADD_DATE in Unix seconds (2025) or WebKit microseconds (2019).',
+    },
 ];
 
 /**
@@ -172,7 +267,11 @@ export const knownUnsupported: { area: string; glob: string; notes: string }[] =
         glob: `${outlookTakeout}/Google Photos/**`,
         notes: 'Photos come from Immich instead.',
     },
-    { area: 'Chrome', glob: '**/Chrome/**', notes: 'Bookmarks/history JSON.' },
+    {
+        area: 'Chrome',
+        glob: '**/Chrome/**',
+        notes: 'Settings, extensions, autofill, search engines (history and bookmarks are imported).',
+    },
     { area: 'Contacts', glob: '**/{Google Kontakte,Contacts}/**', notes: 'VCF.' },
     {
         area: 'Maps saved/your places',

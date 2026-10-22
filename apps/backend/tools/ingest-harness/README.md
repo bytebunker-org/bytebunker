@@ -21,6 +21,10 @@ pnpm ingest:corpus inventory   # temp/ingest-harness/inventory.md: what the take
 matches). The takeout folder is only ever read; set `INGEST_TAKEOUT_DIR` to use another one. The corpus is personal data
 and stays in gitignored `temp/`.
 
+Sources with `root: 'home'` resolve against the home directory (`INGEST_HOME_DIR`), e.g. live browser profiles in
+`~/.mozilla/firefox`. With `sqlite: true` the database's `-wal` is copied too and checkpointed into the corpus copy,
+which leaves one self-contained file, as if the browser had been closed. These sources are re-copied on every sync.
+
 ## Tier 1 — transform
 
 ```sh

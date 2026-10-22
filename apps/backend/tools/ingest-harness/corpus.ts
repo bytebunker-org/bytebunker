@@ -11,12 +11,14 @@ import { constants as fsConstants, createReadStream, createWriteStream } from 'n
 import { dirname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
+import { DatabaseSync } from 'node:sqlite';
 import micromatch from 'micromatch';
 import { corpusSources, knownUnsupported } from './corpus.manifest.js';
 import {
     CORPUS_DIR,
     REPORT_DIR,
     TAKEOUT_DIR,
+    corpusRootDir,
     matchSource,
     resolveCorpusFromTakeout,
     walkFiles,
@@ -36,11 +38,44 @@ const formatBytes = (bytes: number): string => {
     return `${value.toFixed(unit ? 1 : 0)} ${units[unit]}`;
 };
 
+/**
+ * Copies a SQLite database together with its `-wal` (never the live `-shm`: SQLite rebuilds it) and checkpoints the
+ * WAL into the copy, leaving one self-contained file in rollback-journal mode. Only the copy is ever opened.
+ */
+async function copySqliteIntoCorpus(source: string, target: string): Promise<void> {
+    const sidecars = ['-wal', '-shm', '-journal'];
+
+    await Promise.all(sidecars.map((suffix) => fs.rm(`${target}${suffix}`, { force: true })));
+    await fs.copyFile(source, target);
+    await fs.copyFile(`${source}-wal`, `${target}-wal`).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') {
+            throw error;
+        }
+    });
+
+    const db = new DatabaseSync(target);
+
+    try {
+        db.exec('PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode = DELETE;');
+    } finally {
+        db.close();
+    }
+
+    await Promise.all(sidecars.map((suffix) => fs.rm(`${target}${suffix}`, { force: true })));
+}
+
 async function copyIntoCorpus(file: CorpusFile): Promise<'copied' | 'unchanged'> {
-    const source = join(TAKEOUT_DIR, file.takeoutPath);
+    const source = join(corpusRootDir(file.root), file.takeoutPath);
     const target = join(CORPUS_DIR, file.importPath);
     const sourceStat = await fs.stat(source);
     const targetStat = await fs.stat(target).catch(() => undefined);
+
+    if (file.sqlite) {
+        await fs.mkdir(dirname(target), { recursive: true });
+        await copySqliteIntoCorpus(source, target);
+
+        return 'copied';
+    }
 
     if (targetStat && !file.gunzip && targetStat.size === sourceStat.size && targetStat.mtimeMs >= sourceStat.mtimeMs) {
         return 'unchanged';
@@ -82,7 +117,7 @@ async function sync(): Promise<void> {
 
     for (const source of corpusSources) {
         if (!files.some((f) => f.sourceId === source.id)) {
-            console.warn(`warning: source ${source.id} matched no file under ${TAKEOUT_DIR}`);
+            console.warn(`warning: source ${source.id} matched no file under ${corpusRootDir(source.root)}`);
         }
     }
 
@@ -102,7 +137,9 @@ async function inventory(): Promise<void> {
     const sizeOf = new Map(takeoutFiles.map((f) => [f.path, f.size]));
     const covered = new Map<string, string>();
 
-    for (const source of corpusSources) {
+    const takeoutSources = corpusSources.filter((source) => (source.root ?? 'takeout') === 'takeout');
+
+    for (const source of takeoutSources) {
         for (const file of matchSource(source, paths)) {
             covered.set(file.takeoutPath, source.id);
         }
@@ -141,7 +178,7 @@ async function inventory(): Promise<void> {
         '',
         '| Source | Importer | Files | Size |',
         '| --- | --- | ---: | ---: |',
-        ...corpusSources.map((source) => {
+        ...takeoutSources.map((source) => {
             const files = [...covered.entries()].filter(([, id]) => id === source.id).map(([p]) => p);
             const size = files.reduce((sum, p) => sum + (sizeOf.get(p) ?? 0), 0);
             return `| ${source.id} | ${source.importer} | ${files.length} | ${formatBytes(size)} |`;

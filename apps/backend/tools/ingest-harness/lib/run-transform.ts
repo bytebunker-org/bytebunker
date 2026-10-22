@@ -19,6 +19,9 @@ import { TransformTimelinePipelineModule } from '../../../src/extension/extensio
 import { TransformSemanticLocationHistoryPipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-semantic-location-history.pipeline-module.js';
 import { TransformYouTubeWatchHistoryPipelineModule } from '../../../src/extension/extensions/youtube/pipeline-module/transform-youtube-watch-history.pipeline-module.js';
 import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ics-calendar/pipeline-module/parse-ics-file.pipeline-module.js';
+import { TransformBrowserDatabasePipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-browser-database.pipeline-module.js';
+import { TransformChromeTakeoutHistoryPipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-chrome-takeout-history.pipeline-module.js';
+import { TransformBookmarksHtmlPipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-bookmarks-html.pipeline-module.js';
 import { ExecuteCodePipelineModule } from '../../../src/etl/pipeline/pipeline-module/core-module/execute-code.pipeline-module.js';
 import { importers, type ImporterId } from '../corpus.manifest.js';
 import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
@@ -59,6 +62,12 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
         new ParseIcsFilePipelineModule(s.assetService, s.stableKeyService, s.graphService, s.graphNodeService) as never,
     'spotify-streaming-history-script': (s) =>
         new ExecuteCodePipelineModule(s.graphService, s.graphNodeService, s.stableKeyService, s.assetService) as never,
+    'browser-history-database': (s) =>
+        new TransformBrowserDatabasePipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
+    'chrome-takeout-history': (s) =>
+        new TransformChromeTakeoutHistoryPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
+    'browser-bookmarks-html': (s) =>
+        new TransformBookmarksHtmlPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
 };
 
 /** Same defaults as `settingsConfig` (eventUniqueLocationPrecision / eventUniqueDateTimePrecision). */
@@ -120,6 +129,8 @@ export async function runTransform(file: CorpusFile): Promise<TransformRun> {
         storagePath: fullPath,
         originalFilename: file.importPath.slice(file.importPath.lastIndexOf('/') + 1),
         size,
+        // What the local-file trigger records: the path relative to the import folder.
+        metadata: { 'Original-File-Path': file.importPath },
     } as unknown as AssetDto;
 
     for (const edge of blueprint.getInputEdgesAtNode(node)) {
