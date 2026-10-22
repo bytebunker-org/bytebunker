@@ -15,6 +15,8 @@ import {
     type MoveInput,
 } from '../graph/activity-input-reader.service.js';
 import { DerivedGraphService } from '../graph/derived-graph.service.js';
+import { PlaceGeocodeService } from '../graph/place-geocode.service.js';
+import { geocodedTripName } from '../util/trip-naming.util.js';
 import {
     buildDerivedProvenance,
     type DerivedNodeRow,
@@ -112,6 +114,8 @@ export interface DeriveTripsSummary {
     eventCount: number;
     tripCount: number;
     tripsPerYear: TripsPerYear[];
+    /** Trips named after a geocoded destination (the rest: first named destination or distance). */
+    tripsNamedByCity: number;
     /** Away periods that met neither threshold. */
     shortAwayPeriods: number;
     /** Locations with no home period near enough in time; they cannot belong to a trip. */
@@ -157,6 +161,7 @@ export class DeriveTripsPipelineModule implements IPipelineModule<DeriveTripsInp
         private readonly reader: ActivityInputReaderService,
         private readonly derivedGraphService: DerivedGraphService,
         private readonly activityGraphService: ActivityGraphService,
+        private readonly placeGeocodeService: PlaceGeocodeService,
     ) {}
 
     public async executeModule({
@@ -229,7 +234,13 @@ export class DeriveTripsPipelineModule implements IPipelineModule<DeriveTripsInp
             }
         }
 
-        const nodes: DerivedNodeRow[] = trips.map((trip) => ({ id: trip.id, props: toTravelProps(trip, options) }));
+        progress.message('Naming trips');
+        const tripNames = await this.nameTrips(trips);
+        const nameOf = (trip: Trip) => tripNames.get(trip.id) ?? fallbackTripName(trip);
+        const nodes: DerivedNodeRow[] = trips.map((trip) => ({
+            id: trip.id,
+            props: toTravelProps(trip, nameOf(trip), options),
+        }));
         const destinationRows: DerivedRelationshipRow[] = trips.flatMap((trip) =>
             trip.destinations.slice(0, options.maxDestinationsPerTrip).map((destination, index) => ({
                 fromId: trip.id,
@@ -299,7 +310,7 @@ export class DeriveTripsPipelineModule implements IPipelineModule<DeriveTripsInp
 
         const entry = (trip: Trip): TripSummaryEntry => ({
             id: trip.id,
-            name: tripName(trip),
+            name: nameOf(trip),
             start: new Date(trip.start).toISOString(),
             end: new Date(trip.end).toISOString(),
             days: round((trip.end - trip.start) / 86_400_000),
@@ -332,6 +343,7 @@ export class DeriveTripsPipelineModule implements IPipelineModule<DeriveTripsInp
                     .sort((a, b) => b.maxDistanceKm - a.maxDistanceKm)
                     .slice(0, REPORTED_TRIPS)
                     .map(entry),
+                tripsNamedByCity: tripNames.size,
                 includesWritten: includeRows.length,
                 tripsWithTruncatedIncludes: trips.filter((trip) => trip.activityIds.length > options.maxIncludesPerTrip)
                     .length,
@@ -340,6 +352,26 @@ export class DeriveTripsPipelineModule implements IPipelineModule<DeriveTripsInp
                 warnings,
             },
         };
+    }
+
+    /** Names from the destinations' city and country (enrichment:geocode-places-offline); trips without one are left out. */
+    private async nameTrips(trips: Trip[]): Promise<Map<string, string>> {
+        const placeIds = trips.flatMap((trip) => [
+            trip.homePlaceId,
+            ...trip.destinations.map((destination) => destination.placeId),
+        ]);
+        const geocodes = await this.placeGeocodeService.readGeocodes(placeIds);
+        const names = new Map<string, string>();
+
+        for (const trip of trips) {
+            const name = geocodedTripName(trip.destinations, geocodes, geocodes.get(trip.homePlaceId)?.countryCode);
+
+            if (name) {
+                names.set(trip.id, name);
+            }
+        }
+
+        return names;
     }
 }
 
@@ -389,16 +421,16 @@ export function toObservations(arrives: ArriveInput[], moves: MoveInput[]): Loca
     return observations;
 }
 
-function tripName(trip: Trip): string {
+function fallbackTripName(trip: Trip): string {
     const destination = trip.destinations.find((candidate) => candidate.name)?.name;
 
     return destination ? `Trip to ${destination}` : `Trip ${Math.round(trip.maxDistanceKm)} km from home`;
 }
 
-function toTravelProps(trip: Trip, options: { maxIncludesPerTrip: number }): Record<string, unknown> {
+function toTravelProps(trip: Trip, name: string, options: { maxIncludesPerTrip: number }): Record<string, unknown> {
     return {
         type: NodeLabelEnum.ACTIVITY_TRAVEL,
-        name: tripName(trip),
+        name,
         startTime: new Date(trip.start).toISOString(),
         endTime: new Date(trip.end).toISOString(),
         distanceKm: round(trip.maxDistanceKm),

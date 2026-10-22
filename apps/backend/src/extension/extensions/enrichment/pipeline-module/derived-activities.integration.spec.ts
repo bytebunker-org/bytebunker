@@ -10,6 +10,7 @@ import type { PipelineModuleIdentifier } from '../../../../etl/pipeline/pipeline
 import { ActivityInputReaderService } from '../graph/activity-input-reader.service.js';
 import { DerivedGraphService } from '../graph/derived-graph.service.js';
 import { toPlainNumber } from '../graph/derived-graph.util.js';
+import { PlaceGeocodeService } from '../graph/place-geocode.service.js';
 import { ConfirmEventsPipelineModule } from './confirm-events.pipeline-module.js';
 import { DailySummaryPipelineModule } from './daily-summary.pipeline-module.js';
 import { DeriveTripsPipelineModule } from './derive-trips.pipeline-module.js';
@@ -125,7 +126,12 @@ describe.skipIf(!neo4jUri)('derived activities (integration)', () => {
     });
 
     it('derives the trip to Paris with destination, actor and included activities, idempotently', async () => {
-        const module = new DeriveTripsPipelineModule(reader, derived, activityGraphService);
+        const module = new DeriveTripsPipelineModule(
+            reader,
+            derived,
+            activityGraphService,
+            new PlaceGeocodeService(neode),
+        );
 
         for (let run = 0; run < 2; run++) {
             const output = await module.executeModule(context('derive-trips', {}));
