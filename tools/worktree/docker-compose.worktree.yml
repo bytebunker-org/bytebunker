@@ -1,9 +1,14 @@
 # Per-worktree Neo4j. Community edition holds one user database per server, so each worktree gets
-# its own container and data volume (project bytebunker-wt-<dir>). Postgres and KeyDB stay shared
+# its own container and data volume (project bytebunker-wt-<id>). Postgres and KeyDB stay shared
 # with the main checkout (own database / own DB index). Started by tools/worktree/wt.sh.
 services:
     neo4j:
         image: neo4j:latest
+        # Lets `wt status` / prune map the container to its worktree (the compose working_dir label
+        # points into the worktree too).
+        labels:
+            wt.project: bytebunker
+            wt.root: ${WT_ROOT:?}
         ports:
             - '${WT_NEO4J_HTTP_PORT:?}:7474'
             - '${WT_NEO4J_BOLT_PORT:?}:7687'

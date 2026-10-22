@@ -4,38 +4,36 @@
 # the graph, local MinIO instead of the production asset storage. See docs/WORKTREES.md.
 #
 #   wt.sh setup [--no-install] [--no-build] [--no-db]   allocate slot, copy+patch env, install, build libs, clone DB + graph
-#   wt.sh info                                          print slot, URLs, database, graph
-#   wt.sh list                                          all worktree slots of this repo
-#   wt.sh prune                                         drop DBs and Neo4j containers of worktrees that no longer exist
+#   wt.sh info                                          print slot, URLs, database, graph, what runs
+#   wt.sh list                                          all worktree slots of this repo and what runs in them
+#   wt.sh backend | frontend                            start one dev server in the foreground
+#   wt.sh stop                                          stop this worktree's dev servers and its Neo4j (data kept)
+#   wt.sh settle                                        same as stop; T3 Code runs it when the thread settles
+#   wt.sh teardown [--stop]                             drop DB, remove Neo4j container + volume, empty the KeyDB
+#                                                       index, free the slot (refused while servers run)
+#   wt.sh prune [--dry-run]                             drop DBs, Neo4j containers/volumes and KeyDB indexes of
+#                                                       worktrees that no longer exist
 #   wt.sh schema                                        show the SQL `mikro-orm schema:update` would run (read-only)
 #   wt.sh services                                      start postgres + keydb + minio (project "bytebunker") and this worktree's neo4j
-#   wt.sh backend | frontend                            start one dev server in the foreground
 #   wt.sh config                                        re-copy env files from the main checkout and re-patch them
 #   wt.sh db reset [--fresh]                            drop and re-clone this worktree's DB (--fresh: re-snapshot main DB first)
-#   wt.sh db snapshot                                   refresh the template from the main dev DB (bytebunker)
-#   wt.sh db psql [args]                                psql into this worktree's DB
-#   wt.sh db drop                                       drop this worktree's DB
+#   wt.sh db snapshot | psql [args] | drop | gc         refresh the template / psql / drop this DB / = prune
 #   wt.sh graph reset [--fresh]                         re-clone this worktree's Neo4j data (--fresh: re-snapshot main graph first)
 #   wt.sh graph snapshot                                copy main's Neo4j volume into the template (stops main neo4j for the copy)
 #   wt.sh graph empty                                   wipe this worktree's Neo4j data (start from an empty graph)
-#   wt.sh teardown                                      drop DB, remove the Neo4j container + volume, forget the slot
 #
 # In the main checkout every command runs with the stock config (slot 0, ports 121xx, DB bytebunker).
+# The generic part lives in wt-lib.sh (shared across projects; edit its source, then `wt sync`).
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
-MAIN_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-STATE_DIR="$ROOT/.worktree"
-STATE_FILE="$STATE_DIR/env"
-MAIN_DB=bytebunker
-# Everything on these hosts is production. A worktree config must not mention them.
-PROD_HOST_PATTERN='syscy\.de'
-TEMPLATE_DB=bytebunker_wt_template
-MAIN_NEO4J_VOLUME=bytebunker_bytebunker-backend-neo4j-data
-TEMPLATE_NEO4J_VOLUME=bytebunker_wt_neo4j_template
-NEO4J_IMAGE=neo4j:latest
+WT_PROJECT=bytebunker
+WT_SCRIPT=tools/worktree/wt.sh
+WT_MAIN_DB=bytebunker
+WT_DB_PREFIX=bytebunker_wt_
+WT_PG_CONTAINER=bytebunker-bytebunker-backend-postgres-1
+WT_PG_USER=bytebunker
 # Slots 1–8 → ports 12200–12913. Slot 10 would collide with other projects' 13xxx ports.
-MAX_SLOT=8
+WT_MAX_SLOT=8
 # Gitignored dev env files that worktrees need from the main checkout. Never .env.migration.toml:
 # it points at the production database.
 ENV_FILES=(
@@ -43,171 +41,101 @@ ENV_FILES=(
     apps/frontend/.env.development
     apps/frontend/.env.development.local
 )
+# Copies from main, patched for the slot: removed on teardown so a stale config can't reach a
+# reused slot's Neo4j port or KeyDB index.
+WT_GENERATED_FILES=("${ENV_FILES[@]}")
+# Everything on these hosts is production. A worktree config must not mention them.
+PROD_HOST_PATTERN='syscy\.de'
+MAIN_NEO4J_VOLUME=bytebunker_bytebunker-backend-neo4j-data
+MAIN_NEO4J_CONTAINER=bytebunker-bytebunker-backend-neo4j-1
+TEMPLATE_NEO4J_VOLUME=bytebunker_wt_neo4j_template
+NEO4J_IMAGE=neo4j:latest
+KEYDB_CONTAINER=bytebunker-bytebunker-backend-keydb-1
 
-log() { printf '\033[1;36m[wt]\033[0m %s\n' "$*" >&2; }
-die() { printf '\033[1;31m[wt]\033[0m %s\n' "$*" >&2; exit 1; }
-is_main() { [ "$ROOT" = "$MAIN_ROOT" ]; }
+# `services` also starts this worktree's neo4j; the lib's DB steps only need the shared services.
+WITH_NEO4J=0
+[ "${1:-}" = services ] && WITH_NEO4J=1
+
+# shellcheck source=wt-lib.sh
+. "$(dirname "$(readlink -f "$0")")/wt-lib.sh"
 
 dc() { docker compose -p bytebunker -f "$MAIN_ROOT/docker-compose.yml" "$@"; }
 dc_wt() {
-    WT_NEO4J_HTTP_PORT=$NEO4J_HTTP_PORT WT_NEO4J_BOLT_PORT=$NEO4J_BOLT_PORT WT_NEO4J_VOLUME=$NEO4J_VOLUME \
+    WT_NEO4J_HTTP_PORT=$NEO4J_HTTP_PORT WT_NEO4J_BOLT_PORT=$NEO4J_BOLT_PORT WT_NEO4J_VOLUME=$NEO4J_VOLUME WT_ROOT=$ROOT \
         docker compose -p "$PROJECT" -f "$ROOT/tools/worktree/docker-compose.worktree.yml" "$@"
 }
-pgx() { dc exec -T bytebunker-backend-postgres "$@"; }
-sql() { dc exec -T -e PGOPTIONS='-c client_min_messages=warning' bytebunker-backend-postgres psql -U bytebunker -d postgres -v ON_ERROR_STOP=1 -qAt -c "$1"; }
-sql_db() { dc exec -T bytebunker-backend-postgres psql -U bytebunker -d "$1" -v ON_ERROR_STOP=1 -qAt -c "$2"; }
-db_exists() { [ "$(sql "SELECT 1 FROM pg_database WHERE datname = '$1'")" = 1 ]; }
-kick_connections() { sql "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$1' AND pid <> pg_backend_pid()" >/dev/null; }
-# Empty a worktree's KeyDB index so a reused slot doesn't inherit another worktree's BullMQ jobs.
-keydb_flush() { dc exec -T bytebunker-backend-keydb keydb-cli -n "$1" FLUSHDB >/dev/null; }
+
+# Compose project of a worktree's Neo4j. Worktrees set up before wt-lib stored it as PROJECT
+# (bytebunker-wt-<dir>); newer ones derive it from the lib's collision-free id.
+project_of() { # project_of <worktree path>
+    local project id
+    project=$(state_get "$1/$WT_STATE_DIR/env" PROJECT)
+    if [ -z "$project" ]; then
+        read -r _ id _ <<<"$(state_identity "$1")"
+        [ -n "$id" ] && project="bytebunker-wt-${id//_/-}"
+    fi
+    echo "$project"
+}
+
+wt_ports() {
+    BASE=$((12100 + SLOT * 100))
+    BACKEND_PORT=$BASE FRONTEND_PORT=$((BASE + 1)) NEO4J_HTTP_PORT=$((BASE + 12)) NEO4J_BOLT_PORT=$((BASE + 13))
+    WT_PORTS=(backend=$BACKEND_PORT frontend=$FRONTEND_PORT)
+    if is_main; then
+        PROJECT=bytebunker NEO4J_VOLUME=$MAIN_NEO4J_VOLUME
+    else
+        PROJECT=$(project_of "$ROOT")
+        NEO4J_VOLUME=${PROJECT}_neo4j-data
+    fi
+    # Cookies ignore ports, so every backend on this host needs its own session cookie name.
+    COOKIE=sid
+    is_main || COOKIE=sid-wt$SLOT
+}
+
+# --- docker helpers --------------------------------------------------------------------------------
+
 volume_exists() { docker volume inspect "$1" >/dev/null 2>&1; }
+# Containers (any state) of a compose project, found by label: works without the compose file.
+project_containers() { docker ps -aq --filter "label=com.docker.compose.project=$1"; }
+project_container_names() { docker ps -a --filter "label=com.docker.compose.project=$1" --format '{{.Names}}' | tr '\n' ' ' | sed 's/ $//'; }
+
+# Remove a worktree Neo4j project: its containers first (a volume in use can't be removed), then
+# the compose network and the data volume. Needs neither the worktree nor its compose file.
+remove_neo4j_project() { # remove_neo4j_project <project> <volume>
+    local ids
+    ids="$(project_containers "$1" | tr '\n' ' ')"
+    # shellcheck disable=SC2086
+    if [ -n "${ids// /}" ]; then docker rm -f $ids >/dev/null; fi
+    docker network rm "$1_default" >/dev/null 2>&1 || true
+    if volume_exists "$2"; then
+        docker volume rm "$2" >/dev/null || warn "could not remove volume $2"
+    fi
+    return 0
+}
+
 # Copy one docker volume into another (target emptied first). Uses the neo4j image: already pulled.
 copy_volume() {
     docker run --rm --entrypoint sh -v "$1":/from:ro -v "$2":/to "$NEO4J_IMAGE" \
         -c 'find /to -mindepth 1 -delete && cp -a /from/. /to/'
 }
 
-load_state() {
-    if is_main; then
-        SLOT=0 DB=$MAIN_DB PROJECT=bytebunker
+keydb_up() { [ "$(docker inspect -f '{{.State.Running}}' "$KEYDB_CONTAINER" 2>/dev/null)" = true ]; }
+keydb() { docker exec -i "$KEYDB_CONTAINER" keydb-cli "$@"; }
+# Empty a worktree's KeyDB index so a reused slot doesn't inherit another worktree's BullMQ jobs.
+keydb_flush() {
+    if keydb_up; then
+        keydb -n "$1" FLUSHDB >/dev/null
     else
-        [ -f "$STATE_FILE" ] || die "no slot yet — run: tools/worktree/wt.sh setup"
-        # shellcheck source=/dev/null
-        . "$STATE_FILE"
-    fi
-    BASE=$((12100 + SLOT * 100))
-    BACKEND_PORT=$BASE FRONTEND_PORT=$((BASE + 1)) NEO4J_HTTP_PORT=$((BASE + 12)) NEO4J_BOLT_PORT=$((BASE + 13))
-    NEO4J_VOLUME=${PROJECT}_neo4j-data
-    is_main && NEO4J_VOLUME=$MAIN_NEO4J_VOLUME
-    # Cookies ignore ports, so every backend on this host needs its own session cookie name.
-    COOKIE=sid
-    is_main || COOKIE=sid-wt$SLOT
-}
-
-# This machine's private LAN IPv4 addresses (docker bridges and VPN tunnels skipped).
-lan_ips() {
-    ip -4 -o addr show scope global 2>/dev/null \
-        | awk '$2 !~ /^(docker|br-|veth|virbr|tun|wg|tailscale|CloudflareWARP)/ { sub(/\/.*/, "", $4); print $4 }' \
-        | grep -E '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' || true
-}
-
-# Map main's backend/frontend/neo4j ports (12100, 12101, 12112, 12113) in a text to this slot's.
-shift_ports() { sed -E "s/:121(0[01]|1[23])([^0-9]|$)/:$((121 + SLOT))\1\2/g"; }
-
-# Lowest slot not claimed by another live worktree; the slot picks the ports, the cookie name and
-# the KeyDB index.
-allocate_slot() {
-    mkdir -p "$STATE_DIR"
-    [ -f "$STATE_FILE" ] && return
-    exec 9>"$(git rev-parse --path-format=absolute --git-common-dir)/bytebunker-worktree-slots.lock"
-    flock 9
-    local used=" " path
-    while read -r path; do
-        [ "$path" = "$ROOT" ] && continue
-        [ -f "$path/.worktree/env" ] && used+="$(sed -n 's/^SLOT=//p' "$path/.worktree/env") "
-    done < <(git worktree list --porcelain | sed -n 's/^worktree //p')
-    local slot name
-    name="$(basename "$ROOT" | tr -c 'a-zA-Z0-9\n' '_' | tr 'A-Z' 'a-z')"
-    for slot in $(seq 1 $MAX_SLOT); do
-        if [[ "$used" != *" $slot "* ]]; then
-            cat >"$STATE_FILE" <<EOF
-SLOT=$slot
-DB=bytebunker_wt_$name
-PROJECT=bytebunker-wt-$(echo "$name" | tr '_' '-')
-EOF
-            log "allocated slot $slot"
-            return
-        fi
-    done
-    die "all $MAX_SLOT worktree slots in use — run 'wt.sh teardown' in an old worktree"
-}
-
-write_config() {
-    local file
-    for file in "${ENV_FILES[@]}"; do
-        if [ -f "$MAIN_ROOT/$file" ]; then
-            cp "$MAIN_ROOT/$file" "$ROOT/$file"
-        else
-            log "missing in main checkout, skipped: $file"
-        fi
-    done
-    local toml="$ROOT/apps/backend/.env.development.toml"
-    [ -f "$toml" ] || die "need $MAIN_ROOT/apps/backend/.env.development.toml"
-    # Keep the main checkout's hosts in frontendUrl & co., move only the ports.
-    shift_ports <"$toml" >"$toml.tmp" && mv "$toml.tmp" "$toml"
-    node "$ROOT/tools/worktree/patch-toml.mjs" "$toml" \
-        "port=$BACKEND_PORT" \
-        "mikroOrm.database=\"$DB\"" \
-        "neo4j.connectionString=\"bolt://127.0.0.1:$NEO4J_BOLT_PORT\"" \
-        "redis.db=$SLOT" \
-        'session.cookieDomain=""' \
-        "session.cookieName=\"$COOKIE\"" \
-        'minio.endPoint="127.0.0.1"' \
-        'minio.port=12114' \
-        'minio.useSSL=false' \
-        'minio.accessKey="bytebunker"' \
-        'minio.secretKey="bytebunker"' \
-        'minio.publicBaseUrl="http://127.0.0.1:12114"'
-    # Main's dev config may point at production services (asset storage on *.syscy.de). The
-    # worktree uses the local compose MinIO (root credentials from docker-compose.yml) instead.
-    guard_prod_hosts
-    patch_cors
-    write_frontend_env
-    log "patched apps/backend/.env.development.toml (port $BACKEND_PORT, db $DB, neo4j :$NEO4J_BOLT_PORT, keydb index $SLOT, cookie $COOKIE, local minio)"
-}
-
-# Set KEY=value in a dotenv file, replacing an existing line or appending one.
-set_env() {
-    if grep -q "^$2=" "$1" 2>/dev/null; then
-        local tmp="$1.tmp"
-        awk -v k="$2" -v v="$3" 'index($0, k "=") == 1 { print k "=" v; next } { print }' "$1" >"$tmp" && mv "$tmp" "$1"
-    else
-        printf '%s=%s\n' "$2" "$3" >>"$1"
+        warn "keydb is down — index $1 is emptied on the next setup/prune"
     fi
 }
 
-# A variable as the frontend's dev env files set it (.local wins, as in Vite).
-frontend_env() {
-    local file
-    for file in "$ROOT/apps/frontend/.env.development.local" "$ROOT/apps/frontend/.env.development"; do
-        if [ -f "$file" ] && grep -q "^$1=" "$file"; then
-            grep -m1 "^$1=" "$file" | cut -d= -f2- | tr -d '"'
-            return
-        fi
-    done
-}
+# --- services --------------------------------------------------------------------------------------
 
-# Point the frontend at this slot's backend and give it its own dev port, so plain `pnpm dev` in
-# the worktree works too. The host stays main's (127.0.0.1 or the LAN IP).
-write_frontend_env() {
-    local file="$ROOT/apps/frontend/.env.development.local" value
-    touch "$file"
-    value="$(frontend_env PUBLIC_API_BASE_URL | shift_ports)"
-    [ -n "$value" ] && set_env "$file" PUBLIC_API_BASE_URL "$value"
-    set_env "$file" DEV_SERVER_PORT "$FRONTEND_PORT"
-}
-
-# Allow this slot's frontend on loopback and on the current LAN IPs. Re-run on every backend start:
-# DHCP may have moved the IP.
-patch_cors() {
-    local origins="" host port
-    for host in 127.0.0.1 localhost $(lan_ips); do
-        for port in $BACKEND_PORT $FRONTEND_PORT; do
-            origins+="${origins:+, }\"http://$host:$port\""
-        done
-    done
-    node "$ROOT/tools/worktree/patch-toml.mjs" "$ROOT/apps/backend/.env.development.toml" "cors.endpoint=[$origins]"
-}
-
-ensure_shared_services() {
-    dc up -d --wait bytebunker-backend-postgres bytebunker-backend-keydb bytebunker-backend-minio >/dev/null 2>&1 \
-        || dc up -d bytebunker-backend-postgres bytebunker-backend-keydb bytebunker-backend-minio
-    local i
-    for i in $(seq 1 30); do
-        pgx pg_isready -U bytebunker -q && return
-        sleep 1
-    done
-    die "postgres did not become ready"
+wt_services() {
+    dc up -d --wait bytebunker-backend-postgres bytebunker-backend-keydb bytebunker-backend-minio >/dev/null 2>&1 ||
+        dc up -d bytebunker-backend-postgres bytebunker-backend-keydb bytebunker-backend-minio
+    if [ "$WITH_NEO4J" = 1 ]; then ensure_neo4j; fi
 }
 
 ensure_neo4j() {
@@ -225,44 +153,103 @@ ensure_neo4j() {
     die "neo4j on :$NEO4J_HTTP_PORT did not become ready"
 }
 
-ensure_services() {
-    ensure_shared_services
-    ensure_neo4j
+# A fresh DB copy gets an empty KeyDB index: jobs queued against the old copy must not run.
+wt_db_cloned() { keydb_flush "$SLOT"; }
+
+# --- config ----------------------------------------------------------------------------------------
+
+# Map main's backend/frontend/neo4j ports (12100, 12101, 12112, 12113) in a text to this slot's.
+shift_ports() { sed -E "s/:121(0[01]|1[23])([^0-9]|$)/:$((121 + SLOT))\1\2/g"; }
+
+wt_config() {
+    copy_from_main "${ENV_FILES[@]}"
+    local toml="$ROOT/apps/backend/.env.development.toml"
+    [ -f "$toml" ] || die "need $MAIN_ROOT/apps/backend/.env.development.toml"
+    # Keep the main checkout's hosts in frontendUrl & co., move only the ports.
+    shift_ports <"$toml" >"$toml.tmp" && mv "$toml.tmp" "$toml"
+    # Main's dev config may point at production services (asset storage on *.syscy.de). The
+    # worktree uses the local compose MinIO (root credentials from docker-compose.yml) instead.
+    node "$ROOT/tools/worktree/patch-toml.mjs" "$toml" \
+        "port=$BACKEND_PORT" \
+        "mikroOrm.database=\"$DB\"" \
+        "neo4j.connectionString=\"bolt://127.0.0.1:$NEO4J_BOLT_PORT\"" \
+        "redis.db=$SLOT" \
+        'session.cookieDomain=""' \
+        "session.cookieName=\"$COOKIE\"" \
+        'minio.endPoint="127.0.0.1"' \
+        'minio.port=12114' \
+        'minio.useSSL=false' \
+        'minio.accessKey="bytebunker"' \
+        'minio.secretKey="bytebunker"' \
+        'minio.publicBaseUrl="http://127.0.0.1:12114"'
+    guard_prod_hosts
+    patch_cors
+    write_frontend_env
+    log "patched apps/backend/.env.development.toml (port $BACKEND_PORT, db $DB, neo4j :$NEO4J_BOLT_PORT, keydb index $SLOT, cookie $COOKIE, local minio)"
 }
 
-db_snapshot() {
-    ensure_shared_services
-    local tmp=${TEMPLATE_DB}_new
-    log "snapshotting $MAIN_DB → $TEMPLATE_DB"
-    sql "DROP DATABASE IF EXISTS $tmp"
-    sql "CREATE DATABASE $tmp"
-    # Dump and restore inside the container: same pg version, no data leaves the box.
-    pgx sh -c "pg_dump -U bytebunker -Fc $MAIN_DB | pg_restore -U bytebunker -d $tmp --no-owner --no-privileges" \
-        || log "pg_restore reported warnings (usually harmless)"
-    kick_connections "$TEMPLATE_DB"
-    sql "DROP DATABASE IF EXISTS $TEMPLATE_DB"
-    sql "ALTER DATABASE $tmp RENAME TO $TEMPLATE_DB"
-    log "template ready"
+# Point the frontend at this slot's backend and give it its own dev port, so plain `pnpm dev` in
+# the worktree works too. The host stays main's (127.0.0.1 or the LAN IP).
+write_frontend_env() {
+    local file="$ROOT/apps/frontend/.env.development.local" value
+    touch "$file"
+    value="$(app_env frontend PUBLIC_API_BASE_URL | shift_ports)"
+    [ -n "$value" ] && set_env "$file" PUBLIC_API_BASE_URL "$value"
+    set_env "$file" DEV_SERVER_PORT "$FRONTEND_PORT"
 }
 
-db_clone() {
-    is_main && die "the main checkout uses $MAIN_DB directly"
-    ensure_shared_services
-    db_exists "$TEMPLATE_DB" || db_snapshot
-    kick_connections "$DB"
-    sql "DROP DATABASE IF EXISTS $DB"
-    sql "CREATE DATABASE $DB TEMPLATE $TEMPLATE_DB STRATEGY FILE_COPY"
-    keydb_flush "$SLOT"
-    log "database $DB cloned from $TEMPLATE_DB (snapshot of $MAIN_DB)"
+# Allow this slot's frontend on loopback and on the current LAN IPs. Re-run on every backend start:
+# DHCP may have moved the IP.
+patch_cors() {
+    local origins="" host port
+    for host in 127.0.0.1 localhost $(lan_ips); do
+        for port in $BACKEND_PORT $FRONTEND_PORT; do
+            origins+="${origins:+, }\"http://$host:$port\""
+        done
+    done
+    node "$ROOT/tools/worktree/patch-toml.mjs" "$ROOT/apps/backend/.env.development.toml" "cors.endpoint=[$origins]"
 }
 
-db_drop() {
-    is_main && die "refusing to drop $MAIN_DB"
-    ensure_shared_services
-    kick_connections "$DB"
-    sql "DROP DATABASE IF EXISTS $DB"
-    log "dropped $DB"
+# Refuse any worktree config that still names a production host (uncommented lines only).
+guard_prod_hosts() {
+    is_main && return
+    local file hits
+    for file in "${ENV_FILES[@]/#/$ROOT/}"; do
+        [ -f "$file" ] || continue
+        hits="$(grep -nE "$PROD_HOST_PATTERN" "$file" | grep -vE '^[0-9]+:[[:space:]]*#' || true)"
+        [ -z "$hits" ] || die "$(basename "$file") in this worktree points at production ($(echo "$hits" | cut -d: -f1 | tr '\n' ' ')) — fix wt_config in $WT_SCRIPT, then run: $WT_SCRIPT config"
+    done
 }
+
+# Refuse to start a worktree backend that would use main's database or graph (setup/config not run,
+# or the TOML was copied by hand).
+guard_backend_config() {
+    is_main && return
+    guard_prod_hosts
+    local toml="$ROOT/apps/backend/.env.development.toml" configured bolt
+    [ -f "$toml" ] || die "apps/backend/.env.development.toml missing — run: $WT_SCRIPT setup"
+    configured="$(sed -n '/^\[mikroOrm\]/,/^\[/{s/^database *= *"\(.*\)"/\1/p}' "$toml")"
+    [ "$configured" = "$DB" ] || die "apps/backend/.env.development.toml points at database '${configured:-?}', not $DB — run: $WT_SCRIPT config"
+    bolt="$(sed -n '/^\[neo4j\]/,/^\[/{s/^connectionString *= *"\(.*\)"/\1/p}' "$toml")"
+    [[ "$bolt" == *":$NEO4J_BOLT_PORT" ]] || die "apps/backend/.env.development.toml points at neo4j '$bolt', not :$NEO4J_BOLT_PORT — run: $WT_SCRIPT config"
+}
+
+# The local-file trigger watches folders from the settings table. Relative paths resolve inside
+# this worktree; an absolute path would make the worktree import (and move away) main's files.
+check_import_folders() {
+    local absolute
+    absolute="$(sql_db "$DB" "SELECT setting_key || ' = ' || (value #>> '{}') FROM setting_value_entity WHERE setting_key LIKE 'localFileTrigger%' AND (value #>> '{}') LIKE '/%'" 2>/dev/null || true)"
+    [ -z "$absolute" ] && return
+    warn "absolute local-file trigger folders in $DB — the worktree backend would watch main's folders:"
+    printf '    %s\n' "$absolute" >&2
+    warn "change them in the worktree's settings (or $WT_SCRIPT db psql) before starting the backend"
+}
+
+wt_build() {
+    (cd "$ROOT" && pnpm turbo run build:lib build:generate-metadata build:mikro-orm-cache --filter=@bytebunker/backend... --filter=@bytebunker/frontend...)
+}
+
+# --- graph -----------------------------------------------------------------------------------------
 
 # Neo4j community can't dump a running database, so the template is a cold copy of main's volume:
 # main's neo4j is stopped for the copy (seconds) and started again if it was running.
@@ -297,213 +284,130 @@ graph_empty() {
     log "graph $NEO4J_VOLUME is empty"
 }
 
-# The local-file trigger watches folders from the settings table. Relative paths resolve inside
-# this worktree; an absolute path would make the worktree import (and move away) main's files.
-check_import_folders() {
-    local absolute
-    absolute="$(sql_db "$DB" "SELECT setting_key || ' = ' || (value #>> '{}') FROM setting_value_entity WHERE setting_key LIKE 'localFileTrigger%' AND (value #>> '{}') LIKE '/%'" 2>/dev/null || true)"
-    [ -z "$absolute" ] && return
-    log "WARNING: absolute local-file trigger folders in $DB — the worktree backend would watch main's folders:"
-    printf '    %s\n' "$absolute" >&2
-    log "change them in the worktree's settings (or wt.sh db psql) before starting the backend"
+# --- lib hooks -------------------------------------------------------------------------------------
+
+wt_setup_extra() {
+    is_main && return 0
+    [ "${WT_SETUP_DB:-1}" = 1 ] || return 0
+    check_import_folders
+    if volume_exists "$NEO4J_VOLUME"; then log "graph $NEO4J_VOLUME exists, kept ($WT_SCRIPT graph reset to re-clone)"; else graph_clone; fi
 }
 
-# Drop databases and Neo4j projects whose worktree is gone (git and T3 delete worktrees without a hook).
-gc() {
-    ensure_shared_services
-    local live_db=" " live_project=" " live_slot=" " path db volume project slot
-    while read -r path; do
-        [ -f "$path/.worktree/env" ] || continue
-        live_db+="$(sed -n 's/^DB=//p' "$path/.worktree/env") "
-        live_project+="$(sed -n 's/^PROJECT=//p' "$path/.worktree/env") "
-        live_slot+="$(sed -n 's/^SLOT=//p' "$path/.worktree/env") "
-    done < <(git worktree list --porcelain | sed -n 's/^worktree //p')
-    for db in $(sql "SELECT datname FROM pg_database WHERE datname LIKE 'bytebunker\_wt\_%' AND datname NOT IN ('$TEMPLATE_DB', '${TEMPLATE_DB}_new')"); do
-        if [[ "$live_db" != *" $db "* ]]; then
-            kick_connections "$db"
-            sql "DROP DATABASE IF EXISTS $db"
-            log "dropped orphaned $db"
-        fi
-    done
-    for slot in $(seq 1 $MAX_SLOT); do
-        [[ "$live_slot" == *" $slot "* ]] || keydb_flush "$slot"
-    done
-    for volume in $(docker volume ls -q | grep -E '^bytebunker-wt-.*_neo4j-data$' || true); do
-        project=${volume%_neo4j-data}
-        if [[ "$live_project" != *" $project "* ]]; then
-            docker compose -p "$project" down -v >/dev/null 2>&1 || true
-            docker volume rm -f "$volume" >/dev/null
-            log "removed orphaned $project"
-        fi
-    done
-}
-
-info() {
-    load_state
-    local lan
-    lan="$(lan_ips | head -n1)"
-    cat <<EOF
-worktree  $ROOT
-slot      $SLOT  (session cookie $COOKIE, keydb index $SLOT)
-database  $DB
-backend   http://127.0.0.1:$BACKEND_PORT   (health /health, docs /docs, queues /queues)
-frontend  http://127.0.0.1:$FRONTEND_PORT
-neo4j     http://127.0.0.1:$NEO4J_HTTP_PORT  bolt://127.0.0.1:$NEO4J_BOLT_PORT  (volume $NEO4J_VOLUME)
-EOF
-    [ -n "$lan" ] && echo "LAN       same ports on http://$lan"
+wt_info() {
+    local container state
+    echo "session   cookie $COOKIE, keydb index $SLOT"
+    if is_main; then container=$MAIN_NEO4J_CONTAINER; else container=$(project_containers "$PROJECT" | head -n1); fi
+    state=$(docker inspect -f '{{.State.Status}}' "${container:-none}" 2>/dev/null | head -n1 || true)
+    echo "neo4j     http://127.0.0.1:$NEO4J_HTTP_PORT  bolt://127.0.0.1:$NEO4J_BOLT_PORT  (volume $NEO4J_VOLUME, ${state:-no container})"
+    echo "minio     http://127.0.0.1:12114  (local, buckets shared with main and all worktrees)"
     return 0
 }
 
-# Refuse any worktree config that still names a production host (uncommented lines only).
-guard_prod_hosts() {
-    is_main && return
-    local file hits
-    for file in "$ROOT/apps/backend/.env.development.toml" "$ROOT/apps/frontend/.env.development" "$ROOT/apps/frontend/.env.development.local"; do
-        [ -f "$file" ] || continue
-        hits="$(grep -nE "$PROD_HOST_PATTERN" "$file" | grep -vE '^[0-9]+:[[:space:]]*#' || true)"
-        [ -z "$hits" ] || die "$(basename "$file") in this worktree points at production ($(echo "$hits" | cut -d: -f1 | tr '\n' ' ')) — fix tools/worktree/wt.sh write_config, then run: tools/worktree/wt.sh config"
-    done
+wt_describe_extra() {
+    has_state && ! is_main || return 0
+    echo "containers=$(project_container_names "$PROJECT")"
 }
 
-# Refuse to start a worktree backend that would use main's database or graph (setup/config not run,
-# or the TOML was copied by hand).
-guard_backend_config() {
-    is_main && return
-    guard_prod_hosts
-    local toml="$ROOT/apps/backend/.env.development.toml" configured bolt
-    [ -f "$toml" ] || die "apps/backend/.env.development.toml missing — run: tools/worktree/wt.sh setup"
-    configured="$(sed -n '/^\[mikroOrm\]/,/^\[/{s/^database *= *"\(.*\)"/\1/p}' "$toml")"
-    [ "$configured" = "$DB" ] || die "apps/backend/.env.development.toml points at database '${configured:-?}', not $DB — run: tools/worktree/wt.sh config"
-    bolt="$(sed -n '/^\[neo4j\]/,/^\[/{s/^connectionString *= *"\(.*\)"/\1/p}' "$toml")"
-    [[ "$bolt" == *":$NEO4J_BOLT_PORT" ]] || die "apps/backend/.env.development.toml points at neo4j '$bolt', not :$NEO4J_BOLT_PORT — run: tools/worktree/wt.sh config"
+# Stop this slot's Neo4j; container and volume stay for the next start.
+wt_stop_extra() {
+    is_main && return 0
+    local ids
+    ids="$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" | tr '\n' ' ')"
+    # shellcheck disable=SC2086
+    if [ -n "${ids// /}" ]; then docker stop $ids >/dev/null && log "stopped neo4j ($PROJECT)"; fi
+    return 0
 }
 
-# One line per worktree slot, plus the main checkout.
-list() {
-    local path slot db
-    printf '%-5s %-36s %s\n' slot database worktree
-    printf '%-5s %-36s %s\n' 0 "$MAIN_DB" "$MAIN_ROOT"
+wt_teardown_extra() {
+    remove_neo4j_project "$PROJECT" "$NEO4J_VOLUME"
+    log "removed $PROJECT (neo4j container + volume $NEO4J_VOLUME)"
+    keydb_flush "$SLOT"
+    return 0
+}
+
+# Neo4j projects (a volume or leftover containers) and KeyDB indexes whose worktree is gone.
+wt_gc_extra() {
+    local live=" " path project candidates volume slot n
     while read -r path; do
-        [ -f "$path/.worktree/env" ] || continue
-        slot="$(sed -n 's/^SLOT=//p' "$path/.worktree/env")"
-        db="$(sed -n 's/^DB=//p' "$path/.worktree/env")"
-        printf '%-5s %-36s %s\n' "$slot" "$db" "$path"
-    done < <(git worktree list --porcelain | sed -n 's/^worktree //p')
+        [ "$path" = "$MAIN_ROOT" ] && continue
+        project=$(project_of "$path")
+        [ -n "$project" ] && live+="$project "
+    done < <(wt_worktree_paths)
+    candidates="$(
+        {
+            docker volume ls -q | sed -n 's/^\(bytebunker-wt-.*\)_neo4j-data$/\1/p'
+            docker ps -a --format '{{.Label "com.docker.compose.project"}}' | grep -E '^bytebunker-wt-' || true
+        } | sort -u
+    )"
+    for project in $candidates; do
+        [[ "$live" == *" $project "* ]] && continue
+        volume=${project}_neo4j-data
+        if [ "$WT_DRY_RUN" = 1 ]; then
+            log "would remove orphaned $project (containers: $(project_container_names "$project"); volume: $(volume_exists "$volume" && echo "$volume" || echo none))"
+        else
+            remove_neo4j_project "$project" "$volume"
+            log "removed orphaned $project"
+        fi
+    done
+    if ! keydb_up; then
+        log "keydb is down — orphaned KeyDB indexes are checked on the next prune"
+        return 0
+    fi
+    for slot in $(seq 1 "$WT_MAX_SLOT"); do
+        [[ "$WT_LIVE_SLOTS" == *" $slot "* ]] && continue
+        n=$(keydb -n "$slot" DBSIZE 2>/dev/null || echo 0)
+        [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt 0 ] || continue
+        if [ "$WT_DRY_RUN" = 1 ]; then
+            log "would empty KeyDB index $slot ($n keys, no worktree holds slot $slot)"
+        else
+            keydb -n "$slot" FLUSHDB >/dev/null && log "emptied KeyDB index $slot"
+        fi
+    done
+    return 0
 }
 
-build_libs() {
-    (cd "$ROOT" && pnpm turbo run build:lib build:generate-metadata build:mikro-orm-cache --filter=@bytebunker/backend... --filter=@bytebunker/frontend...)
+# --- project commands ------------------------------------------------------------------------------
+
+wt_cmd_schema() {
+    load_state
+    guard_backend_config
+    ensure_services
+    cd "$ROOT/apps/backend" && exec pnpm mikro-orm schema:update --dump
 }
 
-cmd=${1:-}
-shift || true
-case "$cmd" in
-    setup)
-        install=1 build=1 db=1
-        for arg in "$@"; do
-            case "$arg" in
-                --no-install) install=0 ;;
-                --no-build) build=0 ;;
-                --no-db) db=0 ;;
-                *) die "unknown option $arg" ;;
-            esac
-        done
-        is_main || allocate_slot
-        load_state
-        is_main || write_config
-        [ $install = 1 ] && (cd "$ROOT" && pnpm install --frozen-lockfile --prefer-offline)
-        [ $build = 1 ] && build_libs
-        if [ $db = 1 ] && ! is_main; then
-            ensure_shared_services
-            if db_exists "$DB"; then log "database $DB exists, kept (wt.sh db reset to re-clone)"; else db_clone; fi
-            check_import_folders
-            if volume_exists "$NEO4J_VOLUME"; then log "graph $NEO4J_VOLUME exists, kept (wt.sh graph reset to re-clone)"; else graph_clone; fi
-            gc
-        fi
-        info
-        ;;
-    info) info ;;
-    list) list ;;
-    prune) gc ;;
-    schema)
-        load_state
-        guard_backend_config
-        ensure_shared_services
-        cd "$ROOT/apps/backend" && exec pnpm mikro-orm schema:update --dump
-        ;;
-    services)
-        load_state
-        ensure_services
-        ;;
-    config)
-        is_main && die "the main checkout owns its env files"
-        load_state
-        write_config
-        ;;
-    backend)
-        load_state
-        is_main || patch_cors
-        guard_backend_config
-        ensure_services
-        is_main || check_import_folders
-        log "backend → port $BACKEND_PORT (db $DB, neo4j :$NEO4J_BOLT_PORT, keydb index $SLOT, cookie $COOKIE)"
-        cd "$ROOT/apps/backend" && exec pnpm dev
-        ;;
-    frontend)
-        load_state
-        if ! is_main; then
-            [ "$(frontend_env DEV_SERVER_PORT)" = "$FRONTEND_PORT" ] || die "apps/frontend has no slot config — run: tools/worktree/wt.sh config"
-            log "frontend → port $FRONTEND_PORT (backend $(frontend_env PUBLIC_API_BASE_URL))"
-        fi
-        exec pnpm --dir "$ROOT/apps/frontend" dev
-        ;;
-    db)
-        sub=${1:-}
-        shift || true
-        load_state
-        case "$sub" in
-            reset)
-                [ "${1:-}" = --fresh ] && db_snapshot
-                db_clone
-                ;;
-            snapshot) db_snapshot ;;
-            psql)
-                ensure_shared_services
-                tty=-T
-                [ -t 0 ] && tty=
-                dc exec $tty bytebunker-backend-postgres psql -U bytebunker -d "$DB" "$@"
-                ;;
-            drop) db_drop ;;
-            *) sed -n '/^#   wt.sh db/p' "$0"; exit 1 ;;
-        esac
-        ;;
-    graph)
-        sub=${1:-}
-        shift || true
-        load_state
-        case "$sub" in
-            reset)
-                [ "${1:-}" = --fresh ] && graph_snapshot
-                graph_clone
-                ;;
-            snapshot) graph_snapshot ;;
-            empty) graph_empty ;;
-            *) sed -n '/^#   wt.sh graph/p' "$0"; exit 1 ;;
-        esac
-        ;;
-    teardown)
-        is_main && die "nothing to tear down in the main checkout"
-        load_state
-        for port in $BACKEND_PORT $FRONTEND_PORT; do
-            ss -Hltn "sport = :$port" 2>/dev/null | grep -q . && die "a dev server still listens on :$port — stop it first"
-        done
-        db_drop
-        keydb_flush "$SLOT"
-        dc_wt down -v >/dev/null 2>&1 || true
-        docker volume rm -f "$NEO4J_VOLUME" >/dev/null 2>&1 || true
-        log "removed $PROJECT"
-        rm -rf "$STATE_DIR"
-        log "slot $SLOT released"
-        ;;
-    *) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
-esac
+wt_cmd_backend() {
+    load_state
+    is_main || patch_cors
+    guard_backend_config
+    ensure_services
+    ensure_neo4j
+    is_main || check_import_folders
+    log "backend → port $BACKEND_PORT (db $DB, neo4j :$NEO4J_BOLT_PORT, keydb index $SLOT, cookie $COOKIE)"
+    cd "$ROOT/apps/backend" && exec pnpm dev
+}
+
+wt_cmd_frontend() {
+    load_state
+    if ! is_main; then
+        [ "$(app_env frontend DEV_SERVER_PORT)" = "$FRONTEND_PORT" ] || die "apps/frontend has no slot config — run: $WT_SCRIPT config"
+        log "frontend → port $FRONTEND_PORT (backend $(app_env frontend PUBLIC_API_BASE_URL))"
+    fi
+    exec pnpm --dir "$ROOT/apps/frontend" dev
+}
+
+wt_cmd_graph() {
+    local sub=${1:-}
+    shift || true
+    load_state
+    case "$sub" in
+        reset)
+            [ "${1:-}" = --fresh ] && graph_snapshot
+            graph_clone
+            ;;
+        snapshot) graph_snapshot ;;
+        empty) graph_empty ;;
+        *) die "usage: $WT_SCRIPT graph reset [--fresh] | snapshot | empty" ;;
+    esac
+}
+
+wt_main "$@"
