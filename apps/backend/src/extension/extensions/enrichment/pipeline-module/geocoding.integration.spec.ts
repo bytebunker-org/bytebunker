@@ -17,6 +17,9 @@ import { CityIndex, type GeoNamesCity, type GeoNamesLookups } from '../util/geon
 import type { OsmPlaceDetails } from '../util/nominatim.util.js';
 import { GeocodePlacesOfflinePipelineModule } from './geocode-places-offline.pipeline-module.js';
 import { RefinePlacesOnlinePipelineModule } from './refine-places-online.pipeline-module.js';
+import type { CustomPlaceReadService } from '../custom-place/custom-place-read.service.js';
+
+const noCustomPlaces = { readForExecution: () => Promise.resolve([]) } as unknown as CustomPlaceReadService;
 
 const neo4jUri = process.env['BYTEBUNKER_TEST_NEO4J_URI'];
 const neo4jUser = process.env['BYTEBUNKER_TEST_NEO4J_USER'];
@@ -154,7 +157,7 @@ describe.skipIf(!neo4jUri)('geocoding modules (integration)', () => {
     });
 
     it('geocodes offline and copies timezones onto activities, writing nothing on a dry run', async () => {
-        const module = new GeocodePlacesOfflinePipelineModule(geoNamesStub, service);
+        const module = new GeocodePlacesOfflinePipelineModule(geoNamesStub, service, noCustomPlaces);
 
         const dry = await module.executeModule(context('geocode-places-offline', {}, true));
 
@@ -182,7 +185,7 @@ describe.skipIf(!neo4jUri)('geocoding modules (integration)', () => {
     });
 
     it('refines online most visited first, resumes with the rest and then has nothing left', async () => {
-        const module = new RefinePlacesOnlinePipelineModule(nominatimStub, service);
+        const module = new RefinePlacesOnlinePipelineModule(nominatimStub, service, noCustomPlaces);
 
         const first = await module.executeModule(context('refine-places-online', { maxPlaces: 1 }));
 

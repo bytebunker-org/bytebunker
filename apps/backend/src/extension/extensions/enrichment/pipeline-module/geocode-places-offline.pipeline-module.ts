@@ -12,6 +12,8 @@ import { PlaceGeocodeService, type PlacePropertyUpdate } from '../graph/place-ge
 import { reverseGeocodeOffline } from '../util/geonames.util.js';
 import { formatCount, positiveOr } from '../util/module-input.util.js';
 import { buildOfflineGeocodeProps } from '../util/place-geocoding.util.js';
+import { matchCustomPlaces } from '../util/custom-places.util.js';
+import { CustomPlaceReadService } from '../custom-place/custom-place-read.service.js';
 
 const DEFAULTS = {
     maxCityDistanceKm: 100,
@@ -57,6 +59,11 @@ export interface GeocodePlacesOfflineSummary {
     notGeocoded: number;
     /** Places whose name changed (OSM name, address) compared with what the node had. */
     renamed: number;
+    /** Custom places (Settings → Eigene Orte) defined, and canonical places named after one. */
+    customPlaceCount: number;
+    customNamedPlaces: number;
+    /** Canonical places per custom place, for the custom places that matched any. */
+    customPlaceMatches: { customPlaceId: number; name: string; places: number }[];
     countries: CountEntry[];
     topCities: CountEntry[];
     timezones: CountEntry[];
@@ -81,8 +88,9 @@ export class GeocodePlacesOfflineOutput {
 
 /**
  * Offline reverse geocoding of every canonical place from GeoNames (cities1000, downloaded on first use): nearest
- * city, state, country, IANA timezone and the distance to that city. Picks the best place name (OSM POI name from
- * enrichment:refine-places-online > source name > address). Merges into the nodes; re-runs are idempotent.
+ * city, state, country, IANA timezone and the distance to that city. Picks the best place name (custom place the
+ * place lies in > OSM POI name from enrichment:refine-places-online > Mapbox POI name > source name > address) and
+ * stores (or clears) the matched custom place. Merges into the nodes; re-runs are idempotent.
  */
 @PipelineModule({
     extensionName: ENRICHMENT_EXTENSION,
@@ -100,10 +108,12 @@ export class GeocodePlacesOfflinePipelineModule
     constructor(
         private readonly geoNamesDataService: GeoNamesDataService,
         private readonly placeGeocodeService: PlaceGeocodeService,
+        private readonly customPlaceReadService: CustomPlaceReadService,
     ) {}
 
     public async executeModule({
         inputData,
+        pipelineExecution,
         progress,
         dryRun,
     }: PipelineModuleExecutionContext<GeocodePlacesOfflineInput>): Promise<GeocodePlacesOfflineOutput> {
@@ -120,6 +130,9 @@ export class GeocodePlacesOfflinePipelineModule
 
         progress.message('Reading canonical places');
         const places = await this.placeGeocodeService.readPlaces();
+        const customPlaces = await this.customPlaceReadService.readForExecution(pipelineExecution.id);
+        const customMatches = matchCustomPlaces(places, customPlaces);
+        const customPlaceMatchCounts = new Map<number, number>();
         const now = new Date();
         const rows: PlacePropertyUpdate[] = [];
         const timezoneRows: { id: string; timezone: string }[] = [];
@@ -133,8 +146,14 @@ export class GeocodePlacesOfflinePipelineModule
 
         for (const place of places) {
             const geocode = reverseGeocodeOffline(lookups, place, options);
-            const props = buildOfflineGeocodeProps(place, geocode, lookups.countries, now);
+            const customMatch = customMatches.get(place.id);
+            const props = buildOfflineGeocodeProps(place, geocode, lookups.countries, now, customMatch);
             rows.push({ id: place.id, props });
+
+            if (customMatch) {
+                const id = customMatch.customPlace.id;
+                customPlaceMatchCounts.set(id, (customPlaceMatchCounts.get(id) ?? 0) + 1);
+            }
 
             if (geocode) {
                 geocoded++;
@@ -186,6 +205,15 @@ export class GeocodePlacesOfflinePipelineModule
                 geocoded,
                 notGeocoded: places.length - geocoded,
                 renamed,
+                customPlaceCount: customPlaces.length,
+                customNamedPlaces: customMatches.size,
+                customPlaceMatches: customPlaces
+                    .filter((customPlace) => customPlaceMatchCounts.has(customPlace.id))
+                    .map((customPlace) => ({
+                        customPlaceId: customPlace.id,
+                        name: customPlace.name,
+                        places: customPlaceMatchCounts.get(customPlace.id)!,
+                    })),
                 countries: top(countries, 50),
                 topCities: top(cities, REPORTED_ENTRIES),
                 timezones: top(timezones, REPORTED_ENTRIES),

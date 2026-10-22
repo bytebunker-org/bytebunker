@@ -12,6 +12,8 @@ import { PipelineExecutionStatusEnum } from '../../../../etl/pipeline/type/pipel
 import { ENRICHMENT_EXTENSION } from '../../local-extension.constant.js';
 import { MapboxClientService } from '../geocoding/mapbox-client.service.js';
 import { PlaceGeocodeService } from '../graph/place-geocode.service.js';
+import { CustomPlaceReadService } from '../custom-place/custom-place-read.service.js';
+import { matchCustomPlace } from '../util/custom-places.util.js';
 import { formatCount, positiveOr } from '../util/module-input.util.js';
 import { selectPlacesForMapbox } from '../util/mapbox.util.js';
 import { buildMapboxRefinementProps } from '../util/place-geocoding.util.js';
@@ -106,6 +108,7 @@ export class RefinePlacesMapboxPipelineModule
     constructor(
         private readonly mapbox: MapboxClientService,
         private readonly placeGeocodeService: PlaceGeocodeService,
+        private readonly customPlaceReadService: CustomPlaceReadService,
     ) {}
 
     public async executeModule(
@@ -148,6 +151,8 @@ export class RefinePlacesMapboxPipelineModule
 
         progress.message('Reading canonical places');
         const places = await this.placeGeocodeService.readPlaces();
+        // The name is picked again for every refined place: the custom place it lies in still comes first.
+        const customPlaces = await this.customPlaceReadService.readForExecution(pipelineExecution.id);
         const { selected, pending } = selectPlacesForMapbox(places, {
             now: new Date(),
             refreshDays:
@@ -200,7 +205,12 @@ export class RefinePlacesMapboxPipelineModule
             }
 
             consecutiveFailures = 0;
-            const props = buildMapboxRefinementProps(place, result.details, new Date());
+            const props = buildMapboxRefinementProps(
+                place,
+                result.details,
+                new Date(),
+                matchCustomPlace(place, customPlaces),
+            );
             await this.placeGeocodeService.updatePlaces([{ id: place.id, props }]);
 
             if (result.details.mapboxFound) {

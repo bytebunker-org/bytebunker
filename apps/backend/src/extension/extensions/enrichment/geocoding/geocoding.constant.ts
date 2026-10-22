@@ -1,3 +1,4 @@
+import { CUSTOM_PLACE_PROPERTY_KEYS } from '../util/custom-places.util.js';
 import { MAPBOX_GEOCODE_PROPERTY_KEYS } from '../util/mapbox.util.js';
 export const DEFAULT_GEONAMES_DATA_DIR = './temp/geonames';
 export const DEFAULT_GEONAMES_BASE_URL = 'https://download.geonames.org/export/dump';
@@ -53,6 +54,8 @@ export const GEOCODE_PROPERTY_KEYS: readonly string[] = [
     ...OFFLINE_GEOCODE_PROPERTY_KEYS,
     ...ONLINE_GEOCODE_PROPERTY_KEYS,
     ...MAPBOX_GEOCODE_PROPERTY_KEYS,
+    // The custom place a canonical place lies in; geocode-places-offline re-checks it on every run.
+    ...CUSTOM_PLACE_PROPERTY_KEYS,
 ];
 
 /** Mapbox allows 600 reverse requests per minute; 150 ms keeps well below that. */

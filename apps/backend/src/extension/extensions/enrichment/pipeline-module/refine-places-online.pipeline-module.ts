@@ -13,6 +13,8 @@ import { ENRICHMENT_EXTENSION } from '../../local-extension.constant.js';
 import { DEFAULT_ACCEPT_LANGUAGE, OSM_ATTRIBUTION } from '../geocoding/geocoding.constant.js';
 import { NominatimClientService } from '../geocoding/nominatim-client.service.js';
 import { PlaceGeocodeService } from '../graph/place-geocode.service.js';
+import { CustomPlaceReadService } from '../custom-place/custom-place-read.service.js';
+import { matchCustomPlace } from '../util/custom-places.util.js';
 import { formatCount, positiveOr } from '../util/module-input.util.js';
 import { buildRefinementProps, selectPlacesToRefine } from '../util/place-geocoding.util.js';
 
@@ -129,6 +131,7 @@ export class RefinePlacesOnlinePipelineModule
     constructor(
         private readonly nominatim: NominatimClientService,
         private readonly placeGeocodeService: PlaceGeocodeService,
+        private readonly customPlaceReadService: CustomPlaceReadService,
     ) {}
 
     public async executeModule(
@@ -177,6 +180,8 @@ export class RefinePlacesOnlinePipelineModule
 
         progress.message('Reading canonical places');
         const places = await this.placeGeocodeService.readPlaces();
+        // The name is picked again for every refined place: the custom place it lies in still comes first.
+        const customPlaces = await this.customPlaceReadService.readForExecution(pipelineExecution.id);
         const { selected, pending } = selectPlacesToRefine(places, {
             now: new Date(),
             refreshDays: options.refreshDays ?? undefined,
@@ -231,7 +236,12 @@ export class RefinePlacesOnlinePipelineModule
             }
 
             consecutiveFailures = 0;
-            const props = buildRefinementProps(place, result.details, new Date());
+            const props = buildRefinementProps(
+                place,
+                result.details,
+                new Date(),
+                matchCustomPlace(place, customPlaces),
+            );
             await this.placeGeocodeService.updatePlaces([{ id: place.id, props }]);
 
             if (result.details.osmFound) {
