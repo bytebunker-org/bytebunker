@@ -47,6 +47,13 @@
         { "name": "Graph reset", "command": "tools/worktree/wt.sh graph reset", "icon": "configure" },
         { "name": "List worktree instances", "command": "tools/worktree/wt.sh list", "icon": "debug" },
         { "name": "Prune removed worktrees", "command": "tools/worktree/wt.sh prune", "icon": "configure" },
-        { "name": "Teardown", "command": "tools/worktree/wt.sh teardown", "icon": "configure" }
+        { "name": "Stop servers", "command": "tools/worktree/wt.sh stop", "icon": "configure" },
+        {
+            "name": "Settle: stop servers",
+            "command": "tools/worktree/wt.sh settle",
+            "icon": "configure",
+            "runOnSettle": true
+        },
+        { "name": "Teardown", "command": "tools/worktree/wt.sh teardown --stop", "icon": "configure" }
     ]
 }
