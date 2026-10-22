@@ -1,0 +1,151 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { EntityManager } from '@mikro-orm/postgresql';
+import { FileImportService } from './file-import.service.js';
+import { Blueprint } from '../../../etl/pipeline/blueprint/util/blueprint.class.js';
+import type { PipelineTriggerService } from '../../../etl/pipeline/execution/pipeline-trigger.service.js';
+import type { PipelineModuleService } from '../../../etl/pipeline/pipeline-module/pipeline-module.service.js';
+import type { AssetService } from '../../../etl/asset/asset.service.js';
+import type { FileSample } from '../../../etl/import/type/file-detection.interface.js';
+
+const TIMELINE_MODULE = 'google:transform-timeline@1';
+const SCRIPT_MODULE = 'bytebunker-core:execute-code@1';
+
+function triggerBlueprint(id: number, title: string, triggerInput: Record<string, unknown>, moduleId: string) {
+    const blueprint = new Blueprint({
+        nodes: [
+            {
+                id: 1,
+                moduleId: 'common-pipeline-triggers:local-file-trigger@1',
+                position: { x: 0, y: 0 },
+                constantInputData: triggerInput,
+            },
+            { id: 2, moduleId, position: { x: 0, y: 0 }, constantInputData: {} },
+        ],
+        edges: [{ id: 0, source: 1, target: 2, sourceHandle: 'fileAsset', targetHandle: 'rawJson' }],
+    } as never);
+
+    return { blueprintEntity: { id, title }, blueprint, node: blueprint.getNode(1)! };
+}
+
+describe('FileImportService routing', () => {
+    let dir: string;
+    let service: FileImportService;
+    let triggers: ReturnType<typeof triggerBlueprint>[];
+    const em = {} as EntityManager;
+
+    beforeAll(async () => {
+        dir = await fs.mkdtemp(join(tmpdir(), 'file-import-spec-'));
+        await fs.writeFile(join(dir, 'Timeline.json'), '{\n  "semanticSegments": [ ]\n}');
+        await fs.writeFile(
+            join(dir, 'Streaming_History_Audio_2024.json'),
+            '[ { "ts": "2024-01-01T00:00:00Z", "ms_played": 5 } ]',
+        );
+        await fs.writeFile(join(dir, 'notes.txt'), 'hello');
+    });
+
+    afterAll(async () => {
+        await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    beforeEach(() => {
+        triggers = [
+            triggerBlueprint(1, 'Timeline', { globPatterns: ['google/timeline/timeline.json'] }, TIMELINE_MODULE),
+            triggerBlueprint(
+                2,
+                'Spotify script',
+                { globPatterns: ['spotify/*.json'], contentPatterns: ['"ms_played"\\s*:'] },
+                SCRIPT_MODULE,
+            ),
+        ];
+
+        const pipelineTriggerService = {
+            findMatchingTriggerNodes: vi.fn(() => Promise.resolve(triggers)),
+        } as unknown as PipelineTriggerService;
+        const pipelineModuleService = {
+            whenModulesReady: () => Promise.resolve(),
+            getPipelineModule: (id: string) =>
+                id === TIMELINE_MODULE
+                    ? {
+                          detectFile: (sample: FileSample) =>
+                              sample.head.includes('"semanticSegments"')
+                                  ? { confidence: 0.95, format: 'Google Timeline' }
+                                  : undefined,
+                      }
+                    : {},
+        } as unknown as PipelineModuleService;
+
+        service = new FileImportService(em, pipelineTriggerService, pipelineModuleService, {} as AssetService);
+    });
+
+    it('routes by glob first', async () => {
+        const routing = await service.route(em, {
+            absolutePath: join(dir, 'Timeline.json'),
+            relativePath: 'google/timeline/timeline.json',
+        });
+
+        expect(routing.matches).toEqual([{ blueprintId: 1, matchedBy: 'glob' }]);
+    });
+
+    it('routes a renamed file by the importer recognising its content', async () => {
+        const routing = await service.route(em, {
+            absolutePath: join(dir, 'Timeline.json'),
+            relativePath: 'Standortverlauf/Zeitachse.json',
+        });
+
+        expect(routing.matches).toEqual([
+            {
+                blueprintId: 1,
+                matchedBy: 'content-detection',
+                detection: { confidence: 0.95, format: 'Google Timeline' },
+            },
+        ]);
+        expect(routing.format).toBe('Google Timeline');
+    });
+
+    it('routes by a trigger content pattern for modules that cannot detect files themselves', async () => {
+        const routing = await service.route(em, {
+            absolutePath: join(dir, 'Streaming_History_Audio_2024.json'),
+            relativePath: 'my_spotify_data/Streaming_History_Audio_2024.json',
+        });
+
+        expect(routing.matches).toEqual([{ blueprintId: 2, matchedBy: 'content-pattern' }]);
+    });
+
+    it('does not use content detection when a rule already matched another blueprint', async () => {
+        triggers.push(triggerBlueprint(3, 'Catch-all timeline', { globPatterns: [] }, TIMELINE_MODULE));
+
+        const routing = await service.route(em, {
+            absolutePath: join(dir, 'Timeline.json'),
+            relativePath: 'google/timeline/timeline.json',
+        });
+
+        expect(routing.matches.map((match) => match.blueprintId)).toEqual([1]);
+    });
+
+    it('respects detectByContent: false', async () => {
+        triggers[0] = triggerBlueprint(1, 'Timeline', { globPatterns: ['x'], detectByContent: false }, TIMELINE_MODULE);
+
+        const routing = await service.route(em, {
+            absolutePath: join(dir, 'Timeline.json'),
+            relativePath: 'Zeitachse.json',
+        });
+
+        expect(routing.matches).toEqual([]);
+    });
+
+    it('explains files nothing reads', async () => {
+        const result = await service.route(em, { absolutePath: join(dir, 'notes.txt'), relativePath: 'notes.txt' });
+
+        expect(result.matches).toEqual([]);
+        expect(result.considered.map((c) => c.blueprintTitle)).toEqual(['Timeline', 'Spotify script']);
+    });
+
+    it('ignores media and system files', () => {
+        expect(service.isIgnored('Google Fotos/2019/IMG_1.jpg')).toBe(true);
+        expect(service.isIgnored('__MACOSX/a.json')).toBe(true);
+        expect(service.isIgnored('google/timeline/timeline.json')).toBe(false);
+    });
+});
