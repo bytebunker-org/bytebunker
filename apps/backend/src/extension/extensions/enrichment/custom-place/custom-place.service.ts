@@ -184,7 +184,7 @@ export class CustomPlaceService {
         return {
             outcome: result.outcome,
             blueprintId: blueprint.id,
-            ...(result.executionIds[0] !== undefined ? { executionId: result.executionIds[0] } : {}),
+            ...(result.executionIds[0] === undefined ? {} : { executionId: result.executionIds[0] }),
             ...(result.reason ? { reason: result.reason } : {}),
         };
     }

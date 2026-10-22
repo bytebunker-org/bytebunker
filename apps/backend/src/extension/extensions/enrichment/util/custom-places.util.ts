@@ -107,8 +107,8 @@ export function validityInterval(rule: Pick<CustomPlaceRule, 'validFrom' | 'vali
     const to = parseDay(rule.validTo);
 
     return {
-        ...(from !== undefined ? { from } : {}),
-        ...(to !== undefined ? { to: to + DAY_MS } : {}),
+        ...(from === undefined ? {} : { from }),
+        ...(to === undefined ? {} : { to: to + DAY_MS }),
     };
 }
 
@@ -408,6 +408,6 @@ function toTimelinePeriod(
         inferredVisitCount,
         inferred: inferredVisitCount === visits.length,
         source: 'visits',
-        ...(customPlaceId !== undefined ? { customPlaceId } : {}),
+        ...(customPlaceId === undefined ? {} : { customPlaceId }),
     };
 }

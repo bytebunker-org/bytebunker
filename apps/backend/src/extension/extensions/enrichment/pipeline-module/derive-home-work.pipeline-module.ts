@@ -218,7 +218,7 @@ export class DeriveHomeWorkPipelineModule implements IPipelineModule<DeriveHomeW
                     inferredVisitCount: period.inferredVisitCount,
                     inferred: period.inferred,
                     source: period.source,
-                    ...(period.customPlaceId !== undefined ? { customPlaceId: period.customPlaceId } : {}),
+                    ...(period.customPlaceId === undefined ? {} : { customPlaceId: period.customPlaceId }),
                 },
             }));
 
@@ -246,7 +246,7 @@ export class DeriveHomeWorkPipelineModule implements IPipelineModule<DeriveHomeW
         const summarisePeriod = (period: RoleTimelinePeriod): RolePeriodSummary => {
             const info = placeInfo.get(period.placeId);
             const customPlaceName =
-                period.customPlaceId !== undefined ? customPlaceNames.get(period.customPlaceId) : undefined;
+                period.customPlaceId === undefined ? undefined : customPlaceNames.get(period.customPlaceId);
 
             return {
                 placeId: period.placeId,
@@ -257,7 +257,7 @@ export class DeriveHomeWorkPipelineModule implements IPipelineModule<DeriveHomeW
                 visitCount: period.visitCount,
                 inferred: period.inferred,
                 source: period.source,
-                ...(period.customPlaceId !== undefined ? { customPlaceId: period.customPlaceId } : {}),
+                ...(period.customPlaceId === undefined ? {} : { customPlaceId: period.customPlaceId }),
                 ...(customPlaceName ? { customPlaceName } : {}),
             };
         };
