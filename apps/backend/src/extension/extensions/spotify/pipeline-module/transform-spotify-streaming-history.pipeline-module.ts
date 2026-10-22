@@ -49,6 +49,7 @@ export class TransformSpotifyStreamingHistoryOutput {
 
     /** Rows that did not become an activity. Absent when every row was imported. */
     @Optional()
+    @Type('object')
     public skipped?: SpotifySkippedRowsDto;
 }
 
