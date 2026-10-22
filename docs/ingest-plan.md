@@ -351,5 +351,14 @@ Large outputs (plan step 4, first half): handles over 4 MB go to asset storage, 
 out). The remaining cost is the transform holding all activities at once; streaming/chunked transforms are the next step
 if bigger sources appear.
 
-Open: geocoding (needs a decision on regions), "exports that could fill gaps" on the coverage page, streaming
-transforms, naming trips by city/country once places are geocoded.
+Spotify: the importer from the importer-gaps thread is merged (play key = end time + URI + ms played, nothing lost:
+236,890 plays; IP kept; video history as `View` of `SpotifyVideo`; that thread's extension id). Full re-import: 59/59
+files, 0 duplicate nodes.
+
+Geocoding: offline GeoNames lookup (city, country, timezone; seconds for all places) runs in the nightly places chain;
+OpenStreetMap Nominatim refines names and addresses in the background (`enrichment/geocoding-refine`, hourly, 600
+places/run at 1 request/s, resumable). Trips are named by destination city ("Trip to Osaka, Japan"). Mapbox was checked
+as an alternative: its free 100k/month geocoding is "temporary" (results may not be stored); storing needs permanent
+geocoding at $5 per 1,000 requests, so Nominatim (ODbL, storing allowed with attribution) is used.
+
+Open: "exports that could fill gaps" on the coverage page, streaming transforms.
