@@ -1,6 +1,6 @@
 {
     "title": "Place enrichment",
-    "description": "Every night at 03:30: consolidates raw places into canonical places, derives home and work periods, then trips, music on the move, confirmed calendar events and daily summaries. Run it by hand with POST /pipelines-blueprints/:id/run.",
+    "description": "Every night at 03:30: consolidates raw places into canonical places, geocodes them offline (city, country, timezone), derives home and work periods, then trips (named after their destination city), music on the move, confirmed calendar events and daily summaries. Run it by hand with POST /pipelines-blueprints/:id/run.",
     "data": {
         "edges": [
             {
@@ -44,6 +44,13 @@
                 "target": 7,
                 "sourceHandle": "success",
                 "targetHandle": "dependentModules"
+            },
+            {
+                "id": 6,
+                "source": 7,
+                "target": 8,
+                "sourceHandle": "success",
+                "targetHandle": "dependentModules"
             }
         ],
         "nodes": [
@@ -73,9 +80,23 @@
             },
             {
                 "id": 3,
-                "moduleId": "enrichment:derive-home-work@1",
+                "moduleId": "enrichment:geocode-places-offline@1",
                 "position": {
                     "x": 640,
+                    "y": 0
+                },
+                "constantInputData": {
+                    "maxCityDistanceKm": 100,
+                    "metroRadiusKm": 25,
+                    "metroMinPopulation": 100000,
+                    "setActivityTimezones": true
+                }
+            },
+            {
+                "id": 4,
+                "moduleId": "enrichment:derive-home-work@1",
+                "position": {
+                    "x": 960,
                     "y": 0
                 },
                 "constantInputData": {
@@ -84,10 +105,10 @@
                 }
             },
             {
-                "id": 4,
+                "id": 5,
                 "moduleId": "enrichment:derive-trips@1",
                 "position": {
-                    "x": 960,
+                    "x": 1280,
                     "y": 0
                 },
                 "constantInputData": {
@@ -100,10 +121,10 @@
                 }
             },
             {
-                "id": 5,
+                "id": 6,
                 "moduleId": "enrichment:link-listens-to-moves@1",
                 "position": {
-                    "x": 1280,
+                    "x": 1600,
                     "y": 0
                 },
                 "constantInputData": {
@@ -112,10 +133,10 @@
                 }
             },
             {
-                "id": 6,
+                "id": 7,
                 "moduleId": "enrichment:confirm-events@1",
                 "position": {
-                    "x": 1600,
+                    "x": 1920,
                     "y": 0
                 },
                 "constantInputData": {
@@ -125,10 +146,10 @@
                 }
             },
             {
-                "id": 7,
+                "id": 8,
                 "moduleId": "enrichment:daily-summary@1",
                 "position": {
-                    "x": 1920,
+                    "x": 2240,
                     "y": 0
                 },
                 "constantInputData": {
