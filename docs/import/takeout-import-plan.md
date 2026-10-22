@@ -270,12 +270,15 @@ All new sources: 0 errors, 0 conflicting identity keys. Activities per source: S
 Firefox 236,606 (default-release) + 170,093 (dev-edition, 67,942 of them shared with default-release through
 Sync and deduped); Chrome/Chromium 1,257 local + 3,076 Takeout, 980 bookmarks; Google My Activity 104,597 (2025
 takeout) + 78,989 (2020 takeout); WhatsApp 8,144 messages; ICS 756 occurrences; Airbnb 118; Maps 19.
-Tier-2 e2e (real pipeline, worktree instance): every file imports, ~550 activities/s, no duplicate nodes.
+Tier-2 e2e after merging `feat/ingest-pipeline-test-harness` (large outputs kept out of JSONB): full corpus
+707,539 activities in 210 s of store time (~3,400 activities/s), no duplicate nodes, no stuck executions.
+Firefox default-release alone: 236,606 visits in 60 s. Every importer ships its blueprint in
+`src/extension/extensions/<ext>/blueprints/`, installed on boot.
 
 ## Open issues
 
-- Firefox default-release produces a 162.5 MB node output (one JSONB row); split with the module's
-  `fromDate`/`toDate` options until chunked outputs land (`docs/ingest-plan.md` step 4).
+- Spotify plays keep the IP address (`ipAddress`) since the merge with the harness branch, although this
+  thread's brief said not to store it. Decide and, if dropping, also clear existing nodes.
 - Person props are last-write-wins: an importer's Person can overwrite a my-hub name. Needs a precedence rule in
   the persister (my-hub props win).
 - Attendees/organizers are JSON on Event activities; graph edges to Person need multi-valued relationships
@@ -285,9 +288,13 @@ Tier-2 e2e (real pipeline, worktree instance): every file imports, ~550 activiti
 - Maps saved places/reviews key places by cid/ftid, the timeline by placeId: they only meet through coordinates.
 - WhatsApp partners are keyed by display name; two contacts with the same name share a node.
 - English Takeout timestamps print CEST all year; treated as fixed offsets like MEZ/MESZ. Unverified.
-- The harness reports re-imports that the trigger skips as duplicates as 60 s "no-pipeline" timeouts.
+- The harness attributes a scheduled pipeline (hourly Mapbox refinement) that starts during an import to the
+  imported file ("multiple-pipelines").
 - Spotify Listen nodes imported earlier by the execute-code script use other keys; wipe before re-importing.
 
 ## Known issues found on the way
+
+- Fixed: files with non-ASCII names (`MeineAktivitäten.html`) failed to upload to MinIO with a signature error;
+  S3 metadata values are now percent-encoded.
 
 - Airbnb activity log shows 84 `airlock_suggested:account_login` entries and logins from Shanghai IPs (2021).
