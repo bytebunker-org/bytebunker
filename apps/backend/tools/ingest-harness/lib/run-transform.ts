@@ -21,6 +21,7 @@ import { TransformMapsPlacesPipelineModule } from '../../../src/extension/extens
 import { TransformYouTubeWatchHistoryPipelineModule } from '../../../src/extension/extensions/youtube/pipeline-module/transform-youtube-watch-history.pipeline-module.js';
 import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ics-calendar/pipeline-module/parse-ics-file.pipeline-module.js';
 import { TransformAirbnbExportPipelineModule } from '../../../src/extension/extensions/airbnb/pipeline-module/transform-airbnb-export.pipeline-module.js';
+import { ParseWhatsappChatPipelineModule } from '../../../src/extension/extensions/whatsapp/pipeline-module/parse-whatsapp-chat.pipeline-module.js';
 import { ExecuteCodePipelineModule } from '../../../src/etl/pipeline/pipeline-module/core-module/execute-code.pipeline-module.js';
 import { importers, type ImporterId } from '../corpus.manifest.js';
 import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
@@ -73,6 +74,7 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
             s.graphService,
             s.graphNodeService,
         ) as never,
+    whatsapp: (s) => new ParseWhatsappChatPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
     'spotify-streaming-history-script': (s) =>
         new ExecuteCodePipelineModule(s.graphService, s.graphNodeService, s.stableKeyService, s.assetService) as never,
 };

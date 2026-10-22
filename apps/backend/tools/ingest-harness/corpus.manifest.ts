@@ -14,7 +14,8 @@ export type ImporterId =
     | 'ics-calendar'
     | 'spotify-streaming-history-script'
     | 'google-maps-places'
-    | 'airbnb-export';
+    | 'airbnb-export'
+    | 'whatsapp';
 
 export interface ImporterDefinition {
     id: ImporterId;
@@ -67,6 +68,9 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
     'airbnb-export': {
         id: 'airbnb-export',
         blueprintFile: 'airbnb-export.blueprint.json',
+    whatsapp: {
+        id: 'whatsapp',
+        blueprintFile: 'whatsapp.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
@@ -143,28 +147,23 @@ export const corpusSources: CorpusSource[] = [
     },
     {
         id: 'airbnb-search-history',
-        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/search_history.json',
         to: airbnbTarget('search_history'),
-    },
-    {
         id: 'airbnb-messages',
-        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/messages.json',
         to: airbnbTarget('messages'),
-    },
-    {
         id: 'airbnb-reviews',
-        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/reviews.json',
         to: airbnbTarget('reviews'),
-    },
-    {
         id: 'airbnb-wishlists-unsupported',
-        importer: 'airbnb-export',
         from: 'Airbnb_data_request_*/json/wishlists.json',
         to: airbnbTarget('wishlists'),
         notes: 'Not importable on purpose: the module must return no activities for other files of the folder.',
+        id: 'whatsapp-hannah-km',
+        importer: 'whatsapp',
+        from: 'whatsapp-exports/hannah-km/WhatsApp Chat with *.txt',
+        to: (path) => `whatsapp/${basename(path)}`,
+        notes: 'Folder copy of the zip (same chat file); derived files next to it are not exports and are not matched.',
     },
     {
         id: 'spotify-audio',
@@ -211,7 +210,6 @@ export const knownUnsupported: { area: string; glob: string; notes: string }[] =
         glob: 'Airbnb_data_request_*/json/{account_security,activity_log,experiences,guest_referrals,id_verification,payment_*,profile_information,search_telemetry_signals,third_party_*,wishlists}.json',
         notes: 'Payments, ID verification, telemetry, wishlists (no timestamps), experiences (no dates): not imported.',
     },
-    { area: 'WhatsApp chats', glob: 'whatsapp-exports/**', notes: 'Plain-text chat export.' },
     {
         area: 'Google raw Location History (Records)',
         glob: `${outlookTakeout}/Location History/Location History.json`,

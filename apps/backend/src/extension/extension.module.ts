@@ -11,12 +11,14 @@ import { localExtensions } from './extensions/local-extension.constant.js';
 import { GoogleExtensionModule } from './extensions/google/google-extension.module.js';
 import { IcsCalendarExtensionModule } from './extensions/ics-calendar/ics-calendar-extension.module.js';
 import { AirbnbExtensionModule } from './extensions/airbnb/airbnb-extension.module.js';
+import { WhatsappExtensionModule } from './extensions/whatsapp/whatsapp-extension.module.js';
 import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
     GoogleExtensionModule,
     IcsCalendarExtensionModule,
+    WhatsappExtensionModule,
     YouTubeExtensionModule,
     AirbnbExtensionModule,
 ];
