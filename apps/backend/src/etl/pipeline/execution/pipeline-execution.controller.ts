@@ -8,6 +8,7 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { CreatePipelineExecutionDto } from '../dto/create-pipeline-execution.dto.js';
 import { PipelineExecutionDto } from '../dto/pipeline-execution.dto.js';
+import type { PipelineExecutionEntity } from '../entity/pipeline-execution.entity.js';
 
 @Controller('pipelines')
 export class PipelineExecutionController {
@@ -48,22 +49,26 @@ export class PipelineExecutionController {
     @ApiOperation({ summary: 'Run a (dry-run) execution again for real, from the same trigger output' })
     @ApiResponse({ status: 201, type: PipelineExecutionDto })
     public apply(@Param('id', ParseIntPipe) id: number): Promise<PipelineExecutionDto> {
-        return this.em.transactional((em) => this.pipelineExecutionService.rerunFromTrigger(em, id, { dryRun: false }));
+        return this.createAndSchedule((em) =>
+            this.pipelineExecutionService.createRerunFromTrigger(em, id, { dryRun: false }),
+        );
     }
 
     @Post(':id/dry-run')
     @ApiOperation({ summary: 'Preview an execution again as a dry run, from the same trigger output' })
     @ApiResponse({ status: 201, type: PipelineExecutionDto })
     public dryRun(@Param('id', ParseIntPipe) id: number): Promise<PipelineExecutionDto> {
-        return this.em.transactional((em) => this.pipelineExecutionService.rerunFromTrigger(em, id, { dryRun: true }));
+        return this.createAndSchedule((em) =>
+            this.pipelineExecutionService.createRerunFromTrigger(em, id, { dryRun: true }),
+        );
     }
 
     @Post()
     @ApiOperation({ summary: 'Create a new pipeline execution' })
     @ApiResponse({ status: 201, type: PipelineExecutionDto })
     public create(@Body() data: CreatePipelineExecutionDto): Promise<PipelineExecutionDto> {
-        return this.em.transactional((em) =>
-            this.pipelineExecutionService.executeBlueprintFromTrigger(
+        return this.createAndSchedule((em) =>
+            this.pipelineExecutionService.createExecutionFromTrigger(
                 em,
                 data.blueprintId,
                 data.triggerNodeId,
@@ -78,5 +83,15 @@ export class PipelineExecutionController {
     @HttpCode(204)
     public scheduleExecution(@Param('id', ParseIntPipe) id: number): Promise<void> {
         return this.pipelineExecutionService.schedulePipelineExecution(id, true);
+    }
+
+    /** Creates the execution in its own transaction and queues it only once that transaction committed. */
+    private async createAndSchedule(
+        create: (em: EntityManager) => Promise<PipelineExecutionEntity>,
+    ): Promise<PipelineExecutionEntity> {
+        const execution = await this.em.transactional(create);
+        await this.pipelineExecutionService.schedulePipelineExecution(execution.id);
+
+        return execution;
     }
 }

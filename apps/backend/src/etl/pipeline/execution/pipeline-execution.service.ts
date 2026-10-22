@@ -37,7 +37,12 @@ export class PipelineExecutionService {
         private readonly progressService: PipelineProgressService,
     ) {}
 
-    public async executeBlueprintFromTrigger(
+    /**
+     * Creates an execution from a trigger's output but does not schedule it: the start job must only be queued once
+     * the creating transaction has committed, otherwise a worker can pick it up before the rows are visible. Call
+     * {@link schedulePipelineExecution} after `transactional` resolves.
+     */
+    public async createExecutionFromTrigger(
         em: EntityManager,
         blueprintId: number,
         triggerNodeId: number,
@@ -80,18 +85,17 @@ export class PipelineExecutionService {
 
         await em.flush();
 
-        this.logger.debug(`Executing pipeline ${pipelineExecution.id} from trigger node ${triggerNodeId}`);
-
-        await this.schedulePipelineExecution(pipelineExecution.id);
+        this.logger.debug(`Created pipeline execution ${pipelineExecution.id} from trigger node ${triggerNodeId}`);
 
         return pipelineExecution;
     }
 
     /**
      * Starts a new execution of the same blueprint with the same trigger output as an existing one, e.g. to apply a
-     * dry run for real, or to preview a re-import. The source execution is left untouched.
+     * dry run for real, or to preview a re-import. The source execution is left untouched. Like
+     * {@link createExecutionFromTrigger}, the caller schedules the new execution after commit.
      */
-    public async rerunFromTrigger(
+    public async createRerunFromTrigger(
         em: EntityManager,
         sourceExecutionId: number,
         options: { dryRun: boolean },
@@ -118,12 +122,16 @@ export class PipelineExecutionService {
             throw new Error(`Execution ${sourceExecutionId} has no stored trigger output to re-run from`);
         }
 
-        return this.executeBlueprintFromTrigger(em, source.blueprint.id, triggerData.nodeId, triggerData.data, {
+        return this.createExecutionFromTrigger(em, source.blueprint.id, triggerData.nodeId, triggerData.data, {
             triggerAssetId: source.triggerAsset?.id,
             dryRun: options.dryRun,
         });
     }
 
+    /**
+     * Queues the start job. Only call this outside of (after) the transaction that created or reset the execution.
+     * With `forceExecute`, failed and aborted nodes are reset to waiting first ("retry all failed").
+     */
     public async schedulePipelineExecution(pipelineId: number, forceExecute = false): Promise<void> {
         await this.startPipelineExecutionQueue.add(
             QueueNameEnum.START_PIPELINE_EXECUTION,
@@ -132,7 +140,6 @@ export class PipelineExecutionService {
                 forceExecute,
             } satisfies JobDataType<QueueNameEnum.START_PIPELINE_EXECUTION>,
             {
-                delay: 500,
                 attempts: 1,
             },
         );

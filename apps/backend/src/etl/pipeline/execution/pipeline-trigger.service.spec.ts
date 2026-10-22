@@ -47,7 +47,7 @@ describe('PipelineTriggerService', () => {
     }
 
     function execute(options: Record<string, unknown> = {}) {
-        return service.executeBlueprintFromTrigger<TestTriggerInput, TestTriggerOutput>(
+        return service.createExecutionsFromTrigger<TestTriggerInput, TestTriggerOutput>(
             em as unknown as EntityManager,
             TestTriggerPipelineModule,
             triggerOptions(options) as never,
@@ -73,7 +73,7 @@ describe('PipelineTriggerService', () => {
         ] as never);
 
         // `void` because the suites mock signature makes eslint treat the fluent return value as a promise.
-        void executionService.executeBlueprintFromTrigger.mockResolvedValue({
+        void executionService.createExecutionFromTrigger.mockResolvedValue({
             id: 100,
         } as unknown as PipelineExecutionEntity);
     });
@@ -90,7 +90,7 @@ describe('PipelineTriggerService', () => {
                 execution: { id: 100 },
             },
         ]);
-        expect(executionService.executeBlueprintFromTrigger).toHaveBeenCalledWith(
+        expect(executionService.createExecutionFromTrigger).toHaveBeenCalledWith(
             em,
             7,
             3,
@@ -133,7 +133,7 @@ describe('PipelineTriggerService', () => {
                 reason: 'already imported by execution 42 at 2026-01-01T10:00:00.000Z',
             },
         ]);
-        expect(executionService.executeBlueprintFromTrigger).not.toHaveBeenCalled();
+        expect(executionService.createExecutionFromTrigger).not.toHaveBeenCalled();
     });
 
     it('skips a re-import while an execution for the same asset is still running', async () => {
@@ -166,7 +166,7 @@ describe('PipelineTriggerService', () => {
         const results = await execute();
 
         expect(results[0]).toMatchObject({ status: 'created' });
-        expect(executionService.executeBlueprintFromTrigger).toHaveBeenCalledOnce();
+        expect(executionService.createExecutionFromTrigger).toHaveBeenCalledOnce();
     });
 
     it('creates a new execution when only failed or aborted executions exist', async () => {
@@ -176,7 +176,7 @@ describe('PipelineTriggerService', () => {
         const results = await execute();
 
         expect(results[0]).toMatchObject({ status: 'created' });
-        expect(executionService.executeBlueprintFromTrigger).toHaveBeenCalledOnce();
+        expect(executionService.createExecutionFromTrigger).toHaveBeenCalledOnce();
     });
 
     it('bypasses the guard when allowReimport is set for the blueprint', async () => {
@@ -205,7 +205,7 @@ describe('PipelineTriggerService', () => {
 
     it('reports a failing execution as a failed result instead of throwing', async () => {
         const error = new Error('boom');
-        void executionService.executeBlueprintFromTrigger.mockRejectedValue(error);
+        void executionService.createExecutionFromTrigger.mockRejectedValue(error);
 
         const results = await execute();
 
@@ -218,5 +218,29 @@ describe('PipelineTriggerService', () => {
                 error,
             },
         ]);
+    });
+
+    it('does not queue the execution while the creating transaction is still open', async () => {
+        await execute();
+
+        expect(executionService.schedulePipelineExecution).not.toHaveBeenCalled();
+    });
+
+    it('queues only the created executions once the caller committed', async () => {
+        await service.scheduleCreatedExecutions([
+            { status: 'created', blueprintId: 7, blueprintTitle: 'A', nodeId: 3, execution: { id: 100 } as never },
+            {
+                status: 'skipped',
+                blueprintId: 8,
+                blueprintTitle: 'B',
+                nodeId: 3,
+                reason: 'already imported',
+                existingExecutionId: 42,
+                existingExecutionStatus: PipelineExecutionStatusEnum.SUCCESS,
+            },
+            { status: 'failed', blueprintId: 9, blueprintTitle: 'C', nodeId: 3, error: new Error('boom') },
+        ]);
+
+        expect(executionService.schedulePipelineExecution).toHaveBeenCalledExactlyOnceWith(100);
     });
 });
