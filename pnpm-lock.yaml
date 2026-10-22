@@ -105,9 +105,6 @@ importers:
       '@nestjs/cache-manager':
         specifier: ^3.0.1
         version: 3.0.1(@nestjs/common@11.1.1(@kage0x3b/class-transformer@0.7.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.1)(cache-manager@6.4.3)(keyv@5.3.3)(rxjs@7.8.2)
-      '@nestjs/cli':
-        specifier: ^11.0.7
-        version: 11.0.7(@swc/cli@0.5.2(@swc/core@1.11.29(@swc/helpers@0.5.17))(chokidar@4.0.3))(@swc/core@1.11.29(@swc/helpers@0.5.17))(@types/node@22.9.0)(esbuild@0.27.3)
       '@nestjs/common':
         specifier: ^11.1.1
         version: 11.1.1(@kage0x3b/class-transformer@0.7.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -255,9 +252,6 @@ importers:
       ts-decorator-json-schema-generator:
         specifier: ^1.4.1
         version: 1.4.1
-      tsx:
-        specifier: 4.19.2
-        version: 4.19.2
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
@@ -280,6 +274,9 @@ importers:
       '@lewo-media/nestjs-schematics':
         specifier: ^10.2.3
         version: 10.2.3(chokidar@4.0.3)(typescript@5.8.3)
+      '@nestjs/cli':
+        specifier: ^11.0.7
+        version: 11.0.7(@swc/cli@0.5.2(@swc/core@1.11.29(@swc/helpers@0.5.17))(chokidar@4.0.3))(@swc/core@1.11.29(@swc/helpers@0.5.17))(@types/node@22.9.0)(esbuild@0.27.3)
       '@nestjs/schematics':
         specifier: ^11.0.5
         version: 11.0.5(chokidar@4.0.3)(typescript@5.8.3)
@@ -400,6 +397,9 @@ importers:
       tsconfig-paths:
         specifier: 4.2.0
         version: 4.2.0
+      tsx:
+        specifier: 4.19.2
+        version: 4.19.2
       typescript-eslint:
         specifier: ^8.32.1
         version: 8.32.1(eslint@9.27.0(jiti@2.7.0))(typescript@5.8.3)
