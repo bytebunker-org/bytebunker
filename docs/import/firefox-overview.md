@@ -16,8 +16,9 @@ This file is the index. Detail lives in the sibling files:
 | --- | --- | --- | --- | --- |
 | `~/Documents/Takeout/firefox-sync/firefox-sync-takeout.json` | Account-level Sync export, April 2024 | yes (812 live + 1981 tombstones) | **no** (only counts are reported in `infos`) | Snapshot of server state on 2024-04-13 |
 | `~/Documents/Takeout/firefox-sync/bookmarks-2024-04-13.json` | Standard Firefox bookmark backup, April 2024 | yes (775 URLs in 29 folders) | no | Same data as above but as the in-app tree, with `iconUri` |
-| `~/.mozilla/firefox/xc88zfrq.default-release/places.sqlite` | "Stable" Firefox release on this box (`epimetheus`) | 868 URL bookmarks | 349 963 visits, 2023-10-21 → 2026-03-14 | Profile last touched 2026-03-14, then user moved to dev edition |
-| `~/.mozilla/firefox/zd8kpuwk.dev-edition-default/places.sqlite` | Firefox Developer Edition on this box (`epimetheus`) | 879 URL bookmarks | 108 027 visits, 2019-07-23 → 2026-04-27 | Currently active profile |
+| `~/.mozilla/firefox/djuhfx1l.default-release/places.sqlite` | "Stable" Firefox release on this box (`epimetheus`) | 887 URL bookmarks | 248 842 visits, 2020-05-28 → 2026-10-14 | Last used 2026-10-14 |
+| `~/.mozilla/firefox/h0f01llj.dev-edition-default/places.sqlite` | Firefox Developer Edition on this box (`epimetheus`) | 890 URL bookmarks | 180 490 visits, 2019-07-23 → 2026-10-22 | Currently active profile |
+| `~/.mozilla/firefox/tnp0hbu8.default/places.sqlite` | Old default profile | 4 | 11 visits (2025-02) | Practically unused |
 | `bookmarkbackups/*.jsonlz4` in each profile | ~14 dated bookmark backups per profile, biweekly | yes | no | Useful for *when* a bookmark was added/removed, if needed later |
 | `synced-tabs.db` | Currently-open tabs on every other Sync client | n/a | n/a (tabs only) | Useful as a device list, not a real source |
 | `formhistory.sqlite` | Autocomplete entries from form fields | n/a | n/a | Out of scope for now (12k entries on this box, mostly noise) |
@@ -41,6 +42,18 @@ Out of scope unless requested later:
 2. Use the Sync takeout's `bookmarksTree` for a clean April-2024 snapshot of the bookmark tree (folder structure with stable Sync GUIDs).
 3. Use the per-profile `bookmarkbackups/*.jsonlz4` as additional snapshots if a bookmark add/remove timeline matters.
 4. Treat all sources as additive — bytebunker already dedupes events, so feeding the same visit from multiple profiles is safe and is in fact the only way to get full coverage given Sync's history-retention limits (see `firefox-multi-device.md`).
+
+## Importer (2026-10-22)
+
+`browser-history:transform-browser-database` reads `places.sqlite` (and Chrome `History`). Numbers on this box:
+
+| Profile | Visits read | Imported | Redirect hops | Reloads | Framed | Same-ms duplicates | Bookmarks |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| default-release | 248 842 | 235 744 | 7 134 | 5 272 | 12 | 675 | 862 |
+| dev-edition-default | 180 490 | 169 226 | 5 569 | 4 832 | 3 | 860 | 865 |
+
+67 080 visits appear in both profiles (97% of them 2024–2026), so the two profiles add up to ~338k distinct visits.
+See `firefox-multi-device.md` for why the visit key uses milliseconds.
 
 ## Open questions for the user
 

@@ -15,6 +15,7 @@ import { WhatsappExtensionModule } from './extensions/whatsapp/whatsapp-extensio
 import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.module.js';
 import { SpotifyExtensionModule } from './extensions/spotify/spotify-extension.module.js';
 import { MyHubExtensionModule } from './extensions/my-hub/my-hub-extension.module.js';
+import { BrowserHistoryExtensionModule } from './extensions/browser-history/browser-history-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
@@ -25,6 +26,7 @@ const manuallyLoadedExtensions = [
     AirbnbExtensionModule,
     SpotifyExtensionModule,
     MyHubExtensionModule,
+    BrowserHistoryExtensionModule,
 ];
 
 @Module({

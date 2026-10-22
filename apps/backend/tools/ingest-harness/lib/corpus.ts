@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import micromatch from 'micromatch';
-import { corpusSources, type CorpusSource, type ImporterId } from '../corpus.manifest.js';
+import { corpusSources, type CorpusRoot, type CorpusSource, type ImporterId } from '../corpus.manifest.js';
 
 export const HARNESS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const BACKEND_DIR = resolve(HARNESS_DIR, '../..');
@@ -11,15 +11,24 @@ export const BLUEPRINT_DIR = join(HARNESS_DIR, 'blueprints');
 export const CORPUS_DIR = resolve(process.env['INGEST_CORPUS_DIR'] ?? join(BACKEND_DIR, 'temp/ingest-corpus'));
 export const REPORT_DIR = resolve(process.env['INGEST_REPORT_DIR'] ?? join(BACKEND_DIR, 'temp/ingest-harness'));
 export const TAKEOUT_DIR = resolve(process.env['INGEST_TAKEOUT_DIR'] ?? join(homedir(), 'Documents/takeout'));
+export const HOME_DIR = resolve(process.env['INGEST_HOME_DIR'] ?? homedir());
+
+export function corpusRootDir(root: CorpusRoot | undefined): string {
+    return root === 'home' ? HOME_DIR : TAKEOUT_DIR;
+}
 
 export interface CorpusFile {
     sourceId: string;
     importer: ImporterId;
-    /** Path relative to the takeout root. */
+    /** Root `takeoutPath` is relative to; absent means the takeout root. */
+    root?: CorpusRoot;
+    /** Path relative to the source root (the takeout root unless `root` says otherwise). */
     takeoutPath: string;
     /** Path relative to the import folder; also relative to `CORPUS_DIR` where the copy lives. */
     importPath: string;
     gunzip: boolean;
+    /** SQLite database whose `-wal` is folded into the copy. */
+    sqlite?: boolean;
 }
 
 export async function walkFiles(root: string): Promise<{ path: string; size: number }[]> {
@@ -46,14 +55,56 @@ export function matchSource(source: CorpusSource, takeoutPaths: string[]): Corpu
         takeoutPath,
         importPath: source.to(takeoutPath),
         gunzip: Boolean(source.gunzip),
+        ...(source.root && source.root !== 'takeout' ? { root: source.root } : {}),
+        ...(source.sqlite ? { sqlite: true } : {}),
     }));
 }
 
-/** Resolves the manifest against the takeout root. */
+/**
+ * Lists the files under `root` a home-rooted source can match. The home directory is far too big to walk, so only
+ * the static part of each pattern (before the first glob) is walked.
+ */
+async function listHomeCandidates(source: CorpusSource): Promise<string[]> {
+    const paths = new Set<string>();
+
+    for (const pattern of asArray(source.from)) {
+        const { base, isGlob } = micromatch.scan(pattern);
+        const absoluteBase = join(HOME_DIR, base);
+
+        if (!isGlob) {
+            const stat = await fs.stat(absoluteBase).catch(() => undefined);
+
+            if (stat?.isFile()) {
+                paths.add(pattern);
+            }
+
+            continue;
+        }
+
+        // No stat per file: live profiles change while being walked.
+        const entries = await fs.readdir(absoluteBase, { recursive: true, withFileTypes: true }).catch(() => []);
+
+        for (const entry of entries) {
+            if (entry.isFile()) {
+                paths.add(relative(HOME_DIR, join(entry.parentPath, entry.name)));
+            }
+        }
+    }
+
+    return [...paths];
+}
+
+/** Resolves the manifest against the takeout root and, for `root: 'home'` sources, the home directory. */
 export async function resolveCorpusFromTakeout(): Promise<CorpusFile[]> {
     const takeoutPaths = (await walkFiles(TAKEOUT_DIR)).map((f) => f.path);
+    const files: CorpusFile[] = [];
 
-    return corpusSources.flatMap((source) => matchSource(source, takeoutPaths));
+    for (const source of corpusSources) {
+        const candidates = source.root === 'home' ? await listHomeCandidates(source) : takeoutPaths;
+        files.push(...matchSource(source, candidates));
+    }
+
+    return files;
 }
 
 /**

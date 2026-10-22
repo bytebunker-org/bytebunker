@@ -63,11 +63,19 @@ Behavior per collection:
 
 1. **Bookmarks: any one profile is enough.** All profiles converge on the same bookmark set (live + tombstones), differing only by the small lag since the last sync. The simplest source is the active dev-edition `places.sqlite`. The Sync takeout from April 2024 is a useful additional snapshot if we want a frozen reference point.
 
-2. **History: we need every device's `places.sqlite` to be complete.** Importing just the local dev profile would give us 108 K visits going back to 2019; the local stable profile adds another 350 K mostly-overlapping visits going back to late 2023. The other machines (triton, calypso, MacBook, Android) almost certainly hold visits that *neither* of these has, because Sync's history retention is bounded.
+2. **History: we need every device's `places.sqlite` to be complete.** Importing just the local dev profile would give us 180 K visits going back to 2019; the local stable profile adds another 249 K visits going back to 2020, of which ~67 K overlap. The other machines (triton, calypso, MacBook, Android) almost certainly hold visits that *neither* of these has, because Sync's history retention is bounded.
 
 3. **No device-of-origin attribution is preserved** in `moz_historyvisits` once a visit has been merged in via Sync. The `source` column is `VISIT_SOURCE_*` (organic / searched / bookmarked), not "from device X". The `clients` collection in Sync names the device, but individual *visit* records do not carry that name. Best we can do downstream is "this visit was first observed by profile X" — and even that requires we keep the import-source label per row.
 
 4. **Dedup is the importer's responsibility — but bytebunker already handles event dedup.** Same `(url, visit_date)` will arrive multiple times if multiple profiles all sync'd it; the existing dedup will collapse those. We just need the importer to emit deterministic-keyed events from each source and let the platform sort it out.
+
+   Measured 2026-10-22 on the two local profiles: Sync stores a visit it receives **rounded to the millisecond**
+   (the origin keeps microseconds). Matching on the exact microsecond finds 27 000 shared visits (only those whose
+   origin time happened to be a whole millisecond); matching on the millisecond finds 70 650, all with the same
+   `visit_type`. The importer's key is therefore `browser:visit:<normalised url>:<visit time in ms>`. After noise
+   filtering 67 080 visits are shared. About 1 300 of them are classified differently on the two sides: the synced
+   copy has no `from_visit`, so a redirect hop dropped on the origin side survives on the receiving side.
+   Synced visits keep `source = 0`; there is still no device-of-origin marker.
 
 5. **Android is the awkward one.** Mozilla Firefox for Android (`org.mozilla.firefox`) keeps its profile in app-private storage at `/data/data/org.mozilla.firefox/files/mozilla/<profile>.default/`. To get `places.sqlite` off the device, options are:
    - `adb backup` of the app data (requires the app to allow backups; recent Firefox builds have varied here).

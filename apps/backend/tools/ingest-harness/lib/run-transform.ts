@@ -23,6 +23,9 @@ import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ic
 import { TransformAirbnbExportPipelineModule } from '../../../src/extension/extensions/airbnb/pipeline-module/transform-airbnb-export.pipeline-module.js';
 import { ParseWhatsappChatPipelineModule } from '../../../src/extension/extensions/whatsapp/pipeline-module/parse-whatsapp-chat.pipeline-module.js';
 import { TransformSpotifyStreamingHistoryPipelineModule } from '../../../src/extension/extensions/spotify/pipeline-module/transform-spotify-streaming-history.pipeline-module.js';
+import { TransformBrowserDatabasePipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-browser-database.pipeline-module.js';
+import { TransformChromeTakeoutHistoryPipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-chrome-takeout-history.pipeline-module.js';
+import { TransformBookmarksHtmlPipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-bookmarks-html.pipeline-module.js';
 import { importers, type ImporterId } from '../corpus.manifest.js';
 import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
 
@@ -82,6 +85,12 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
             s.graphNodeService,
         ) as never,
     whatsapp: (s) => new ParseWhatsappChatPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
+    'browser-history-database': (s) =>
+        new TransformBrowserDatabasePipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
+    'chrome-takeout-history': (s) =>
+        new TransformChromeTakeoutHistoryPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
+    'browser-bookmarks-html': (s) =>
+        new TransformBookmarksHtmlPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
 };
 
 /** Same defaults as `settingsConfig` (eventUniqueLocationPrecision / eventUniqueDateTimePrecision). */
@@ -143,6 +152,8 @@ export async function runTransform(file: CorpusFile): Promise<TransformRun> {
         storagePath: fullPath,
         originalFilename: file.importPath.slice(file.importPath.lastIndexOf('/') + 1),
         size,
+        // What the local-file trigger records: the path relative to the import folder.
+        metadata: { 'Original-File-Path': file.importPath },
     } as unknown as AssetDto;
 
     for (const edge of blueprint.getInputEdgesAtNode(node)) {
