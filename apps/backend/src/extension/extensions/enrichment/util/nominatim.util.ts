@@ -126,22 +126,30 @@ export function mapNominatimReverse(response: NominatimReverseResponse): OsmPlac
     ) as unknown as OsmPlaceDetails;
 }
 
-export type PlaceNameSource = 'osm' | 'source' | 'address';
+export type PlaceNameSource = 'osm' | 'mapbox' | 'source' | 'address';
 
 export interface PlaceNameInput {
     osmName?: string | null;
+    /** POI name from the Mapbox refinement. */
+    mapboxName?: string | null;
     /** The name the place had from its source data (e.g. Google Timeline), set by consolidate-places. */
     sourceName?: string | null;
     road?: string | null;
     houseNumber?: string | null;
 }
 
-/** OSM POI name > name from the source data > road and house number. */
+/** OSM POI name > Mapbox POI name > name from the source data > road and house number. */
 export function selectPlaceName(input: PlaceNameInput): { name: string; nameSource: PlaceNameSource } | undefined {
     const osmName = input.osmName?.trim();
 
     if (osmName) {
         return { name: osmName, nameSource: 'osm' };
+    }
+
+    const mapboxName = input.mapboxName?.trim();
+
+    if (mapboxName) {
+        return { name: mapboxName, nameSource: 'mapbox' };
     }
 
     const sourceName = input.sourceName?.trim();

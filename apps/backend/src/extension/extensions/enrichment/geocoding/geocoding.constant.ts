@@ -1,3 +1,4 @@
+import { MAPBOX_GEOCODE_PROPERTY_KEYS } from '../util/mapbox.util.js';
 export const DEFAULT_GEONAMES_DATA_DIR = './temp/geonames';
 export const DEFAULT_GEONAMES_BASE_URL = 'https://download.geonames.org/export/dump';
 export const DEFAULT_NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
@@ -51,4 +52,8 @@ export const ONLINE_GEOCODE_PROPERTY_KEYS = [
 export const GEOCODE_PROPERTY_KEYS: readonly string[] = [
     ...OFFLINE_GEOCODE_PROPERTY_KEYS,
     ...ONLINE_GEOCODE_PROPERTY_KEYS,
+    ...MAPBOX_GEOCODE_PROPERTY_KEYS,
 ];
+
+/** Mapbox allows 600 reverse requests per minute; 150 ms keeps well below that. */
+export const DEFAULT_MAPBOX_MIN_INTERVAL_MS = 150;

@@ -29,6 +29,14 @@ export interface GeocodablePlace {
     refinedAt?: string;
     refinedLatitude?: number;
     refinedLongitude?: number;
+    mapboxName?: string;
+    mapboxRoad?: string;
+    mapboxHouseNumber?: string;
+    mapboxCity?: string;
+    mapboxCountryCode?: string;
+    mapboxRefinedAt?: string;
+    mapboxRefinedLatitude?: number;
+    mapboxRefinedLongitude?: number;
 }
 
 /** Geocoding of a canonical place as derive-trips needs it for trip names. */
@@ -58,6 +66,12 @@ const PLACE_FIELDS = [
     'road',
     'houseNumber',
     'refinedAt',
+    'mapboxName',
+    'mapboxRoad',
+    'mapboxHouseNumber',
+    'mapboxCity',
+    'mapboxCountryCode',
+    'mapboxRefinedAt',
 ] as const;
 
 /**
@@ -77,6 +91,7 @@ export class PlaceGeocodeService {
              WITH p ORDER BY p.id LIMIT ${PLACE_READ_BATCH_SIZE}
              RETURN p.id AS id, p.latitude AS latitude, p.longitude AS longitude, p.visitCount AS visitCount,
                     p.refinedLatitude AS refinedLatitude, p.refinedLongitude AS refinedLongitude,
+                    p.mapboxRefinedLatitude AS mapboxRefinedLatitude, p.mapboxRefinedLongitude AS mapboxRefinedLongitude,
                     ${PLACE_FIELDS.map((field) => `p.${field} AS ${field}`).join(', ')}`;
         const places: GeocodablePlace[] = [];
         let after = '';
@@ -114,6 +129,14 @@ export class PlaceGeocodeService {
                 if (typeof refinedLatitude === 'number' && typeof refinedLongitude === 'number') {
                     place.refinedLatitude = refinedLatitude;
                     place.refinedLongitude = refinedLongitude;
+                }
+
+                const mapboxLatitude: unknown = record.get('mapboxRefinedLatitude');
+                const mapboxLongitude: unknown = record.get('mapboxRefinedLongitude');
+
+                if (typeof mapboxLatitude === 'number' && typeof mapboxLongitude === 'number') {
+                    place.mapboxRefinedLatitude = mapboxLatitude;
+                    place.mapboxRefinedLongitude = mapboxLongitude;
                 }
 
                 places.push(place);

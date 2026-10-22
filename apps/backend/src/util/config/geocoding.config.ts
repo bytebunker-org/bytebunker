@@ -31,4 +31,25 @@ export class GeocodingConfig {
     @IsInt()
     @Min(0)
     public readonly nominatimMinIntervalMs?: number;
+
+    /**
+     * Mapbox access token for the Mapbox place refinement (temporary Geocoding API). Without it the Mapbox refinement
+     * does nothing.
+     */
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    public readonly mapboxAccessToken?: string;
+
+    /** Default `https://api.mapbox.com`. */
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    public readonly mapboxBaseUrl?: string;
+
+    /** Minimum milliseconds between two Mapbox requests. Default 150 (Mapbox allows 600 per minute). */
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    public readonly mapboxMinIntervalMs?: number;
 }

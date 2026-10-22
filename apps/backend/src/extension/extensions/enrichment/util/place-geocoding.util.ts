@@ -1,4 +1,5 @@
 import { haversineMeters } from './geo.util.js';
+import { MAPBOX_GEOCODE_PROPERTY_KEYS, type MapboxPlaceDetails } from './mapbox.util.js';
 import type { OfflineGeocode } from './geonames.util.js';
 import { type OsmPlaceDetails, selectPlaceName } from './nominatim.util.js';
 import { ONLINE_GEOCODE_PROPERTY_KEYS } from '../geocoding/geocoding.constant.js';
@@ -21,7 +22,15 @@ function nameProps(
     fields: { osmName?: string; road?: string; houseNumber?: string },
 ): Record<string, unknown> {
     const sourceName = sourceNameOf(place);
-    const selected = selectPlaceName({ ...fields, sourceName });
+    // Address from OSM if it has one there, otherwise from Mapbox.
+    const hasOsmRoad = Boolean(fields.road);
+    const selected = selectPlaceName({
+        osmName: fields.osmName,
+        mapboxName: place.mapboxName,
+        sourceName,
+        road: hasOsmRoad ? fields.road : place.mapboxRoad,
+        houseNumber: hasOsmRoad ? fields.houseNumber : place.mapboxHouseNumber,
+    });
 
     return {
         // Pins the source name before `name` is overwritten, so a later run still knows it.
@@ -40,7 +49,7 @@ export function buildOfflineGeocodeProps(
     countries: Map<string, string>,
     now: Date,
 ): Record<string, unknown> {
-    const countryCode = place.osmCountryCode ?? geocode?.countryCode;
+    const countryCode = place.osmCountryCode ?? place.mapboxCountryCode ?? geocode?.countryCode;
     const country = countryCode ? (countries.get(countryCode) ?? geocode?.country) : undefined;
 
     return {
@@ -52,7 +61,7 @@ export function buildOfflineGeocodeProps(
         country: country ?? null,
         timezone: geocode?.timezone ?? null,
         cityDistanceKm: geocode?.cityDistanceKm ?? null,
-        city: place.osmCity ?? geocode?.geonamesCity ?? null,
+        city: place.osmCity ?? place.mapboxCity ?? geocode?.geonamesCity ?? null,
         offlineGeocodedAt: now.toISOString(),
         ...nameProps(place, { osmName: place.osmName, road: place.road, houseNumber: place.houseNumber }),
     };
@@ -119,4 +128,35 @@ export function selectPlacesToRefine(
         .sort((a, b) => b.visitCount - a.visitCount || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     return { selected: due.slice(0, options.maxPlaces), pending: due.length };
+}
+
+/** Properties enrichment:refine-places-mapbox writes for one Mapbox answer. */
+export function buildMapboxRefinementProps(
+    place: GeocodablePlace,
+    details: MapboxPlaceDetails,
+    now: Date,
+): Record<string, unknown> {
+    const props: Record<string, unknown> = {};
+
+    for (const key of MAPBOX_GEOCODE_PROPERTY_KEYS) {
+        props[key] = (details as unknown as Record<string, unknown>)[key] ?? null;
+    }
+
+    const merged: GeocodablePlace = {
+        ...place,
+        mapboxName: details.mapboxName,
+        mapboxRoad: details.mapboxRoad,
+        mapboxHouseNumber: details.mapboxHouseNumber,
+    };
+
+    return {
+        ...props,
+        mapboxFound: details.mapboxFound,
+        mapboxRefinedAt: now.toISOString(),
+        mapboxRefinedLatitude: place.latitude,
+        mapboxRefinedLongitude: place.longitude,
+        // OSM and GeoNames win where they have a value; Mapbox fills the gaps.
+        ...(!place.osmCity && !place.geonamesCity && details.mapboxCity ? { city: details.mapboxCity } : {}),
+        ...nameProps(merged, { osmName: place.osmName, road: place.road, houseNumber: place.houseNumber }),
+    };
 }

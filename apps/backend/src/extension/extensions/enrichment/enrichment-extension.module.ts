@@ -15,6 +15,8 @@ import { RefinePlacesOnlinePipelineModule } from './pipeline-module/refine-place
 import { PlaceGeocodeService } from './graph/place-geocode.service.js';
 import { GeoNamesDataService } from './geocoding/geonames-data.service.js';
 import { NominatimClientService } from './geocoding/nominatim-client.service.js';
+import { MapboxClientService } from './geocoding/mapbox-client.service.js';
+import { RefinePlacesMapboxPipelineModule } from './pipeline-module/refine-places-mapbox.pipeline-module.js';
 
 const pipelineModules = [
     ConsolidatePlacesPipelineModule,
@@ -39,6 +41,8 @@ const pipelineModules = [
         PlaceGeocodeService,
         GeoNamesDataService,
         NominatimClientService,
+        MapboxClientService,
+        RefinePlacesMapboxPipelineModule,
         ...pipelineModules,
     ],
     exports: [DerivedGraphService],

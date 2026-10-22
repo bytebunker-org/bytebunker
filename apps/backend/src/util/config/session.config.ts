@@ -3,7 +3,7 @@ import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString }
 enum CookieSameSite {
     NONE = 'none',
     LAX = 'lax',
-    STRICT = 'strict'
+    STRICT = 'strict',
 }
 
 export class SessionConfig {
