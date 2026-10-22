@@ -28,4 +28,8 @@ export enum NodeLabelEnum {
     ACTIVITY_LISTEN = 'Listen',
     ACTIVITY_VIEW = 'View',
     ACTIVITY_EVENT = 'Event',
+    /** Derived by enrichment: a trip away from home (an Activity, so it shows up in activity queries). */
+    ACTIVITY_TRAVEL = 'Travel',
+    /** Derived by enrichment: per-day aggregates (counts, places, distances, listening time). Not an Activity. */
+    DAILY_SUMMARY = 'DailySummary',
 }

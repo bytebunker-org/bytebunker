@@ -107,19 +107,23 @@ export class DerivedGraphService {
         return { replacedNodes, replacedRelationships };
     }
 
-    /** Merges derived nodes on their id, with the given label, provenance and a GENERATED_BY edge to the extension. */
+    /**
+     * Merges derived nodes on their id, with the given label (plus `additionalLabels`), provenance and a GENERATED_BY
+     * edge to the extension.
+     */
     public async writeNodes(
         label: NodeLabelEnum,
         rows: DerivedNodeRow[],
         provenance: DerivedProvenance,
         onProgress?: (written: number) => void,
+        additionalLabels: NodeLabelEnum[] = [],
     ): Promise<void> {
         await this.neode.writeCypher(
             'MERGE (generator:Extension { id: $generatorId }) ON CREATE SET generator.name = $generatorName',
             { generatorId: ENRICHMENT_EXTENSION_ID, generatorName: ENRICHMENT_EXTENSION },
         );
 
-        const cypher = buildWriteDerivedNodesCypher(label);
+        const cypher = buildWriteDerivedNodesCypher(label, additionalLabels);
         let written = 0;
 
         for (const chunk of R.chunk(rows, DERIVED_GRAPH_BATCH_SIZE)) {

@@ -52,12 +52,15 @@ export function escapeCypherIdentifier(identifier: string): string {
 // Labels and relationship types are the only interpolated values; they come from the label enums (and are escaped on
 // top of that). Batch sizes are inlined because LIMIT needs an integer and JS numbers travel as floats.
 
-export function buildWriteDerivedNodesCypher(label: NodeLabelEnum): string {
+/** `additionalLabels` are set on top of `label`, e.g. `Activity` for a derived activity type. */
+export function buildWriteDerivedNodesCypher(label: NodeLabelEnum, additionalLabels: NodeLabelEnum[] = []): string {
+    const labels = [label, ...additionalLabels].map(escapeCypherIdentifier).join(':');
+
     return [
         'UNWIND $rows AS row',
         `MERGE (n:${escapeCypherIdentifier(NodeLabelEnum.AS_OBJECT)} { id: row.id })`,
         // `=` replaces every property, so a flag that is no longer true does not linger from an earlier run.
-        `SET n = row.props, n += $provenance, n.id = row.id, n:${escapeCypherIdentifier(label)}`,
+        `SET n = row.props, n += $provenance, n.id = row.id, n:${labels}`,
         'WITH n',
         `MATCH (generator:${escapeCypherIdentifier(NodeLabelEnum.EXTENSION)} { id: $generatorId })`,
         `MERGE (n)-[:${escapeCypherIdentifier(RelationshipLabelEnum.GENERATED_BY)}]->(generator)`,

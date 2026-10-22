@@ -68,6 +68,12 @@ describe('derived graph cypher', () => {
         expect(cypher).toContain('MERGE (n)-[:`GENERATED_BY`]->(generator)');
     });
 
+    it('sets additional labels, e.g. Activity on a derived activity type', () => {
+        expect(buildWriteDerivedNodesCypher(NodeLabelEnum.ACTIVITY_TRAVEL, [NodeLabelEnum.ACTIVITY])).toContain(
+            'n.id = row.id, n:`Travel`:`Activity`',
+        );
+    });
+
     it('only deletes nodes the current execution did not write, in limited batches', () => {
         const cypher = buildDeleteStaleDerivedNodesCypher(NodeLabelEnum.CANONICAL_PLACE);
 

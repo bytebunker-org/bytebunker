@@ -21,6 +21,8 @@ import { AudiobookChapterSchema } from './as-object/audiobook-chapter.schema.js'
 import { SpotifyVideoSchema } from './as-object/spotify-video.schema.js';
 import { SpotifyViewActivitySchema } from './activity/spotify-view-activity.schema.js';
 import { CanonicalPlaceSchema } from './as-object/canonical-place.schema.js';
+import { DailySummarySchema } from './as-object/daily-summary.schema.js';
+import { TravelActivitySchema } from './activity/travel-activity.schema.js';
 
 export function registerGraphSchemas(neode: Neode): void {
     neode.model(NodeLabelEnum.EXTENSION, ExtensionSchema);
@@ -53,6 +55,9 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.ACTIVITY_VIEW, NodeLabelEnum.YOUTUBE_VIEW_ACTIVITY, YouTubeViewActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY_VIEW, NodeLabelEnum.SPOTIFY_VIEW_ACTIVITY, SpotifyViewActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_EVENT, EventActivitySchema);
+    // Derived by enrichment. A daily summary is deliberately not an Activity: activity queries must not count it.
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_TRAVEL, TravelActivitySchema);
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.DAILY_SUMMARY, DailySummarySchema);
 }
 
 export const relationshipInfoMap: Record<
