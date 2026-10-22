@@ -63,14 +63,14 @@ my-hub persons through shared stable keys (see "my-hub integration").
 - Pipeline emits one `Event` per occurrence with the full component under `ics`.
 - Follow-ups: VTODO (completed tasks) and VJOURNAL as activities; attendees as Person nodes.
 
-### 2. Airbnb — in progress
+### 2. Airbnb — done
 
 One module `airbnb:transform-airbnb-export` takes any file from `Airbnb_data_request_*/json/` and detects the kind:
 `reservations.json` → `Event` stays; `search_history.json` → `Search`; `messages.json` → `Create`+`Note`
 per message; `reviews.json` → `Create`+`Note` review. Not imported: wishlists (no timestamps), experiences (no
 dates), payments, ID verification, telemetry, activity log.
 
-### 3. Google "My Activity" + YouTube search history
+### 3. Google "My Activity" + YouTube search history — done
 
 Generic parser for the Takeout activity HTML (`.outer-cell` blocks; header = product, body = verb + link(s) +
 timestamp, caption = products/locations/details). Files: `Meine Aktivitäten/<Produkt>/MeineAktivitäten.html`,
@@ -96,7 +96,7 @@ stores received visits at ms precision). Noise dropped: redirect hops (only the 
 framed loads, browser-internal URLs (`file:` kept). Bookmarks → `Add` + `Bookmark`, key
 `browser:bookmark:<url>:<ms>` plus `browser:bookmark:firefox:<guid>`. Numbers in `docs/import/firefox-overview.md`.
 
-### 5. WhatsApp chat export
+### 5. WhatsApp chat export — done
 
 Parser for `WhatsApp Chat with <name>.txt` (or the zip). Locale-tolerant header detection: US
 `M/D/YY, H:MM - `, DE `DD.MM.YY, HH:MM - `, iOS `[DD.MM.YY, HH:MM:SS] `, 12h AM/PM. Handles multi-line messages,
@@ -104,19 +104,19 @@ system lines, `<Media omitted>`/`<Medien ausgeschlossen>`, `(file attached)`/`(D
 edited markers, U+200E marks. Messages → `Create`+`Note`, sender → Person by export-scoped name, the owner
 detected by option (`ownerName`). Sample export: 8,148 messages, 2 senders, 2025-10 → 2026-10.
 
-### 6. Google Maps saved places and reviews
+### 6. Google Maps saved places and reviews — done
 
 `Maps (Meine Orte)/Gespeicherte Orte.json` (GeoJSON with dates) → `Add` of Place; `Bewertungen.json` → `Create`
 review with rating; `Gespeichert/*.csv` lists (title, note, URL, comment; no dates), labeled places, commute
 settings.
 
-### 7. Spotify Extended Streaming History
+### 7. Spotify Extended Streaming History — done
 
 `spotify` extension replacing the execute-code blueprint: audio, podcast episodes, audiobook chapters, video.
 `ts` is the end of playback (start = ts − ms_played); identity `spotify:play:<ts>:<uri>`; per-row errors are
 skipped and counted; IP addresses are not stored.
 
-### 8. my-hub integration
+### 8. my-hub integration — done (sync runs manually)
 
 Person nodes seeded from my-hub with all identity keys (`person:myhub:<id>`, `person:email:`, `person:phone:`,
 `person:handle:<platform>:<id>`), a standalone object write path (`bytebunker-core:store-objects`), and the my-hub
@@ -263,6 +263,30 @@ This touches the shape Cypher owned by the persister thread, so it is left to th
 
 Google Fit (1.8 GB), Google Contacts vCards (my-hub owns persons), Google Pay, Play Store purchases, Chrome
 takeout settings, raw Location History records.
+
+## Results (tier-1 over ~/Documents/takeout and local browser profiles, 2026-10-22)
+
+All new sources: 0 errors, 0 conflicting identity keys. Activities per source: Spotify 236,890 plays + 571 video;
+Firefox 236,606 (default-release) + 170,093 (dev-edition, 67,942 of them shared with default-release through
+Sync and deduped); Chrome/Chromium 1,257 local + 3,076 Takeout, 980 bookmarks; Google My Activity 104,597 (2025
+takeout) + 78,989 (2020 takeout); WhatsApp 8,144 messages; ICS 756 occurrences; Airbnb 118; Maps 19.
+Tier-2 e2e (real pipeline, worktree instance): every file imports, ~550 activities/s, no duplicate nodes.
+
+## Open issues
+
+- Firefox default-release produces a 162.5 MB node output (one JSONB row); split with the module's
+  `fromDate`/`toDate` options until chunked outputs land (`docs/ingest-plan.md` step 4).
+- Person props are last-write-wins: an importer's Person can overwrite a my-hub name. Needs a precedence rule in
+  the persister (my-hub props win).
+- Attendees/organizers are JSON on Event activities; graph edges to Person need multi-valued relationships
+  (proposal in "my-hub integration").
+- my-hub `/export` endpoints live on my-hub branch `feat/bytebunker-person-export` (not merged or deployed);
+  person and calendar sync need them plus `myHub.baseUrl`/`myHub.token`.
+- Maps saved places/reviews key places by cid/ftid, the timeline by placeId: they only meet through coordinates.
+- WhatsApp partners are keyed by display name; two contacts with the same name share a node.
+- English Takeout timestamps print CEST all year; treated as fixed offsets like MEZ/MESZ. Unverified.
+- The harness reports re-imports that the trigger skips as duplicates as 60 s "no-pipeline" timeouts.
+- Spotify Listen nodes imported earlier by the execute-code script use other keys; wipe before re-importing.
 
 ## Known issues found on the way
 
