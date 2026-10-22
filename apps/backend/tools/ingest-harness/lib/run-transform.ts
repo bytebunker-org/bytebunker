@@ -17,6 +17,7 @@ import { Blueprint } from '../../../src/etl/pipeline/blueprint/util/blueprint.cl
 import type { IPipelineModule } from '../../../src/etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
 import { TransformTimelinePipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-timeline.pipeline-module.js';
 import { TransformSemanticLocationHistoryPipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-semantic-location-history.pipeline-module.js';
+import { TransformMapsPlacesPipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-maps-places.pipeline-module.js';
 import { TransformYouTubeWatchHistoryPipelineModule } from '../../../src/extension/extensions/youtube/pipeline-module/transform-youtube-watch-history.pipeline-module.js';
 import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ics-calendar/pipeline-module/parse-ics-file.pipeline-module.js';
 import { ExecuteCodePipelineModule } from '../../../src/etl/pipeline/pipeline-module/core-module/execute-code.pipeline-module.js';
@@ -43,6 +44,13 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
         ) as never,
     'google-semantic-location-history': (s) =>
         new TransformSemanticLocationHistoryPipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
+    'google-maps-places': (s) =>
+        new TransformMapsPlacesPipelineModule(
             s.assetService,
             s.stableKeyService,
             s.graphService,

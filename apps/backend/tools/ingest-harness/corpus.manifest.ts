@@ -12,7 +12,8 @@ export type ImporterId =
     | 'google-semantic-location-history'
     | 'youtube-watch-history'
     | 'ics-calendar'
-    | 'spotify-streaming-history-script';
+    | 'spotify-streaming-history-script'
+    | 'google-maps-places';
 
 export interface ImporterDefinition {
     id: ImporterId;
@@ -65,6 +66,12 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
     'spotify-streaming-history-script': {
         id: 'spotify-streaming-history-script',
         blueprintFile: 'spotify-streaming-history-script.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
+    'google-maps-places': {
+        id: 'google-maps-places',
+        blueprintFile: 'google-maps-places.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
@@ -125,6 +132,26 @@ export const corpusSources: CorpusSource[] = [
         to: (path) => `spotify/${basename(path)}`,
         notes: 'Imported through the execute-code blueprint (inline script), there is no Spotify module yet.',
     },
+    {
+        id: 'maps-saved-places-2025',
+        importer: 'google-maps-places',
+        from: `${takeout2025}/Maps (Meine Orte)/Gespeicherte Orte.json`,
+        to: () => 'google/maps/takeout-2025/saved-places.json',
+        notes: 'German takeout; entries without a resolvable place come with [0, 0] coordinates.',
+    },
+    {
+        id: 'maps-reviews-2025',
+        importer: 'google-maps-places',
+        from: `${takeout2025}/Maps (Meine Orte)/Bewertungen.json`,
+        to: () => 'google/maps/takeout-2025/reviews.json',
+    },
+    {
+        id: 'maps-reviews-outlook',
+        importer: 'google-maps-places',
+        from: `${outlookTakeout}/Maps (your places)/Reviews.json`,
+        to: () => 'google/maps/takeout-outlook/reviews.json',
+        notes: 'English takeout (Title Case keys); overlaps maps-reviews-2025 with different review dates.',
+    },
 ];
 
 /**
@@ -175,9 +202,9 @@ export const knownUnsupported: { area: string; glob: string; notes: string }[] =
     { area: 'Chrome', glob: '**/Chrome/**', notes: 'Bookmarks/history JSON.' },
     { area: 'Contacts', glob: '**/{Google Kontakte,Contacts}/**', notes: 'VCF.' },
     {
-        area: 'Maps saved/your places',
+        area: 'Maps other (labeled places, commute, Gespeichert CSV lists)',
         glob: '**/{Maps,Maps \\(Meine Orte\\),Maps \\(your places\\),Gespeichert,Saved}/**',
-        notes: 'Saved places, reviews.',
+        notes: 'Saved/reviews JSON is imported; labeled places have no dates and the CSV lists are skipped by decision.',
     },
     {
         area: 'Google Pay / Play',
