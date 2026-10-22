@@ -1,3 +1,4 @@
+import { normalizePageUrl, pageStableKey } from '../../../../activity-graph/util/page-stable-key.util.js';
 import { createHash } from 'node:crypto';
 import { DateTime } from 'luxon';
 import type { ASObject, Audio, Note, Place } from '@bytebunker/event-schema';
@@ -228,7 +229,8 @@ export class GoogleActivityMapper {
 
         return {
             '@type': 'Page',
-            stableKeys: [this.objectKey('Page', { pageUrl })],
+            // Same identity as browser visits and bookmarks, so a page seen in both links to one node.
+            stableKeys: [pageStableKey(normalizePageUrl(pageUrl) ?? pageUrl)],
             ...(title ? { name: title } : {}),
             pageUrl,
             ...(packageName ? { packageName } : {}),
