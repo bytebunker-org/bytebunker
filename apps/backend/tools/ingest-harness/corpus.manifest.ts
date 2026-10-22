@@ -12,6 +12,7 @@ export type ImporterId =
     | 'google-semantic-location-history'
     | 'youtube-watch-history'
     | 'ics-calendar'
+    | 'whatsapp'
     | 'spotify-streaming-history-script';
 
 export interface ImporterDefinition {
@@ -59,6 +60,12 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
     'ics-calendar': {
         id: 'ics-calendar',
         blueprintFile: 'ics-calendar.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
+    whatsapp: {
+        id: 'whatsapp',
+        blueprintFile: 'whatsapp.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
@@ -119,6 +126,13 @@ export const corpusSources: CorpusSource[] = [
         to: (path) => `calendar/export-2026/${basename(path)}`,
     },
     {
+        id: 'whatsapp-hannah-km',
+        importer: 'whatsapp',
+        from: 'whatsapp-exports/hannah-km/WhatsApp Chat with *.txt',
+        to: (path) => `whatsapp/${basename(path)}`,
+        notes: 'Folder copy of the zip (same chat file); derived files next to it are not exports and are not matched.',
+    },
+    {
         id: 'spotify-audio',
         importer: 'spotify-streaming-history-script',
         from: 'Spotify Extended Streaming History/Streaming_History_Audio_*.json',
@@ -143,7 +157,6 @@ export const knownUnsupported: { area: string; glob: string; notes: string }[] =
         glob: 'Airbnb_data_request_*/**',
         notes: 'Reservations, messages, reviews, search history (JSON).',
     },
-    { area: 'WhatsApp chats', glob: 'whatsapp-exports/**', notes: 'Plain-text chat export.' },
     {
         area: 'Google raw Location History (Records)',
         glob: `${outlookTakeout}/Location History/Location History.json`,
