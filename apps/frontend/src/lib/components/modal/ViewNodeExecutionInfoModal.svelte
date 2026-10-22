@@ -14,39 +14,74 @@
 	import CodeEditor from '$lib/components/monaco/CodeEditor.svelte';
 	import { createQuery } from '@tanstack/svelte-query';
 	import type { FindAllDto } from '@bytebunker/backend';
+	import { PipelineExecutionStatusEnum } from '@bytebunker/backend';
 	import { PipelineExecutionLogApi } from '$lib/api/PipelineExecutionLogApi.js';
 	import { DateTime } from 'luxon';
+	import { PipelineApi } from '$lib/api/PipelineApi.js';
+	import {
+		isTerminalStatus,
+		pipelineProgressQueryKey
+	} from '$lib/components/pipeline/execution/pipelineProgress.svelte.js';
 
 	let { options }: ModalProps<ModalTypeEnum.VIEW_NODE_EXECUTION_INFO> = $props();
-	console.log('options', options);
 
 	let node = $derived<BlueprintNodeDto>(options.blueprintNode);
 	let module = $derived<PipelineModuleDto>(options.module);
 	let executionData = $derived<PipelineExecutionDataDto>(options.executionData);
+	let executionId = $derived(options.executionData.pipelineExecution.id);
+
+	// The page keeps this query up to date from the SSE stream; the interval is only a fallback
+	// while the modal is open on a running execution.
+	const progressQuery = createQuery(() => ({
+		queryKey: pipelineProgressQueryKey(executionId),
+		queryFn: () => PipelineApi.getProgress(executionId),
+		refetchInterval: (query) => (isTerminalStatus(query.state.data?.executionStatus) ? false : 5000)
+	}));
+
+	let nodeProgress = $derived(progressQuery.data?.nodes.find((n) => n.nodeId === node.id));
+	let status = $derived(
+		(nodeProgress?.status ?? executionData.executionStatus) as PipelineExecutionStatusEnum
+	);
+	let percent = $derived(
+		nodeProgress?.fraction === undefined ? undefined : Math.round(nodeProgress.fraction * 100)
+	);
+
+	// Load only this node's output; a full execution can be tens of megabytes.
+	const nodeDataQuery = createQuery(() => ({
+		queryKey: ['pipeline-node-data', executionId, node.id, status],
+		queryFn: () => PipelineApi.findNodeData(executionId, node.id),
+		staleTime: 5 * 60 * 1000
+	}));
+
+	let outputData = $derived(nodeDataQuery.data?.data);
 	let moduleId = $derived(deconstructPipelineModuleIdentifier(node.moduleId));
 
 	const pipelineExecutionLogsQuery = createQuery(() => ({
 		queryKey: [
 			'pipeline-execution-log',
+			executionId,
 			{
 				where: {
 					nodeId: node.id
 				}
 			} satisfies FindAllDto<PipelineExecutionLogDto>
-		],
-		queryFn: ({ queryKey }) =>
-			PipelineExecutionLogApi.findAll(options.executionData.pipelineExecution.id, queryKey[1])
+		] as const,
+		queryFn: ({ queryKey }) => PipelineExecutionLogApi.findAll(executionId, queryKey[2]),
+		refetchInterval: () => (isTerminalStatus(progressQuery.data?.executionStatus) ? false : 5000)
 	}));
 
-	function reduceDataSize(executionData: Record<string, unknown>): Record<string, unknown> {
-		for (const [key, value] of Object.entries(executionData)) {
-			if (Array.isArray(value) && value.length > 50) {
-				console.log('found array with len', value.length);
-				executionData[key] = value.slice(0, 50).push('Data reduced to prevent lag');
-			}
+	/** Shortens long arrays so the editor stays responsive. */
+	function reduceDataSize(data: Record<string, unknown>): Record<string, unknown> {
+		const reduced: Record<string, unknown> = {};
+
+		for (const [key, value] of Object.entries(data)) {
+			reduced[key] =
+				Array.isArray(value) && value.length > 50
+					? [...value.slice(0, 50), `… ${value.length - 50} weitere Einträge nicht angezeigt`]
+					: value;
 		}
 
-		return executionData;
+		return reduced;
 	}
 </script>
 
@@ -56,20 +91,42 @@
 	</Dialog.Title>
 	<div class="flex items-center gap-2">
 		Ausführung Status:
-		<PipelineStatusBadge status={executionData.executionStatus} />
+		<PipelineStatusBadge {status} />
 	</div>
+	{#if nodeProgress && (nodeProgress.message || percent !== undefined || nodeProgress.current !== undefined)}
+		<div class="flex flex-col gap-1 text-sm">
+			{#if percent !== undefined}
+				<progress class="progress progress-primary h-2 w-full" value={percent} max="100"></progress>
+			{:else if (status as string) === 'running'}
+				<progress class="progress progress-primary h-2 w-full"></progress>
+			{/if}
+			<div class="text-base-content/70 flex justify-between gap-2">
+				<span>{nodeProgress.message ?? ''}</span>
+				<span class="tabular-nums">
+					{#if nodeProgress.current !== undefined}
+						{nodeProgress.current.toLocaleString('de-DE')}{nodeProgress.total !== undefined
+							? ` / ${nodeProgress.total.toLocaleString('de-DE')}`
+							: ''}
+						{nodeProgress.unit ?? ''}
+					{/if}
+					{#if percent !== undefined}({percent} %){/if}
+				</span>
+			</div>
+		</div>
+	{/if}
 
 	<label class="form-control flex w-full flex-col">
 		<div class="label">
 			<span class="label-text">Ausgabedaten</span>
 		</div>
-		{#if executionData.data}
+		{#if nodeDataQuery.isPending}
+			<span class="loading loading-spinner loading-sm"></span>
+		{:else if nodeDataQuery.isError}
+			<span class="text-error text-sm">Ausgabedaten konnten nicht geladen werden.</span>
+		{:else if outputData}
 			<CodeEditor
 				class="input h-[50vh] w-full !outline-transparent"
-				value={JSON.stringify(reduceDataSize($state.snapshot(executionData.data)), null, 4).slice(
-					0,
-					5000
-				)}
+				value={JSON.stringify(reduceDataSize($state.snapshot(outputData)), null, 4).slice(0, 5000)}
 				language="json"
 				jsonSchema={module.outputTypeSchema?.jsonSchema}
 				readOnly
@@ -88,12 +145,14 @@
 			<div class="join join-vertical bg-base-100">
 				{#each pipelineExecutionLogsQuery.data as log, i}
 					<div class="collapse-arrow join-item border-base-300 collapse overflow-hidden border">
-						<input type="radio" name="execution-log-radio" checked={i === 0 ? 'checked' : ''} />
+						<input type="radio" name="execution-log-radio" checked={i === 0} />
 						<div class="collapse-title w-fit font-semibold">
 							<div class="flex gap-4">
-								<span>{log.message?.slice(0, 50)}{log.message?.length > 50 ? '...' : ''}</span>
+								<span
+									>{log.message?.slice(0, 50)}{(log.message?.length ?? 0) > 50 ? '...' : ''}</span
+								>
 								<span class="text-neutral-500"
-									>{DateTime.fromISO(log.createdAt).toLocaleString(DateTime.DATETIME_SHORT)}</span
+									>{log.createdAt.toLocaleString(DateTime.DATETIME_SHORT)}</span
 								>
 							</div>
 						</div>
