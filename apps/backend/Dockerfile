@@ -18,44 +18,56 @@ COPY . .
 # Generate a partial monorepo with a pruned lockfile for a target workspace.
 RUN turbo prune @bytebunker/backend @bytebunker/qs-esm @bytebunker/eslint-config @bytebunker/tsconfig @bytebunker/event-schema --docker
 
-FROM base AS build
+# Compiler toolchain for the native modules (pg-native/libpq, mmmagic). Only the build stages use it; the
+# runtime image gets the compiled node_modules and the shared libraries they link against.
+FROM base AS toolchain
 
-RUN apk add --no-cache --update libc6-compat alpine-sdk python3 curl py3-setuptools libpq-dev
+RUN apk add --no-cache --update libc6-compat alpine-sdk python3 py3-setuptools libpq-dev
+
+RUN npm install -g corepack@latest && corepack enable
 
 WORKDIR /opt/app
 
 ENV CI=true
 
+FROM toolchain AS build
+
 # First install the dependencies (as they change less often)
 COPY .gitignore .gitignore
 COPY --from=cleaned-repo /cleaned-repo/out/json/ .
-# Why copy this? Contents are identical to the one copied in previous cmd
 COPY --from=cleaned-repo /cleaned-repo/out/pnpm-lock.yaml ./pnpm-lock.yaml
 
-RUN npm install -g corepack@latest && corepack enable && pnpm install -r --reporter=append-only
+RUN pnpm install -r --frozen-lockfile --reporter=append-only
 
 # Build the project
 COPY --from=cleaned-repo /cleaned-repo/out/full/ .
 
 RUN pnpm turbo build --filter=@bytebunker/backend
 
-FROM base
-
-RUN apk add --no-cache --update libc6-compat alpine-sdk python3 curl py3-setuptools libpq-dev
-WORKDIR /opt/app
+# Production dependencies only, native modules compiled here
+FROM toolchain AS prod-deps
 
 COPY --from=cleaned-repo /cleaned-repo/out/json/ .
-# COPY --from=build /opt/app/package.json .
-# COPY --from=build /opt/app/pnpm-lock.yaml .
-# COPY --from=build  /opt/app/apps/backend/package.json ./apps/backend/package.json
+COPY --from=cleaned-repo /cleaned-repo/out/pnpm-lock.yaml ./pnpm-lock.yaml
 
-RUN npm install -g corepack@latest && corepack enable && pnpm install --prod --reporter=append-only
+RUN pnpm install --prod --frozen-lockfile --reporter=append-only
+
+FROM base
+
+# libpq for pg-native, libstdc++ for both native addons (mmmagic bundles its own libmagic), curl for health checks
+RUN apk add --no-cache --update libc6-compat libpq libstdc++ curl
+
+WORKDIR /opt/app
+
+COPY --from=prod-deps /opt/app .
+
+# Fetch the pnpm version from packageManager now, so `pnpm mikro-orm …` works in the container without network
+RUN npm install -g corepack@latest && corepack enable && corepack install
 
 WORKDIR /opt/app/apps/backend
 
 COPY --from=build /opt/app/packages/qs-esm/lib /opt/app/packages/qs-esm/lib
 COPY --from=build /opt/app/packages/event-schema/lib /opt/app/packages/event-schema/lib
-# COPY --from=build /opt/app/apps/backend/resources ./resources
 COPY --from=build /opt/app/apps/backend/.env.production.toml ./.env.production.toml
 COPY --from=build /opt/app/apps/backend/run-mikro-orm.cjs ./run-mikro-orm.cjs
 COPY --from=build /opt/app/apps/backend/dist ./dist
