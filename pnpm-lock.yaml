@@ -246,9 +246,6 @@ importers:
       serialize-error:
         specifier: ^12.0.0
         version: 12.0.0
-      svelte-advanced-datatable:
-        specifier: ^0.8.1
-        version: 0.8.1(@tanstack/query-core@5.62.7)(svelte-i18n@4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1)))(svelte@5.56.3(@typescript-eslint/types@8.32.1))
       ts-decorator-json-schema-generator:
         specifier: ^1.4.1
         version: 1.4.1
@@ -9201,21 +9198,6 @@ packages:
   svelte-advanced-datatable@0.7.0:
     resolution: {integrity: sha512-D99om3IVipRZcAoR5oc/K6//D/cKIjdRoHMf+QfFQYoBLotXdn9wtM0u27q2qoP9TNlkJzfnGR+J430bQen5nw==}
     version: 0.7.0
-    peerDependencies:
-      '@tanstack/query-core': 5.x
-      '@tanstack/svelte-query': '*'
-      svelte: 5.x
-      svelte-i18n: 4.x
-    peerDependenciesMeta:
-      '@tanstack/query-core':
-        optional: true
-      '@tanstack/svelte-query':
-        optional: true
-      svelte-i18n:
-        optional: true
-
-  svelte-advanced-datatable@0.8.1:
-    resolution: {integrity: sha512-7tfaUrIsCMLtUjl4Xf+banBUfA92MKotttma+AKLqFXgZymbBRh7TzRfFn+b/UkbmBdm1f242mE9F6Min8lajw==}
     peerDependencies:
       '@tanstack/query-core': 5.x
       '@tanstack/svelte-query': '*'
@@ -19476,13 +19458,6 @@ snapshots:
     optionalDependencies:
       '@tanstack/query-core': 5.62.7
       '@tanstack/svelte-query': https://pkg.pr.new/@tanstack/svelte-query@56f67c7(svelte@5.56.3(@typescript-eslint/types@8.32.1))
-      svelte-i18n: 4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1))
-
-  svelte-advanced-datatable@0.8.1(@tanstack/query-core@5.62.7)(svelte-i18n@4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1)))(svelte@5.56.3(@typescript-eslint/types@8.32.1)):
-    dependencies:
-      svelte: 5.56.3(@typescript-eslint/types@8.32.1)
-    optionalDependencies:
-      '@tanstack/query-core': 5.62.7
       svelte-i18n: 4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1))
 
   svelte-check@4.6.0(picomatch@4.0.4)(svelte@5.56.3(@typescript-eslint/types@8.32.1))(typescript@5.6.3):
