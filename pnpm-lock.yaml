@@ -105,9 +105,6 @@ importers:
       '@nestjs/cache-manager':
         specifier: ^3.0.1
         version: 3.0.1(@nestjs/common@11.1.1(@kage0x3b/class-transformer@0.7.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.1)(cache-manager@6.4.3)(keyv@5.3.3)(rxjs@7.8.2)
-      '@nestjs/cli':
-        specifier: ^11.0.7
-        version: 11.0.7(@swc/cli@0.5.2(@swc/core@1.11.29(@swc/helpers@0.5.17))(chokidar@4.0.3))(@swc/core@1.11.29(@swc/helpers@0.5.17))(@types/node@22.9.0)(esbuild@0.27.3)
       '@nestjs/common':
         specifier: ^11.1.1
         version: 11.1.1(@kage0x3b/class-transformer@0.7.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -234,6 +231,9 @@ importers:
       pg:
         specifier: ^8.16.0
         version: 8.16.0(pg-native@3.2.0)
+      pg-native:
+        specifier: ^3.2.0
+        version: 3.2.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -246,15 +246,9 @@ importers:
       serialize-error:
         specifier: ^12.0.0
         version: 12.0.0
-      svelte-advanced-datatable:
-        specifier: ^0.8.1
-        version: 0.8.1(@tanstack/query-core@5.62.7)(svelte-i18n@4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1)))(svelte@5.56.3(@typescript-eslint/types@8.32.1))
       ts-decorator-json-schema-generator:
         specifier: ^1.4.1
         version: 1.4.1
-      tsx:
-        specifier: 4.19.2
-        version: 4.19.2
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
@@ -277,6 +271,9 @@ importers:
       '@lewo-media/nestjs-schematics':
         specifier: ^10.2.3
         version: 10.2.3(chokidar@4.0.3)(typescript@5.8.3)
+      '@nestjs/cli':
+        specifier: ^11.0.7
+        version: 11.0.7(@swc/cli@0.5.2(@swc/core@1.11.29(@swc/helpers@0.5.17))(chokidar@4.0.3))(@swc/core@1.11.29(@swc/helpers@0.5.17))(@types/node@22.9.0)(esbuild@0.27.3)
       '@nestjs/schematics':
         specifier: ^11.0.5
         version: 11.0.5(chokidar@4.0.3)(typescript@5.8.3)
@@ -397,6 +394,9 @@ importers:
       tsconfig-paths:
         specifier: 4.2.0
         version: 4.2.0
+      tsx:
+        specifier: 4.19.2
+        version: 4.19.2
       typescript-eslint:
         specifier: ^8.32.1
         version: 8.32.1(eslint@9.27.0(jiti@2.7.0))(typescript@5.8.3)
@@ -741,17 +741,13 @@ importers:
         version: 5.8.3
 
   packages/qs-esm:
-    dependencies:
+    devDependencies:
       '@semantic-release/changelog':
         specifier: ^6.0.3
         version: 6.0.3(semantic-release@24.2.0(typescript@5.3.3))
       '@semantic-release/git':
         specifier: ^10.0.1
         version: 10.0.1(semantic-release@24.2.0(typescript@5.3.3))
-      semantic-release-monorepo:
-        specifier: ^8.0.1
-        version: 8.0.2(semantic-release@24.2.0(typescript@5.3.3))
-    devDependencies:
       '@tsconfig/node20':
         specifier: ^20.1.2
         version: 20.1.4
@@ -788,6 +784,9 @@ importers:
       prettier:
         specifier: ^3.1.1
         version: 3.5.3
+      semantic-release-monorepo:
+        specifier: ^8.0.1
+        version: 8.0.2(semantic-release@24.2.0(typescript@5.3.3))
       typescript:
         specifier: ~5.3.3
         version: 5.3.3
@@ -9212,21 +9211,6 @@ packages:
       svelte-i18n:
         optional: true
 
-  svelte-advanced-datatable@0.8.1:
-    resolution: {integrity: sha512-7tfaUrIsCMLtUjl4Xf+banBUfA92MKotttma+AKLqFXgZymbBRh7TzRfFn+b/UkbmBdm1f242mE9F6Min8lajw==}
-    peerDependencies:
-      '@tanstack/query-core': 5.x
-      '@tanstack/svelte-query': '*'
-      svelte: 5.x
-      svelte-i18n: 4.x
-    peerDependenciesMeta:
-      '@tanstack/query-core':
-        optional: true
-      '@tanstack/svelte-query':
-        optional: true
-      svelte-i18n:
-        optional: true
-
   svelte-check@4.6.0:
     resolution: {integrity: sha512-KhVnDFDSid57mmZtHz8gfW8AAGylOZ0vPnOIzVmAL+urzwK8sBYXRss953gD8T0OdgAQ11mdWhE6uadmtOz8TQ==}
     engines: {node: '>= 18.0.0'}
@@ -14147,7 +14131,6 @@ snapshots:
   bindings@1.5.0:
     dependencies:
       file-uri-to-path: 1.0.0
-    optional: true
 
   bits-ui@0.22.0(svelte@5.56.3(@typescript-eslint/types@8.32.1)):
     dependencies:
@@ -15896,8 +15879,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  file-uri-to-path@1.0.0:
-    optional: true
+  file-uri-to-path@1.0.0: {}
 
   file-url@3.0.0: {}
 
@@ -17351,7 +17333,6 @@ snapshots:
     dependencies:
       bindings: 1.5.0
       nan: 2.19.0
-    optional: true
 
   light-my-request@6.6.0:
     dependencies:
@@ -17857,8 +17838,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  nan@2.19.0:
-    optional: true
+  nan@2.19.0: {}
 
   nan@2.22.2: {}
 
@@ -18288,7 +18268,6 @@ snapshots:
     dependencies:
       libpq: 1.8.13
       pg-types: 1.13.0
-    optional: true
 
   pg-numeric@1.0.2: {}
 
@@ -18309,7 +18288,6 @@ snapshots:
       postgres-bytea: 1.0.0
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
-    optional: true
 
   pg-types@2.2.0:
     dependencies:
@@ -18476,8 +18454,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  postgres-array@1.0.3:
-    optional: true
+  postgres-array@1.0.3: {}
 
   postgres-array@2.0.0: {}
 
@@ -19481,13 +19458,6 @@ snapshots:
     optionalDependencies:
       '@tanstack/query-core': 5.62.7
       '@tanstack/svelte-query': https://pkg.pr.new/@tanstack/svelte-query@56f67c7(svelte@5.56.3(@typescript-eslint/types@8.32.1))
-      svelte-i18n: 4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1))
-
-  svelte-advanced-datatable@0.8.1(@tanstack/query-core@5.62.7)(svelte-i18n@4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1)))(svelte@5.56.3(@typescript-eslint/types@8.32.1)):
-    dependencies:
-      svelte: 5.56.3(@typescript-eslint/types@8.32.1)
-    optionalDependencies:
-      '@tanstack/query-core': 5.62.7
       svelte-i18n: 4.0.1(svelte@5.56.3(@typescript-eslint/types@8.32.1))
 
   svelte-check@4.6.0(picomatch@4.0.4)(svelte@5.56.3(@typescript-eslint/types@8.32.1))(typescript@5.6.3):
