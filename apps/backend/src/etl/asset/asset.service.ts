@@ -164,6 +164,17 @@ export class AssetService implements OnApplicationBootstrap {
         return this.enrich(asset);
     }
 
+    /** Finds the asset that stored exactly this content, the same lookup {@link storeAsset} dedups with. */
+    public async findByContent(
+        em: EntityManager,
+        type: AssetTypeEnum,
+        data: string | Buffer,
+    ): Promise<AssetEntity | null> {
+        const hashBuffer = Buffer.from(await blake3(data), 'hex');
+
+        return em.findOne(AssetEntity, { type, hash: hashBuffer });
+    }
+
     public async findById(em: EntityManager, id: string): Promise<AssetDto> {
         const asset = await em.findOne(AssetEntity, { id });
         if (!asset) {
