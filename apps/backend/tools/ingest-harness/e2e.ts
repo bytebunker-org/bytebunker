@@ -48,7 +48,7 @@ const { values: args } = parseArgs({
         'keep-running': { type: 'boolean', default: false },
         'allow-main-database': { type: 'boolean', default: false },
         'file-timeout-min': { type: 'string', default: '60' },
-        'stall-timeout-s': { type: 'string', default: '120' },
+        'stall-timeout-s': { type: 'string', default: '60' },
     },
 });
 
@@ -318,6 +318,8 @@ async function sampledCopy(file: CorpusFile, size: number): Promise<string> {
     const source = corpusFilePath(file);
     const target = join(CORPUS_DIR, '..', 'ingest-corpus-samples', String(size), file.importPath);
     await fs.mkdir(dirname(target), { recursive: true });
+    // copyFile keeps the corpus copy's read-only mode, so a second run must remove the old sample first.
+    await fs.rm(target, { force: true });
 
     const isJson = file.importPath.endsWith('.json');
 
@@ -397,11 +399,28 @@ async function importFile(
     let outcome: FileResult['outcome'] | undefined;
     let lastChange = Date.now();
     let lastFingerprint = '';
+    // Row timestamps come from Postgres now(), i.e. the start of the writing transaction, which makes the
+    // long store step look instant. Time nodes by when the poll first sees them finished instead (±1 s).
+    const firstSeen = new Map<string, number>();
     let restarted = false;
 
     while (!outcome) {
         await sleep(POLL_MS);
         executions = await executionsAfter(db, lastId);
+
+        for (const execution of executions) {
+            if (!firstSeen.has(`${execution.id}`)) {
+                firstSeen.set(`${execution.id}`, Date.now());
+            }
+
+            for (const node of execution.nodes) {
+                const key = `${execution.id}:${node.nodeId}`;
+
+                if (node.status !== 'waiting' && !firstSeen.has(key)) {
+                    firstSeen.set(key, Date.now());
+                }
+            }
+        }
 
         const currentFingerprint = fingerprint(executions);
 
@@ -439,7 +458,12 @@ async function importFile(
 
         if (done) {
             outcome = executions.every((e) => e.status === 'success') ? 'success' : 'failed';
-        } else if (Date.now() - lastChange > stallTimeoutMs) {
+        } else if (
+            // A long store step writes nothing to the execution tables until it ends, so silence alone is not a
+            // stall. An execution that recorded an error and then stopped changing is.
+            executions.some((e) => e.status === 'waiting' && e.latestErrorMessage) &&
+            Date.now() - lastChange > stallTimeoutMs
+        ) {
             outcome = 'stalled';
         } else if (Date.now() - start > fileTimeoutMs) {
             outcome = 'timeout';
@@ -472,15 +496,18 @@ async function importFile(
         pass,
         outcome,
         executions: executions.map((e) => {
-            const trigger = e.nodes.find((n) => n.nodeId === 1);
             const nodeMs: Record<number, number> = {};
             const nodeOutputBytes: Record<number, number> = {};
-            let previousEnd = trigger?.updatedAt.getTime() ?? e.createdAt.getTime();
+            let previousEnd = firstSeen.get(`${e.id}`) ?? start;
 
             for (const node of e.nodes.filter((n) => n.nodeId !== 1)) {
-                nodeMs[node.nodeId] = node.updatedAt.getTime() - previousEnd;
+                const seen = firstSeen.get(`${e.id}:${node.nodeId}`);
                 nodeOutputBytes[node.nodeId] = node.dataBytes;
-                previousEnd = node.updatedAt.getTime();
+
+                if (seen !== undefined) {
+                    nodeMs[node.nodeId] = seen - previousEnd;
+                    previousEnd = seen;
+                }
             }
 
             return {
