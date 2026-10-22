@@ -111,7 +111,7 @@ export class ParseIcsFilePipelineModule implements IPipelineModule<ParseIcsFileI
         const locationText = event.location?.trim();
         const attendees = parseAttendees(event.attendees);
         const location = locationText ? this.buildLocationPlace(locationText) : undefined;
-        const stableKeys = this.buildStableKeys(event.uid, startDateTime);
+        const stableKeys = this.buildStableKeys(event, summary, startDateTime);
 
         return {
             '@type': 'Event',
@@ -129,15 +129,26 @@ export class ParseIcsFilePipelineModule implements IPipelineModule<ParseIcsFileI
         } satisfies EventActivity;
     }
 
-    private buildStableKeys(uid: string | undefined, startDateTime: DateTime<true>): string[] {
-        return [
-            uid ? `ics:${uid}` : undefined,
-            this.activityStableKeyService.createActivityStableKey(
-                'Event',
-                { start: startDateTime },
-                { dateTimePrecision: 'minute' },
-            ),
-        ].filter((key): key is string => Boolean(key));
+    /**
+     * One identity key per event, never the start time alone: any-key dedup would merge parallel events that start
+     * together. A UID is shared by a recurring event and its edited occurrences, so RECURRENCE-ID tells those apart.
+     */
+    private buildStableKeys(event: ICAL.Event, summary: string, startDateTime: DateTime<true>): string[] {
+        const uid = event.uid?.trim();
+
+        if (!uid) {
+            return [
+                this.activityStableKeyService.createActivityStableKey(
+                    'Event',
+                    { start: startDateTime, summary },
+                    { dateTimePrecision: 'minute' },
+                ),
+            ];
+        }
+
+        const recurrenceId = event.isRecurrenceException() ? icalTimeToLuxon(event.recurrenceId) : undefined;
+
+        return [recurrenceId ? `ics:${uid}:${recurrenceId.toUTC().toISO()}` : `ics:${uid}`];
     }
 
     private buildLocationPlace(locationText: string): Place {

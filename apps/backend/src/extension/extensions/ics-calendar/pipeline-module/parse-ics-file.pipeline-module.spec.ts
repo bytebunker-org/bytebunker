@@ -9,7 +9,12 @@ import { AssetService } from '../../../../etl/asset/asset.service.js';
 import { ActivityStableKeyService } from '../../../../activity-graph/activity-stable-key.service.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
-import { ICS_WITH_INVALID_VEVENT, ICS_WITH_LOCATION_AND_ATTENDEES, MINIMAL_ICS } from './parse-ics-file.fixture.js';
+import {
+    ICS_WITH_INVALID_VEVENT,
+    ICS_WITH_LOCATION_AND_ATTENDEES,
+    ICS_WITH_RECURRENCE_AND_PARALLEL_EVENTS,
+    MINIMAL_ICS,
+} from './parse-ics-file.fixture.js';
 
 const FAKE_ACTOR_ID = '00000000-0000-0000-0000-0000000000aa';
 const FAKE_GENERATOR: ASObject = {
@@ -78,12 +83,35 @@ describe('ParseIcsFilePipelineModule', () => {
             ]);
         });
 
-        it('uses ics:<UID> as the first stable key for UID-based dedup', () => {
+        it('uses ics:<UID> as the only stable key', () => {
             const activities = module.parseIcsToActivities(MINIMAL_ICS, FAKE_GENERATOR, FAKE_ACTOR_ID);
 
             const event = activities[0] as unknown as EventActivity;
 
-            expect(event.stableKeys).toEqual(['ics:minimal-event-1@test', 'activity-stable-key']);
+            expect(event.stableKeys).toEqual(['ics:minimal-event-1@test']);
+            expect(stableKeyService.createActivityStableKey).not.toHaveBeenCalled();
+        });
+
+        it('keys moved occurrences by RECURRENCE-ID and keeps parallel events apart', () => {
+            const activities = module.parseIcsToActivities(
+                ICS_WITH_RECURRENCE_AND_PARALLEL_EVENTS,
+                FAKE_GENERATOR,
+                FAKE_ACTOR_ID,
+            ) as unknown as EventActivity[];
+
+            expect(activities.map((event) => event.stableKeys)).toEqual([
+                ['ics:series@test'],
+                ['ics:series@test:2025-01-13T09:00:00.000Z'],
+                ['ics:workshop-a@test'],
+                ['ics:workshop-b@test'],
+                ['activity-stable-key'],
+            ]);
+            expect(stableKeyService.createActivityStableKey).toHaveBeenCalledTimes(1);
+            expect(stableKeyService.createActivityStableKey).toHaveBeenCalledWith(
+                'Event',
+                expect.objectContaining({ summary: 'No UID' }),
+                { dateTimePrecision: 'minute' },
+            );
         });
 
         it('skips VEVENTs without a SUMMARY but keeps the valid ones', () => {
