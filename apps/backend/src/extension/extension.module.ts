@@ -11,12 +11,14 @@ import { localExtensions } from './extensions/local-extension.constant.js';
 import { GoogleExtensionModule } from './extensions/google/google-extension.module.js';
 import { IcsCalendarExtensionModule } from './extensions/ics-calendar/ics-calendar-extension.module.js';
 import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.module.js';
+import { MyHubExtensionModule } from './extensions/my-hub/my-hub-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
     GoogleExtensionModule,
     IcsCalendarExtensionModule,
     YouTubeExtensionModule,
+    MyHubExtensionModule,
 ];
 
 @Module({
