@@ -90,11 +90,11 @@ describe('TransformSpotifyStreamingHistoryPipelineModule', () => {
     });
 
     it('gives quick skips within one minute distinct activity keys and shares the object key by URI', () => {
-        const { activities } = transform([
+        const activities = transform([
             track('2024-03-01T10:00:05Z', 2_000, 'spotify:track:aaa'),
             track('2024-03-01T10:00:09Z', 3_000, 'spotify:track:bbb'),
             track('2024-03-01T10:00:40Z', 3_000, 'spotify:track:aaa'),
-        ]) as unknown as Activity[];
+        ]).activities as unknown as Activity[];
 
         expect(new Set(activities.map((a) => a.stableKeys[0])).size).toBe(3);
         expect(activities[0]!.object['stableKeys']).toEqual(activities[2]!.object['stableKeys']);
@@ -113,7 +113,7 @@ describe('TransformSpotifyStreamingHistoryPipelineModule', () => {
     });
 
     it('maps episodes and audiobook chapters', () => {
-        const { activities } = transform([
+        const activities = transform([
             {
                 ...EMPTY_ROW,
                 ts: '2024-03-01T10:00:00Z',
@@ -131,7 +131,7 @@ describe('TransformSpotifyStreamingHistoryPipelineModule', () => {
                 audiobook_chapter_title: 'Chapter 1',
                 audiobook_chapter_uri: 'spotify:episode:chapter',
             },
-        ]) as unknown as Activity[];
+        ]).activities as unknown as Activity[];
 
         expect(activities[0]!.object).toMatchObject({
             '@secondaryTypes': ['PodcastEpisode', 'SpotifyEpisode'],
