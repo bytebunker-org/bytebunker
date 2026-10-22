@@ -1,15 +1,13 @@
 import type { Logger } from '@nestjs/common';
 import { parse } from 'node-html-parser';
 import { type YouTubeWatchEntry, YouTubeProductEnum } from '@bytebunker/event-schema/extension/youtube';
-import { parseGermanTimestamp } from './youtube-date.util.js';
-
-const VIDEO_ID_PATTERN = /[?&]v=([^&]+)/;
-const CHANNEL_ID_PATTERN = /\/channel\/([^/?#]+)/;
+import { parseTakeoutTimestamp } from './youtube-date.util.js';
+import { extractYouTubeChannelId, extractYouTubeVideoId } from './youtube-activity.builder.js';
 
 /**
- * Parses Google Takeout `Wiedergabeverlauf.html` (YouTube watch history). Each row is an
- * `.outer-cell` div containing a header (`YouTube` vs `YouTube Music`), the watched video link,
- * the channel link, and a German-formatted timestamp.
+ * Parses Google Takeout `Wiedergabeverlauf.html` / `watch-history.html` (YouTube watch history). Each row is an
+ * `.outer-cell` div containing a header (`YouTube` vs `YouTube Music`), the watched video link ("… angesehen" /
+ * "Watched …"), the channel link, and a German or English timestamp.
  */
 export function parseYouTubeWatchHistory(html: string, logger?: Logger): YouTubeWatchEntry[] {
     const root = parse(html);
@@ -39,7 +37,7 @@ export function parseYouTubeWatchHistory(html: string, logger?: Logger): YouTube
         const links = bodyCell.querySelectorAll('a');
         const videoLink = links[0];
         const videoUrl = videoLink?.getAttribute('href');
-        const videoId = videoUrl ? extractVideoId(videoUrl) : undefined;
+        const videoId = videoUrl ? extractYouTubeVideoId(videoUrl) : undefined;
 
         if (!videoLink || !videoUrl || !videoId) {
             skipped++;
@@ -49,16 +47,16 @@ export function parseYouTubeWatchHistory(html: string, logger?: Logger): YouTube
         const channelLink = links[1];
         const channelUrl = channelLink?.getAttribute('href');
         const channelName = channelLink?.text?.trim();
-        const channelId = channelUrl ? extractChannelId(channelUrl) : undefined;
+        const channelId = channelUrl ? extractYouTubeChannelId(channelUrl) : undefined;
 
         // Last text node in the body cell is the timestamp.
-        const timestampText = bodyCell.childNodes
+        const texts = bodyCell.childNodes
             .filter((n) => n.nodeType === 3)
             .map((n) => n.text.trim())
-            .filter(Boolean)
-            .pop();
+            .filter(Boolean);
+        const timestampText = texts.at(-1);
 
-        const watchedAt = timestampText ? parseGermanTimestamp(timestampText) : undefined;
+        const watchedAt = timestampText ? parseTakeoutTimestamp(timestampText) : undefined;
 
         if (!watchedAt) {
             skipped++;
@@ -89,7 +87,7 @@ function mapProduct(headerText: string | undefined): YouTubeProductEnum | undefi
         return undefined;
     }
 
-    const normalized = headerText.replace(/\s+/g, ' ').trim();
+    const normalized = headerText.replaceAll(/\s+/g, ' ').trim();
 
     if (normalized === 'YouTube Music') {
         return YouTubeProductEnum.YOUTUBE_MUSIC;
@@ -100,12 +98,4 @@ function mapProduct(headerText: string | undefined): YouTubeProductEnum | undefi
     }
 
     return undefined;
-}
-
-function extractVideoId(url: string): string | undefined {
-    return VIDEO_ID_PATTERN.exec(url)?.[1];
-}
-
-function extractChannelId(url: string): string | undefined {
-    return CHANNEL_ID_PATTERN.exec(url)?.[1];
 }

@@ -19,7 +19,9 @@ export type ImporterId =
     | 'spotify-streaming-history'
     | 'browser-history-database'
     | 'chrome-takeout-history'
-    | 'browser-bookmarks-html';
+    | 'browser-bookmarks-html'
+    | 'google-my-activity'
+    | 'youtube-search-history';
 
 export interface ImporterDefinition {
     id: ImporterId;
@@ -118,6 +120,18 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
     'browser-bookmarks-html': {
         id: 'browser-bookmarks-html',
         blueprintFile: 'browser-bookmarks-html.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
+    'google-my-activity': {
+        id: 'google-my-activity',
+        blueprintFile: 'google-my-activity.blueprint.json',
+        transformNodeId: 2,
+        storeNodeId: 3,
+    },
+    'youtube-search-history': {
+        id: 'youtube-search-history',
+        blueprintFile: 'youtube-search-history.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
     },
@@ -309,6 +323,40 @@ export const corpusSources: CorpusSource[] = [
                 : `browser/chrome-takeout-2025/Chrome/${basename(path)}`,
         notes: 'Netscape bookmark HTML; ADD_DATE in Unix seconds (2025) or WebKit microseconds (2019).',
     },
+    {
+        id: 'my-activity-2025',
+        importer: 'google-my-activity',
+        from: `${takeout2025}/Meine Aktivitäten/*/*.html`,
+        to: (path) => `google/my-activity/takeout-2025/${path.split('/').slice(-2).join('/')}`,
+        notes: 'German My Activity, one file per product (Search 50k entries, Play Store 26k, Maps 14.5k, ...).',
+    },
+    {
+        id: 'my-activity-outlook',
+        importer: 'google-my-activity',
+        from: `${outlookTakeout}/My Activity/*/*.html`,
+        to: (path) => `google/my-activity/outlook/${path.split('/').slice(-2).join('/')}`,
+        notes: 'English My Activity of the older account (2016-2020); no overlap with the 2025 export.',
+    },
+    {
+        id: 'youtube-search-history-2025',
+        importer: 'youtube-search-history',
+        from: `${takeout2025}/YouTube und YouTube Music/Verlauf/Suchverlauf.html`,
+        to: () => 'youtube/takeout-2025/search-history.html',
+        notes: 'Same entries as My Activity/YouTube searches; identical stable keys.',
+    },
+    {
+        id: 'youtube-search-history-outlook',
+        importer: 'youtube-search-history',
+        from: `${outlookTakeout}/YouTube and YouTube Music/history/search-history.html`,
+        to: () => 'youtube/outlook/search-history.html',
+    },
+    {
+        id: 'youtube-watch-history-outlook',
+        importer: 'youtube-watch-history',
+        from: `${outlookTakeout}/YouTube and YouTube Music/history/watch-history.html`,
+        to: () => 'youtube/outlook/watch-history.html',
+        notes: 'English rendering ("Watched …", "Jul 7, 2018, 2:45:40 AM CEST").',
+    },
 ];
 
 /**
@@ -339,14 +387,14 @@ export const knownUnsupported: { area: string; glob: string; notes: string }[] =
     { area: 'Older Timeline snapshot (gz)', glob: 'Timeline2.json.gz', notes: 'Older Timeline.json snapshot.' },
     { area: 'Google Fit', glob: `${takeout2025}/Google Fit/**`, notes: 'TCX + daily metrics JSON/CSV, 1.8 GB.' },
     {
-        area: 'Google My Activity',
-        glob: `${takeout2025}/Meine Aktivitäten/**`,
-        notes: 'HTML per Google product (Search 52 MB, Play 25 MB, Maps 14 MB).',
+        area: 'Google Assistant recordings',
+        glob: `${takeout2025}/Meine Aktivitäten/Google Assistant/*.mp3`,
+        notes: 'Voice recordings referenced by My Activity entries (attachmentFiles); audio itself not imported.',
     },
     {
         area: 'YouTube other',
         glob: `${takeout2025}/YouTube und YouTube Music/**`,
-        notes: 'Search history, playlists, subscriptions (CSV/HTML).',
+        notes: 'Playlists, subscriptions, comments (CSV/HTML).',
     },
     { area: 'Google Photos', glob: '**/Google Fotos/**', notes: 'Photos come from Immich instead.' },
     {

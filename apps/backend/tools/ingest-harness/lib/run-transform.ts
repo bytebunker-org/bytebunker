@@ -26,6 +26,8 @@ import { TransformSpotifyStreamingHistoryPipelineModule } from '../../../src/ext
 import { TransformBrowserDatabasePipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-browser-database.pipeline-module.js';
 import { TransformChromeTakeoutHistoryPipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-chrome-takeout-history.pipeline-module.js';
 import { TransformBookmarksHtmlPipelineModule } from '../../../src/extension/extensions/browser-history/pipeline-module/transform-bookmarks-html.pipeline-module.js';
+import { TransformGoogleMyActivityPipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-google-my-activity.pipeline-module.js';
+import { TransformYouTubeSearchHistoryPipelineModule } from '../../../src/extension/extensions/youtube/pipeline-module/transform-youtube-search-history.pipeline-module.js';
 import { importers, type ImporterId } from '../corpus.manifest.js';
 import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
 
@@ -91,8 +93,21 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
         new TransformChromeTakeoutHistoryPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
     'browser-bookmarks-html': (s) =>
         new TransformBookmarksHtmlPipelineModule(s.assetService, s.graphService, s.graphNodeService) as never,
+    'google-my-activity': (s) =>
+        new TransformGoogleMyActivityPipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
+    'youtube-search-history': (s) =>
+        new TransformYouTubeSearchHistoryPipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
 };
-
 /** Same defaults as `settingsConfig` (eventUniqueLocationPrecision / eventUniqueDateTimePrecision). */
 export function applyDefaultGlobalSettings(): void {
     setGlobalSettings({

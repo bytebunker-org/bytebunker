@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import path from 'node:path';
 import { parseYouTubeWatchHistory } from './youtube-watch-history.parser.js';
 import { parseGermanTimestamp } from './youtube-date.util.js';
 import { YouTubeProductEnum } from '@bytebunker/event-schema/extension/youtube';
 
-const fixturePath = join(
-    dirname(fileURLToPath(import.meta.url)),
+const fixturePath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
     '__fixtures__',
     'wiedergabeverlauf.fixture.html',
 );
@@ -72,5 +72,31 @@ describe('parseYouTubeWatchHistory', () => {
 
         const summer = entries.find((e) => e.videoId === 'SUMMERdst123')!;
         expect(summer.watchedAt).toBe('2024-07-15T18:30:00.000+02:00');
+    });
+});
+
+describe('parseYouTubeWatchHistory (English takeout)', () => {
+    const englishHtml = readFileSync(path.join(path.dirname(fixturePath), 'watch-history.fixture.html'), 'utf8');
+    const entries = parseYouTubeWatchHistory(englishHtml);
+
+    it('parses "Watched …" rows and skips removed videos', () => {
+        expect(entries).toEqual([
+            {
+                product: YouTubeProductEnum.YOUTUBE,
+                videoId: 'EEEEEEEEEE1',
+                videoUrl: 'https://www.youtube.com/watch?v=EEEEEEEEEE1',
+                title: 'An Example Video',
+                channelName: 'Example Channel',
+                channelId: 'UC00000000000000000000E1',
+                channelUrl: 'https://www.youtube.com/channel/UC00000000000000000000E1',
+                watchedAt: '2018-07-07T02:45:40.000+02:00',
+            },
+            expect.objectContaining({
+                product: YouTubeProductEnum.YOUTUBE_MUSIC,
+                videoId: 'MMMMMMMMMM2',
+                channelName: 'Example Artist - Topic',
+                watchedAt: '2025-02-03T12:08:18.000+01:00',
+            }),
+        ]);
     });
 });

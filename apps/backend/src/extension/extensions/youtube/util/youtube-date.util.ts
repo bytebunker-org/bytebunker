@@ -1,5 +1,8 @@
 import { DateTime } from 'luxon';
 
+/** German and English Takeout timestamps (`03.02.2025, 12:08:18 MEZ`, `Feb 3, 2025, 12:08:18 PM CET`, ...). */
+export { parseTakeoutTimestamp } from '../../google/util/takeout-timestamp.util.js';
+
 const GERMAN_TIMESTAMP_PATTERN = /^(\d{2}\.\d{2}\.\d{4}),\s*(\d{2}:\d{2}:\d{2})\s*(MEZ|MESZ)$/;
 
 /**
