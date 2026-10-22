@@ -71,8 +71,8 @@ top of a graph built with the old keys creates duplicates. Recommended: wipe the
 
 1. Back up Postgres and the Neo4j volume.
 2. Create the host folders from step 1b and add the mounts.
-3. Deploy the backend image built from `development`; check that the log shows "Applied 1 migration(s)" (or 2 on an
-   empty database), then `/health`, and "Installed shipped blueprint …" for every extension.
+3. Deploy the backend image built from `development`; check that the log shows "Applied 2 migration(s)" (the baseline is
+   recorded but changes nothing on an existing database), then `/health`, and "Installed shipped blueprint …" for every extension.
 4. Deploy the frontend (`pnpm --filter @bytebunker/frontend run deploy`, with the production env; plain `pnpm deploy` is a different pnpm command).
 5. Optional: wipe and re-import (step 3) by uploading exports on the import page or into the import folder.
 6. Optional: configure `myHub` and run the `my-hub/persons` blueprint once (`POST /my-hub/sync`).
