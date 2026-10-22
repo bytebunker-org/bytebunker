@@ -60,6 +60,9 @@ Tier 2 (real pipeline, worktree instance):
 
 ### Correctness
 
+> **Update (C1, 2026-10-22):** findings 1–4 are addressed for the key design: Spotify module (`spotify` extension),
+> ICS keys `ics:<UID>[:<RECURRENCE-ID>]`, nested-visit keys, places by `placeId`. See "Key redesign results" below.
+
 1. **Duplicate activities inside one file.** The persister only skips keys that already exist in
    Postgres. Two activities in the same file with the same key are both written; the key index keeps
    one, the other node becomes unreachable for dedup. Spotify alone produces ~20,800 of these.
@@ -119,6 +122,32 @@ Tier 2 (real pipeline, worktree instance):
     "should be defined" specs still fail on DI.
 17. Blueprints lived only in the database (and in untracked JSON in the main checkout). The harness
     now versions them in `tools/ingest-harness/blueprints/`.
+
+### Key redesign results (tier 1, C1)
+
+| Source | Activities | Created (ideal) before → after | Conflicting keys in file | Objects refs → distinct (per file) |
+| --- | ---: | ---: | ---: | --- |
+| Timeline.json | 34,560 → 34,552 | 33,037 → 34,552 | 1,515 → 0 | 52,603 → 26,718 / 27,255 |
+| Timeline_old.json | 27,901 → 27,894 | 24 → 24 | 1,133 → 0 | 42,189 → 20,821 / 21,342 |
+| Semantic history 2017–19 | 3,765 | 2,164 → 2,164 | 1 → 1 | 5,769 → 1,981 / 2,454 |
+| ICS (both sources) | 491 | 353 → 491 | 100 → 0 | unchanged |
+| Spotify audio | 198,912 (3 files failed) → 236,026 | 178,123 → 236,024 | 17,172 → 0 | 198,912 → 67,689 / 236,026 → 86,081 |
+| Spotify video (new) | 564 | 564 | 0 | 564 → 258 |
+
+- **Timeline:** every conflict was a parent visit and its nested child (`hierarchyLevel` 1) starting in the same minute.
+  Top-level visits keep the start-minute key, nested visits add level + place; identical segments are collapsed. Moves
+  have no in-file conflicts with start-minute keys. Evaluated alternatives: start+end minute leaves 1,063 conflicts and
+  loses 59 semantic↔Timeline matches (2,223 created instead of 2,164); start+activity type changes nothing for Timeline
+  and loses 9 matches. Arrive keeps `semanticType` and `hierarchyLevel`.
+- **Places:** `placeId` is the only key of a named place, coordinates (5 decimals) only key anonymous points. Across the
+  three location sources: 27,522 → 28,244 places; before, 230 placeIds were merged into 34 nodes through shared
+  coordinates. The increase is 526 Move endpoints that sat exactly on a named place's coordinate and no longer merge
+  into it; linking those is left to place clustering. Coarser grids for anonymous points would give 9,393 (4 decimals)
+  or 2,439 (3 decimals) instead of 26,605, but snapping is not clustering, so it is not used.
+- **Spotify:** activity key = end second + URI, object key = URI. 4,811 rows are plays logged twice (same end second and
+  URI, mostly differing in `ms_played`/offline fields) and are merged; 1 video row without URI is skipped. A name+artist
+  key is not added: 3,290 name+artist pairs span 6,942 track URIs (single vs album versions, 2,092 with different
+  albums) and 109 URIs changed name/artist, so any-key matching would merge distinct recordings and chain groups.
 
 ## Plan
 

@@ -22,6 +22,11 @@ export interface ImporterDefinition {
     transformNodeId: number;
     /** Blueprint node id of the store-activity module. */
     storeNodeId: number;
+    /**
+     * Tier 1 fails a file above these counts: activities sharing a key with different content (the key is too coarse,
+     * real events merge) and object keys linking otherwise separate identities. Known leftovers are listed here.
+     */
+    maxConflicts: { activityKeys: number; objectKeySets: number };
 }
 
 export interface CorpusSource {
@@ -43,30 +48,37 @@ export const importers: Record<ImporterId, ImporterDefinition> = {
         blueprintFile: 'google-timeline.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'google-semantic-location-history': {
         id: 'google-semantic-location-history',
         blueprintFile: 'google-semantic-location-history.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
+        // One 30 s Move followed by another Move in the same minute; start+end keys would fix it but lose ~60 matches
+        // against Timeline.json.
+        maxConflicts: { activityKeys: 1, objectKeySets: 0 },
     },
     'youtube-watch-history': {
         id: 'youtube-watch-history',
         blueprintFile: 'youtube-watch-history.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'ics-calendar': {
         id: 'ics-calendar',
         blueprintFile: 'ics-calendar.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
     'spotify-streaming-history': {
         id: 'spotify-streaming-history',
         blueprintFile: 'spotify-streaming-history.blueprint.json',
         transformNodeId: 2,
         storeNodeId: 3,
+        maxConflicts: { activityKeys: 0, objectKeySets: 0 },
     },
 };
 

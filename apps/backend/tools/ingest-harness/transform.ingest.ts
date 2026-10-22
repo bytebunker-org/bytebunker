@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { relationshipInfoMap } from '../../src/activity-graph/schema/graph-schema.constant.js';
 import { analyzeActivities, hardProblems, type ActivityAnalysis } from './lib/analyze-activities.js';
 import { REPORT_DIR, loadSyncedCorpus, parseListEnv, type CorpusFile } from './lib/corpus.js';
+import { importers } from './corpus.manifest.js';
 import { applyDefaultGlobalSettings, runTransform } from './lib/run-transform.js';
 import { formatTransformReport, type TransformReport, type TransformReportRow } from './lib/report.js';
 
@@ -111,6 +112,16 @@ describe.skipIf(!corpus.length)('ingest transform harness', () => {
             }
 
             expect(hardProblems(analysis), JSON.stringify(analysis.examples, null, 2)).toEqual([]);
+
+            const { maxConflicts } = importers[file.importer];
+            expect(
+                analysis.problems.intraFileConflictingActivityKeys,
+                `conflicting activity keys: ${JSON.stringify(analysis.examples['intraFileConflictingActivityKeys'], null, 2)}`,
+            ).toBeLessThanOrEqual(maxConflicts.activityKeys);
+            expect(
+                analysis.problems.objectsWithConflictingKeySets,
+                `objects linking key groups: ${JSON.stringify(analysis.examples['objectsWithConflictingKeySets'], null, 2)}`,
+            ).toBeLessThanOrEqual(maxConflicts.objectKeySets);
         },
     );
 });

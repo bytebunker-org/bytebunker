@@ -29,7 +29,9 @@ INGEST_ONLY=timeline-2026,spotify-audio pnpm ingest:transform
 ```
 
 Fails on problems that would make the store step throw or corrupt the stable-key index (unknown relationship property,
-missing `@type`/actor/startTime, keys over 512 chars, transform exceptions). Everything else is reported:
+missing `@type`/actor/startTime, keys over 512 chars, transform exceptions), and on key conflicts above the importer's
+`maxConflicts` in `corpus.manifest.ts` (activities sharing a key with different content, object keys linking separate
+identities; 0 everywhere except one known semantic-history Move). Everything else is reported:
 
 - **Created (today) vs (ideal)**: the persister only skips activities whose keys already exist in Postgres, so
   activities sharing a key inside one file are all written. The gap is duplicate nodes.
@@ -37,6 +39,11 @@ missing `@type`/actor/startTime, keys over 512 chars, transform exceptions). Eve
   coarse and real events would be merged or duplicated.
 - **Objects refs → distinct**: object references vs. distinct objects by stable key.
 - **Output MB**: size of the JSONB row the transform node writes.
+- **Skipped rows**: rows a module skipped and counted instead of failing the file (its `skipped` output), e.g. Spotify
+  plays logged twice or rows without a URI.
+
+The importer of a corpus file comes from the manifest (by source id), so moving a source to another importer needs no
+re-sync; a new source (e.g. `spotify-video`) needs `pnpm ingest:corpus sync`.
 
 Each run diffs against the previous one.
 
@@ -46,7 +53,7 @@ Each run diffs against the previous one.
 tools/worktree/wt.sh setup                 # once per worktree (own DB copy, Neo4j, KeyDB index)
 pnpm ingest:e2e --reset --sample 300       # smoke run, first 300 records per JSON export
 pnpm ingest:e2e --reset --only timeline-2026 --reimport
-pnpm ingest:e2e --reset                    # full corpus (Spotify alone takes over an hour today)
+pnpm ingest:e2e --reset                    # full corpus
 pnpm ingest:e2e --reset --only ics-calendar-2026 --restart-during-import
 ```
 
