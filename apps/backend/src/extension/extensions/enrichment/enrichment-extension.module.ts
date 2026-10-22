@@ -17,6 +17,10 @@ import { GeoNamesDataService } from './geocoding/geonames-data.service.js';
 import { NominatimClientService } from './geocoding/nominatim-client.service.js';
 import { MapboxClientService } from './geocoding/mapbox-client.service.js';
 import { RefinePlacesMapboxPipelineModule } from './pipeline-module/refine-places-mapbox.pipeline-module.js';
+import { CommonPipelineTriggersModule } from '../common-pipeline-triggers/common-pipeline-triggers.module.js';
+import { CustomPlaceController } from './custom-place/custom-place.controller.js';
+import { CustomPlaceReadService } from './custom-place/custom-place-read.service.js';
+import { CustomPlaceService } from './custom-place/custom-place.service.js';
 
 const pipelineModules = [
     ConsolidatePlacesPipelineModule,
@@ -34,8 +38,11 @@ const pipelineModules = [
  * the move, confirmed events, daily summaries) instead of importing it.
  */
 @Module({
-    imports: [GraphDatabaseModule, ActivityGraphModule],
+    imports: [GraphDatabaseModule, ActivityGraphModule, CommonPipelineTriggersModule],
+    controllers: [CustomPlaceController],
     providers: [
+        CustomPlaceReadService,
+        CustomPlaceService,
         DerivedGraphService,
         ActivityInputReaderService,
         PlaceGeocodeService,
