@@ -49,14 +49,17 @@ export class PipelineModuleService {
                 PIPELINE_MODULE_METADATA,
             );
 
-        try {
-            for (const { discoveredClass, meta } of discoveredPipelineModules) {
-                await this.registerPipelineModule(em, discoveredClass, meta);
-            }
-        } finally {
-            // Release waiting jobs even if one module failed to register; they then fail with a clear error.
-            this.resolveModulesReady();
+        for (const { discoveredClass, meta } of discoveredPipelineModules) {
+            await this.registerPipelineModule(em, discoveredClass, meta);
         }
+    }
+
+    /**
+     * Called once discovery's transaction has committed (or failed), so waiting jobs and the blueprint installer see
+     * the module rows. On failure they are released too and fail with a clear error.
+     */
+    public markModulesReady(): void {
+        this.resolveModulesReady();
     }
 
     public whenModulesReady(): Promise<void> {
