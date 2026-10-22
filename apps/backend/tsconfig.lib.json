@@ -18,6 +18,7 @@
         "./src/shared/find-rest-api/find-rest-api.constant.ts",
         "./src/database/util/database.util.ts",
         "./src/etl/pipeline/pipeline-module/type/pipeline-module.interface.ts",
+        "./src/etl/pipeline/execution/pipeline-trigger-result.type.ts",
         "./src/util/type/dto-ref.type.ts",
         "./src/util/type/dto-collection.type.ts",
         "./src/database/util/date-time-database.type.d.ts"
