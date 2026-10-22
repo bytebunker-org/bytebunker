@@ -125,14 +125,14 @@ Tier 2 (real pipeline, worktree instance):
 
 ### Key redesign results (tier 1, C1)
 
-| Source | Activities | Created (ideal) before → after | Conflicting keys in file | Objects refs → distinct (per file) |
-| --- | ---: | ---: | ---: | --- |
-| Timeline.json | 34,560 → 34,552 | 33,037 → 34,552 | 1,515 → 0 | 52,603 → 26,718 / 27,255 |
-| Timeline_old.json | 27,901 → 27,894 | 24 → 24 | 1,133 → 0 | 42,189 → 20,821 / 21,342 |
-| Semantic history 2017–19 | 3,765 | 2,164 → 2,164 | 1 → 1 | 5,769 → 1,981 / 2,454 |
-| ICS (both sources) | 491 | 353 → 491 | 100 → 0 | unchanged |
-| Spotify audio | 198,912 (3 files failed) → 236,026 | 178,123 → 236,024 | 17,172 → 0 | 198,912 → 67,689 / 236,026 → 86,081 |
-| Spotify video (new) | 564 | 564 | 0 | 564 → 258 |
+| Source                   |                         Activities | Created (ideal) before → after | Conflicting keys in file | Objects refs → distinct (per file)  |
+| ------------------------ | ---------------------------------: | -----------------------------: | -----------------------: | ----------------------------------- |
+| Timeline.json            |                    34,560 → 34,552 |                33,037 → 34,552 |                1,515 → 0 | 52,603 → 26,718 / 27,255            |
+| Timeline_old.json        |                    27,901 → 27,894 |                        24 → 24 |                1,133 → 0 | 42,189 → 20,821 / 21,342            |
+| Semantic history 2017–19 |                              3,765 |                  2,164 → 2,164 |                    1 → 1 | 5,769 → 1,981 / 2,454               |
+| ICS (both sources)       |                                491 |                      353 → 491 |                  100 → 0 | unchanged                           |
+| Spotify audio            | 198,912 (3 files failed) → 236,026 |              178,123 → 236,024 |               17,172 → 0 | 198,912 → 67,689 / 236,026 → 86,081 |
+| Spotify video (new)      |                                564 |                            564 |                        0 | 564 → 258                           |
 
 - **Timeline:** every conflict was a parent visit and its nested child (`hierarchyLevel` 1) starting in the same minute.
   Top-level visits keep the start-minute key, nested visits add level + place; identical segments are collapsed. Moves
@@ -308,17 +308,38 @@ Ideas that build on the fixes above, grouped by what they give you. Each lists w
 
 ### Next, by workstream
 
-| # | Workstream | Owner | Depends on |
-| - | --- | --- | --- |
-| A | Live verification: schema (`dry_run` column), harness update for the new context, e2e smoke + full Timeline benchmark, restart scenario, upload/dry-run/apply through the API | main thread | auth for API calls |
-| B1 | Frontend import page: drop zone (files, folders, zips), dry-run toggle, per-file results, apply | agent | backend lib build |
-| B2 | Frontend execution page: live progress (overall + per node, status messages), dry-run badge + apply, import report, provenance summary, stop loading full execution data | agent | backend lib build |
-| B3 | Frontend blueprint editor: JSON import/export (paste generated blueprints), validate + issue panel, validate before save | agent | B2's node contract |
-| C1 | Spotify module (audio, episodes, audiobooks, video; `ts` = end time; per-row errors) and stable-key redesign (Spotify, ICS UID+RECURRENCE-ID, Arrive/Move start+end, places by placeId) | agent | tier-1 corpus |
-| C2 | Reliability rest: enqueue after commit, move files when the run ends, asset dedup checks storage, retry-from-node API | agent | — |
-| C3 | Chunked outputs: large node outputs as assets, load only needed execution data | later | C2 |
-| C4 | Blueprints as code (install shipped blueprints on boot), generic filter/map/dedupe modules | agent | — |
-| D | Graph enrichment and new sources: see questions | after answers | C1 |
+| #   | Workstream                                                                                                                                                                              | Owner         | Depends on         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------ |
+| A   | Live verification: schema (`dry_run` column), harness update for the new context, e2e smoke + full Timeline benchmark, restart scenario, upload/dry-run/apply through the API           | main thread   | auth for API calls |
+| B1  | Frontend import page: drop zone (files, folders, zips), dry-run toggle, per-file results, apply                                                                                         | agent         | backend lib build  |
+| B2  | Frontend execution page: live progress (overall + per node, status messages), dry-run badge + apply, import report, provenance summary, stop loading full execution data                | agent         | backend lib build  |
+| B3  | Frontend blueprint editor: JSON import/export (paste generated blueprints), validate + issue panel, validate before save                                                                | agent         | B2's node contract |
+| C1  | Spotify module (audio, episodes, audiobooks, video; `ts` = end time; per-row errors) and stable-key redesign (Spotify, ICS UID+RECURRENCE-ID, Arrive/Move start+end, places by placeId) | agent         | tier-1 corpus      |
+| C2  | Reliability rest: enqueue after commit, move files when the run ends, asset dedup checks storage, retry-from-node API                                                                   | agent         | —                  |
+| C3  | Chunked outputs: large node outputs as assets, load only needed execution data                                                                                                          | later         | C2                 |
+| C4  | Blueprints as code (install shipped blueprints on boot), generic filter/map/dedupe modules                                                                                              | agent         | —                  |
+| D   | Graph enrichment and new sources: see questions                                                                                                                                         | after answers | C1                 |
 
 Agents work in their own git worktrees, run unit tests/typecheck/svelte-check, and hand back commits; the
 main thread merges and runs the e2e harness against this worktree's instance.
+
+## Status (2026-10-22, end of day)
+
+Verified live in this worktree (full corpus re-imported from an empty graph):
+
+|                                    | Before                                      | Now                                            |
+| ---------------------------------- | ------------------------------------------- | ---------------------------------------------- |
+| Full corpus import (59 files)      | Spotify alone 2–3 h, 3 Spotify files failed | 276,183 activities in 429 s, all files succeed |
+| Timeline.json                      | 959 s                                       | 22 s                                           |
+| Duplicate nodes (not in key index) | Place 48 %, Audio 35 %, Activity 4 %        | 0 everywhere                                   |
+| Re-dropping every file             | re-ran the whole pipeline                   | skipped as duplicates (59/59)                  |
+| Tier-1 prediction vs. real import  | —                                           | identical created counts for every file        |
+
+Built: dry runs + apply, import report, provenance (`importExecutionId`/`importAssetId`), live progress (SSE, per node and pipeline),
+retry from node, abort, enqueue after commit, processing folder, content routing + `POST /imports` (files and zips),
+blueprint validation, blueprints as code, module catalog for AI, filter/sample/dedupe modules, Spotify module and stable-key
+redesign, schedule trigger, enrichment framework, place consolidation (28,201 → 2,635 places), home/work periods,
+coverage heatmap, and the frontend for all of it (import page, execution page, editor validation and JSON import/export).
+
+Open: geocoding (needs a decision on regions), derived activities (in progress), "exports that could fill gaps" on the
+coverage page, chunked node outputs (plan step 4).
