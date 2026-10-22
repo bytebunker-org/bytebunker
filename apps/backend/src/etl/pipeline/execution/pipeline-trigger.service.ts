@@ -12,7 +12,9 @@ import {
 import { PipelineModuleService } from '../pipeline-module/pipeline-module.service.js';
 import { Blueprint } from '../blueprint/util/blueprint.class.js';
 import { PipelineExecutionService } from './pipeline-execution.service.js';
-import type { PipelineExecutionEntity } from '../entity/pipeline-execution.entity.js';
+import { PipelineExecutionEntity } from '../entity/pipeline-execution.entity.js';
+import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
+import type { PipelineTriggerResult } from './pipeline-trigger-result.type.js';
 
 type PipelineTriggerContext<Input> = {
     blueprintEntity: PipelineBlueprintEntity;
@@ -90,44 +92,143 @@ export class PipelineTriggerService {
         {
             matchNode,
             buildNodeData,
+            resolveTriggerAsset,
+            allowReimport,
         }: {
             matchNode?: (context: PipelineTriggerContext<Input>) => boolean | Promise<boolean>;
             buildNodeData: (context: PipelineTriggerContext<Input>) => Output | Promise<Output>;
+            /**
+             * Returns the id of the asset the trigger data was derived from, enabling the re-import guard: an asset
+             * that already ran through this blueprint successfully (or is running right now) is skipped instead of
+             * reprocessed. Return undefined to always create a new execution.
+             */
+            resolveTriggerAsset?: (output: Output, context: PipelineTriggerContext<Input>) => string | undefined;
+            /**
+             * Bypasses the re-import guard. Either a flat flag for programmatic callers or a per-blueprint predicate,
+             * so a trigger module can expose the option in its own node configuration.
+             */
+            allowReimport?: boolean | ((context: PipelineTriggerContext<Input>) => boolean);
         },
-    ): Promise<PipelineExecutionEntity[]> {
+    ): Promise<PipelineTriggerResult[]> {
         const triggerContexts = await this.findMatchingTriggerNodes(em, triggerModuleClass, {
             matchNode,
         });
 
-        const results = await Promise.allSettled(
-            triggerContexts.map(async (triggerContext) => {
+        const settledResults = await Promise.allSettled(
+            triggerContexts.map(async (triggerContext): Promise<PipelineTriggerResult> => {
+                const { blueprintEntity, node } = triggerContext;
                 const outputData = await buildNodeData(triggerContext);
+                const triggerAssetId = resolveTriggerAsset?.(outputData, triggerContext);
+                const reimportAllowed =
+                    typeof allowReimport === 'function' ? allowReimport(triggerContext) : allowReimport === true;
 
-                return this.pipelineExecutionService.executeBlueprintFromTrigger(
+                if (triggerAssetId && !reimportAllowed) {
+                    const duplicate = await this.findDuplicateExecution(em, blueprintEntity.id, triggerAssetId);
+
+                    if (duplicate) {
+                        return {
+                            status: 'skipped',
+                            blueprintId: blueprintEntity.id,
+                            blueprintTitle: blueprintEntity.title,
+                            nodeId: node.id,
+                            existingExecutionId: duplicate.id,
+                            existingExecutionStatus: duplicate.executionStatus as
+                                | PipelineExecutionStatusEnum.SUCCESS
+                                | PipelineExecutionStatusEnum.WAITING,
+                            reason:
+                                duplicate.executionStatus === PipelineExecutionStatusEnum.SUCCESS
+                                    ? `already imported by execution ${duplicate.id} at ${duplicate.createdAt.toISO()}`
+                                    : `already running as execution ${duplicate.id}`,
+                        };
+                    }
+                }
+
+                const execution = await this.pipelineExecutionService.executeBlueprintFromTrigger(
                     em,
-                    triggerContext.blueprintEntity.id,
-                    triggerContext.node.id,
+                    blueprintEntity.id,
+                    node.id,
                     outputData,
+                    { triggerAssetId },
                 );
+
+                return {
+                    status: 'created',
+                    blueprintId: blueprintEntity.id,
+                    blueprintTitle: blueprintEntity.title,
+                    nodeId: node.id,
+                    execution,
+                };
             }),
         );
 
-        const createdPipelines: PipelineExecutionEntity[] = [];
+        return settledResults.map((settledResult, index): PipelineTriggerResult => {
+            const { blueprintEntity, node } = triggerContexts[index]!;
 
-        for (const result of results) {
-            if (result.status === 'rejected') {
+            if (settledResult.status === 'rejected') {
                 this.logger.error('Failed to execute pipeline from trigger', {
-                    error: result.reason,
+                    error: settledResult.reason,
                 });
-            } else if (result.status === 'fulfilled' && result.value) {
-                createdPipelines.push(result.value);
 
-                this.logger.debug('Successfully executed pipeline from trigger', {
-                    pipelineExecutionId: result.value.id,
-                });
+                return {
+                    status: 'failed',
+                    blueprintId: blueprintEntity.id,
+                    blueprintTitle: blueprintEntity.title,
+                    nodeId: node.id,
+                    error: settledResult.reason,
+                };
             }
-        }
 
-        return createdPipelines;
+            const result = settledResult.value;
+
+            if (result.status === 'created') {
+                this.logger.debug('Successfully executed pipeline from trigger', {
+                    pipelineExecutionId: result.execution.id,
+                });
+            } else if (result.status === 'skipped') {
+                this.logger.log(
+                    `Skipped pipeline execution for blueprint "${result.blueprintTitle}" (${result.blueprintId}): ${result.reason}`,
+                );
+            }
+
+            return result;
+        });
+    }
+
+    /**
+     * Finds an execution of the same blueprint that already handled the same trigger asset. A successful one wins
+     * over an in-flight one so the reported reason is the most meaningful. Failed and aborted executions are ignored
+     * on purpose: their work never completed, so the file has to run again.
+     */
+    private async findDuplicateExecution(
+        em: EntityManager,
+        blueprintId: number,
+        triggerAssetId: string,
+    ): Promise<PipelineExecutionEntity | undefined> {
+        const existingExecutions = await em.find(
+            PipelineExecutionEntity,
+            {
+                blueprint: blueprintId,
+                triggerAsset: triggerAssetId,
+                executionStatus: {
+                    $in: [PipelineExecutionStatusEnum.SUCCESS, PipelineExecutionStatusEnum.WAITING],
+                },
+            },
+            {
+                orderBy: { id: 'desc' },
+            },
+        );
+
+        // A "waiting" execution whose module hit an unexpected error keeps that status until it is retried by hand
+        // (it only flips to "failed" after several retries), so it must not block a re-import forever. Only an
+        // execution that never errored counts as in flight.
+        const blockingExecutions = existingExecutions.filter(
+            (execution) =>
+                execution.executionStatus === PipelineExecutionStatusEnum.SUCCESS || execution.errorRetryCount === 0,
+        );
+
+        return (
+            blockingExecutions.find((execution) => execution.executionStatus === PipelineExecutionStatusEnum.SUCCESS) ??
+            blockingExecutions[0]
+        );
     }
 }

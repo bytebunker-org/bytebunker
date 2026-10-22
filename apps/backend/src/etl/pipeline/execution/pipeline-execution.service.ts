@@ -3,6 +3,7 @@ import { PipelineBlueprintEntity } from '../blueprint/entity/pipeline-blueprint.
 import { type EntityManager } from '@mikro-orm/postgresql';
 import { Blueprint } from '../blueprint/util/blueprint.class.js';
 import { PipelineExecutionEntity } from '../entity/pipeline-execution.entity.js';
+import { AssetEntity } from '../../asset/entity/asset.entity.js';
 import { PipelineExecutionDataEntity } from '../entity/pipeline-execution-data.entity.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
 import type { BlueprintNodeDto } from '../blueprint/dto/blueprint-node.dto.js';
@@ -38,12 +39,20 @@ export class PipelineExecutionService {
         blueprintId: number,
         triggerNodeId: number,
         triggerNodeOutputData: unknown,
+        options?: {
+            /**
+             * Id of the asset the trigger data was derived from (e.g. the imported file). Stored on the execution so
+             * a later trigger for the very same content can recognise it was already imported.
+             */
+            triggerAssetId?: string;
+        },
     ): Promise<PipelineExecutionEntity> {
         const blueprintEntity = await em.findOneOrFail(PipelineBlueprintEntity, { id: blueprintId });
         const blueprint = new Blueprint(blueprintEntity.data);
 
         const pipelineExecution = em.create(PipelineExecutionEntity, {
             blueprint: blueprintEntity,
+            triggerAsset: options?.triggerAssetId ? em.getReference(AssetEntity, options.triggerAssetId) : undefined,
         });
 
         const initialTriggerNode = blueprint.getNode(triggerNodeId);

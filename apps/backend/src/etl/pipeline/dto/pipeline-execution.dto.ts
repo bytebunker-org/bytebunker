@@ -2,6 +2,7 @@ import { IsInt, IsOptional, IsString, IsEnum, IsObject, IsArray, ValidateNested,
 import { Type } from 'class-transformer';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 import { PipelineBlueprintDto } from '../blueprint/dto/pipeline-blueprint.dto.js';
+import { AssetDto } from '../../asset/dto/asset.dto.js';
 import { PipelineExecutionStatusEnum } from '../type/pipeline-execution-status.enum.js';
 import type { PipelineExecutionLogDataDto } from './pipeline-execution-log-data.dto.js';
 import type { DtoRef } from '../../../util/type/dto-ref.type.js';
@@ -22,6 +23,12 @@ export class PipelineExecutionDto extends TimestampDto {
     @Type(() => PipelineBlueprintDto)
     @ValidateNested()
     public blueprint!: DtoRef<PipelineBlueprintDto>;
+
+    /** Relation to the asset this execution was triggered from, if any */
+    @IsOptional()
+    @Type(() => AssetDto)
+    @ValidateNested()
+    public triggerAsset?: DtoRef<AssetDto>;
 
     /** Current execution status */
     @IsEnum(PipelineExecutionStatusEnum)

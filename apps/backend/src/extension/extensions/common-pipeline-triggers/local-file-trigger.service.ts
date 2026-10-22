@@ -15,6 +15,10 @@ import { AssetService } from '../../../etl/asset/asset.service.js';
 import { AssetTypeEnum } from '../../../etl/asset/type/asset-type.enum.js';
 import { join } from 'node:path';
 import { moveFile } from 'move-file';
+import type {
+    PipelineTriggerResult,
+    SkippedPipelineTriggerResult,
+} from '../../../etl/pipeline/execution/pipeline-trigger-result.type.js';
 
 @Injectable()
 export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -100,7 +104,7 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
         // attempt at the end of `transactional` would throw on its own. Catching that here (instead of
         // inside the transaction) keeps a failed import from turning into an unhandled rejection.
         try {
-            const createdPipelines = await this.em.fork().transactional((em) =>
+            const triggerResults = await this.em.fork().transactional((em) =>
                 this.pipelineTriggerService.executeBlueprintFromTrigger<LocalFileTriggerInput, LocalFileTriggerOutput>(
                     em,
                     LocalFileTriggerPipelineModule,
@@ -126,24 +130,51 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
                             return matched;
                         },
                         buildNodeData: async () => {
-                            const fileAsset = await this.assetService.storeAssetFromLocalFile(em, fullRelativeFilePath, {
-                                type: AssetTypeEnum.PIPELINE,
-                                originalFilePath: filePath,
-                                size: stats.size,
-                                metadata: {},
-                            });
+                            const fileAsset = await this.assetService.storeAssetFromLocalFile(
+                                em,
+                                fullRelativeFilePath,
+                                {
+                                    type: AssetTypeEnum.PIPELINE,
+                                    originalFilePath: filePath,
+                                    size: stats.size,
+                                    metadata: {},
+                                },
+                            );
 
-                            // TODO: Add new pipeline id to pipeline asset metadata, maybe do it automatically by scanning output data?
                             return {
                                 fileAsset,
                             };
                         },
+                        // Links the execution back to the imported asset, which both records the provenance of the
+                        // run and lets the re-import guard recognise a file whose content was already processed.
+                        resolveTriggerAsset: (output) => output.fileAsset.id,
+                        allowReimport: ({ node }) => node.constantInputData?.allowReimport === true,
                     },
                 ),
             );
 
+            const createdPipelines = triggerResults.filter((result) => result.status === 'created');
+            const skippedPipelines = triggerResults.filter((result) => result.status === 'skipped');
+            const failedPipelines = triggerResults.filter((result) => result.status === 'failed');
+
             if (!createdPipelines.length) {
-                throw new Error(this.buildNoPipelineError(filePath, consideredTriggers, anyTriggerMatched));
+                // A duplicate import is a normal outcome, not a failure: report it at info level and treat the file
+                // as finished so it does not pile up in the failed folder on every repeated drop. A failed trigger
+                // still wins over a skipped one so the failure is not hidden behind the duplicate notice.
+                if (skippedPipelines.length && !failedPipelines.length) {
+                    this.logger.log(this.buildSkippedImportMessage(filePath, skippedPipelines));
+
+                    await moveFile(
+                        fullRelativeFilePath,
+                        join(process.cwd(), localFileTriggerImportFinishedFolderSetting, filePath),
+                    );
+
+                    return;
+                }
+
+                throw new Error(
+                    this.buildNoPipelineError(filePath, consideredTriggers, anyTriggerMatched, triggerResults),
+                );
             }
 
             await moveFile(
@@ -165,15 +196,39 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
     }
 
     /**
+     * Explains that an imported file was intentionally not reprocessed because its exact content already ran
+     * through the matching blueprint(s).
+     */
+    private buildSkippedImportMessage(filePath: string, skippedPipelines: SkippedPipelineTriggerResult[]): string {
+        const details = skippedPipelines
+            .map((skipped) => `blueprint "${skipped.blueprintTitle}" (${skipped.blueprintId}): ${skipped.reason}`)
+            .join('; ');
+
+        return (
+            `Imported file "${filePath}" was skipped as a duplicate import - ${details}. ` +
+            `Set "allowReimport" on the local-file-trigger node to force a re-run.`
+        );
+    }
+
+    /**
      * Builds an actionable error explaining why an imported file produced no pipeline, distinguishing the
-     * three possible causes: a blueprint matched but its execution failed, no trigger blueprint was found
-     * at all, or blueprints were found but none of their glob patterns matched the file.
+     * possible causes: a blueprint matched but its execution failed, every match was skipped as a duplicate
+     * import, no trigger blueprint was found at all, or blueprints were found but none of their glob patterns
+     * matched the file.
      */
     private buildNoPipelineError(
         filePath: string,
         consideredTriggers: { nodeId: number | string; globPatterns: string[] }[],
         anyTriggerMatched: boolean,
+        triggerResults: PipelineTriggerResult[] = [],
     ): string {
+        const skippedPipelines = triggerResults.filter((result) => result.status === 'skipped');
+        const anyTriggerFailed = triggerResults.some((result) => result.status === 'failed');
+
+        if (skippedPipelines.length && !anyTriggerFailed) {
+            return this.buildSkippedImportMessage(filePath, skippedPipelines);
+        }
+
         if (anyTriggerMatched) {
             return (
                 `Imported file "${filePath}" matched a local-file-trigger blueprint, but no pipeline could be started. ` +

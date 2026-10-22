@@ -1,4 +1,4 @@
-import { Items, Required, Type } from 'ts-decorator-json-schema-generator';
+import { Items, Optional, Required, Type } from 'ts-decorator-json-schema-generator';
 import { PipelineModuleJsonSchema } from '../../../../etl/pipeline/pipeline-module/decorator/pipeline-module-json-schema.decorator.js';
 import { PipelineModule } from '../../../../etl/pipeline/pipeline-module/decorator/pipeline-module.decorator.js';
 import { PipelineModuleTypeEnum } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module-type.enum.js';
@@ -12,6 +12,14 @@ export class LocalFileTriggerInput {
     @Type('array')
     @Items('string')
     public globPatterns!: string[];
+
+    /**
+     * Re-runs the blueprint even when a file with the exact same content was already imported successfully.
+     * Off by default so dropping the same file twice does not pay the full transform + store cost again.
+     */
+    @Optional()
+    @Type('boolean')
+    public allowReimport?: boolean;
 }
 
 @PipelineModuleJsonSchema()

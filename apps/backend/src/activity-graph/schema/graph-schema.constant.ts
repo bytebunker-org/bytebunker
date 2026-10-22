@@ -25,6 +25,7 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.PERSON, PersonSchema);
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.PLACE, PlaceSchema);
     neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.GOOGLE_PLACE, GooglePlaceSchema);
+    neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.ICS_LOCATION, {});
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.AUDIO, AudioSchema);
     neode.extend(NodeLabelEnum.AUDIO, NodeLabelEnum.MUSIC_RECORDING, MusicRecordingSchema);
     neode.extend(NodeLabelEnum.MUSIC_RECORDING, NodeLabelEnum.SPOTIFY_TRACK, {});

@@ -11,5 +11,4 @@ export const YouTubeViewActivitySchema = {
     },
 } satisfies SchemaObject;
 
-export type YouTubeViewActivityNodeType = InferGraphEntityType<typeof YouTubeViewActivitySchema> &
-    ASActivityNodeType;
+export type YouTubeViewActivityNodeType = InferGraphEntityType<typeof YouTubeViewActivitySchema> & ASActivityNodeType;

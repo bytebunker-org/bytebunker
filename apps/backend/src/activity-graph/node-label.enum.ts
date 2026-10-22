@@ -4,6 +4,7 @@ export enum NodeLabelEnum {
     PERSON = 'Person',
     PLACE = 'Place',
     GOOGLE_PLACE = 'GooglePlace',
+    ICS_LOCATION = 'IcsLocation',
     AUDIO = 'Audio',
     MUSIC_RECORDING = 'MusicRecording',
     SPOTIFY_TRACK = 'SpotifyTrack',
