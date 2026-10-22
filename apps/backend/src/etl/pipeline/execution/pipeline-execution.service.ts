@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PipelineBlueprintEntity } from '../blueprint/entity/pipeline-blueprint.entity.js';
 import { type EntityManager } from '@mikro-orm/postgresql';
 import { Blueprint } from '../blueprint/util/blueprint.class.js';
@@ -271,8 +271,100 @@ export class PipelineExecutionService {
                 em.persist(pipelineExecution);
 
                 this.logger.debug(`Finished pipeline execution ${pipelineExecution.id}!`);
+            } else {
+                // Nothing left to run but some node did not succeed, e.g. after retrying one branch while another
+                // one stays failed. Without this the execution would stay "waiting" forever.
+                const statuses = new Set(executionDataList.map((d) => d.executionStatus));
+                const finalStatus = statuses.has(PipelineExecutionStatusEnum.FAILED)
+                    ? PipelineExecutionStatusEnum.FAILED
+                    : statuses.has(PipelineExecutionStatusEnum.ABORTED)
+                      ? PipelineExecutionStatusEnum.ABORTED
+                      : undefined;
+
+                if (finalStatus) {
+                    pipelineExecution.executionStatus = finalStatus;
+                    em.persist(pipelineExecution);
+                }
             }
         }
+    }
+
+    /**
+     * Prepares a retry starting at `nodeId`: the node and everything downstream of it lose their execution data
+     * (so they run again with fresh input), and the execution goes back to waiting. Trigger nodes keep their output,
+     * it cannot be recomputed. Returns the ids of the reset nodes. Schedule the execution after the transaction
+     * committed.
+     */
+    public async resetFromNode(em: EntityManager, executionId: number, nodeId: number): Promise<number[]> {
+        const pipelineExecution = await em.findOne(
+            PipelineExecutionEntity,
+            { id: executionId },
+            { populate: ['blueprint'] },
+        );
+
+        if (!pipelineExecution) {
+            throw new NotFoundException(`Pipeline execution ${executionId} not found`);
+        }
+
+        const blueprint = new Blueprint(pipelineExecution.blueprint.$.data);
+        const node = blueprint.getNode(nodeId);
+
+        if (!node) {
+            throw new NotFoundException(`Pipeline execution ${executionId} has no node ${nodeId}`);
+        }
+
+        const resetNodeIds = [node, ...blueprint.getDependantNodesRecursive(node)]
+            .filter(
+                (n) => this.moduleService.getPipelineModuleOptions(n.moduleId)?.type !== PipelineModuleTypeEnum.TRIGGER,
+            )
+            .map((n) => n.id);
+
+        if (resetNodeIds.length) {
+            await em.nativeDelete(PipelineExecutionDataEntity, {
+                pipelineExecution: executionId,
+                nodeId: { $in: resetNodeIds },
+            });
+        }
+
+        pipelineExecution.executionStatus = PipelineExecutionStatusEnum.WAITING;
+
+        if (
+            pipelineExecution.latestErrorNodeId !== undefined &&
+            resetNodeIds.includes(pipelineExecution.latestErrorNodeId)
+        ) {
+            pipelineExecution.latestErrorNodeId = undefined;
+            pipelineExecution.latestErrorStatus = undefined;
+            pipelineExecution.latestErrorMessage = undefined;
+            pipelineExecution.latestErrorData = undefined;
+        }
+
+        await em.flush();
+
+        this.logger.log(`Reset nodes ${resetNodeIds.join(', ')} of pipeline execution ${executionId} for a retry`);
+
+        return resetNodeIds;
+    }
+
+    /**
+     * Stops scheduling further nodes. A module that is running right now finishes and stores its output, but its
+     * successors never start; queued modules skip themselves (see {@link executeModule}). Finished executions are
+     * left alone.
+     */
+    public async abortExecution(em: EntityManager, executionId: number): Promise<void> {
+        const pipelineExecution = await em.findOne(PipelineExecutionEntity, { id: executionId });
+
+        if (!pipelineExecution) {
+            throw new NotFoundException(`Pipeline execution ${executionId} not found`);
+        }
+
+        if (pipelineExecution.executionStatus !== PipelineExecutionStatusEnum.WAITING) {
+            return;
+        }
+
+        pipelineExecution.executionStatus = PipelineExecutionStatusEnum.ABORTED;
+        await em.flush();
+
+        this.logger.log(`Aborted pipeline execution ${executionId}`);
     }
 
     public async createExecutionData(
@@ -336,6 +428,12 @@ export class PipelineExecutionService {
 
         if (!node) {
             throw new Error(`Pipeline execution ${pipelineExecution.id} node ${nodeId} not found`);
+        }
+
+        if (pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED) {
+            this.logger.log(`Skipping node ${node.id} of aborted pipeline execution ${pipelineExecution.id}`);
+
+            return;
         }
 
         const inputData = this.buildNodeInputData(pipelineExecution, node);
@@ -449,7 +547,12 @@ export class PipelineExecutionService {
         em.persist(executionLog);
         pipelineExecution.executionLogs.add(executionLog);
 
-        if (isUnexpectedError) {
+        // The execution may have been aborted while this module ran; that decision wins over the module's outcome.
+        const wasAborted = await this.isAborted(em, pipelineExecution.id);
+
+        if (wasAborted) {
+            pipelineExecution.executionStatus = PipelineExecutionStatusEnum.ABORTED;
+        } else if (isUnexpectedError) {
             // Nothing retries automatically, so an execution left "waiting" here would hang forever. Mark it failed;
             // scheduling it again (force execute) resets it to waiting. errorRetryCount counts the attempts.
             pipelineExecution.executionStatus = PipelineExecutionStatusEnum.FAILED;
@@ -481,6 +584,15 @@ export class PipelineExecutionService {
         }
 
         em.persist(pipelineExecution);
+    }
+
+    /** Reads the committed status, not the one loaded when the module started. */
+    private async isAborted(em: EntityManager, executionId: number): Promise<boolean> {
+        const current = await em
+            .fork()
+            .findOne(PipelineExecutionEntity, { id: executionId }, { fields: ['executionStatus'] });
+
+        return current?.executionStatus === PipelineExecutionStatusEnum.ABORTED;
     }
 
     private buildNodeInputData(

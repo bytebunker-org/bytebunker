@@ -58,6 +58,13 @@ export class PipelineProgressService {
         await reporter.finish(status, message);
     }
 
+    /** Forgets the live state of nodes that are about to run again, so they show as waiting until they start. */
+    public async clearNodes(executionId: number, nodeIds: number[]): Promise<void> {
+        if (nodeIds.length) {
+            await this.redis.hdel(KEY_PREFIX + executionId, ...nodeIds.map(String));
+        }
+    }
+
     public async getProgress(em: EntityManager, executionId: number): Promise<PipelineProgressDto> {
         const execution = await em.findOneOrFail(
             PipelineExecutionEntity,

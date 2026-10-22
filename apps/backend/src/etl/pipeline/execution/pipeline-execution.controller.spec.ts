@@ -11,7 +11,10 @@ describe('PipelineExecutionController', () => {
         createExecutionFromTrigger: ReturnType<typeof vi.fn>;
         createRerunFromTrigger: ReturnType<typeof vi.fn>;
         schedulePipelineExecution: ReturnType<typeof vi.fn>;
+        resetFromNode: ReturnType<typeof vi.fn>;
+        abortExecution: ReturnType<typeof vi.fn>;
     };
+    let progressService: { clearNodes: ReturnType<typeof vi.fn> };
 
     beforeEach(() => {
         order = [];
@@ -38,12 +41,29 @@ describe('PipelineExecutionController', () => {
 
                 return Promise.resolve();
             }),
+            resetFromNode: vi.fn(() => {
+                order.push('reset');
+
+                return Promise.resolve([2, 3]);
+            }),
+            abortExecution: vi.fn(() => {
+                order.push('abort');
+
+                return Promise.resolve();
+            }),
+        };
+        progressService = {
+            clearNodes: vi.fn(() => {
+                order.push('clear progress');
+
+                return Promise.resolve();
+            }),
         };
 
         controller = new PipelineExecutionController(
             em,
             executionService as unknown as PipelineExecutionService,
-            {} as PipelineProgressService,
+            progressService as unknown as PipelineProgressService,
         );
     });
 
@@ -62,5 +82,26 @@ describe('PipelineExecutionController', () => {
 
         expect(executionService.createRerunFromTrigger).toHaveBeenCalledWith(expect.anything(), 5, { dryRun });
         expect(order).toEqual(['create', 'commit', 'schedule 12']);
+    });
+
+    it('retries from a node: resets in a transaction, then clears the live progress and queues the execution', async () => {
+        await controller.retryFromNode(5, 2);
+
+        expect(executionService.resetFromNode).toHaveBeenCalledWith(expect.anything(), 5, 2);
+        expect(progressService.clearNodes).toHaveBeenCalledWith(5, [2, 3]);
+        expect(order).toEqual(['reset', 'commit', 'clear progress', 'schedule 5']);
+    });
+
+    it('aborts inside a transaction without scheduling anything', async () => {
+        await controller.abort(5);
+
+        expect(executionService.abortExecution).toHaveBeenCalledWith(expect.anything(), 5);
+        expect(order).toEqual(['abort', 'commit']);
+    });
+
+    it('keeps schedule-execution as "retry all failed"', async () => {
+        await controller.scheduleExecution(5);
+
+        expect(executionService.schedulePipelineExecution).toHaveBeenCalledWith(5, true);
     });
 });

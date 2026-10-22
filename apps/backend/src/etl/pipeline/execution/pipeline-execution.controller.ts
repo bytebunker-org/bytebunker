@@ -77,8 +77,37 @@ export class PipelineExecutionController {
         );
     }
 
+    @Post(':id/nodes/:nodeId/retry')
+    @ApiOperation({
+        summary:
+            'Run a node and everything downstream of it again. Their previous output is discarded; the execution ' +
+            'goes back to waiting.',
+    })
+    @ApiResponse({ status: 204 })
+    @HttpCode(204)
+    public async retryFromNode(
+        @Param('id', ParseIntPipe) id: number,
+        @Param('nodeId', ParseIntPipe) nodeId: number,
+    ): Promise<void> {
+        const resetNodeIds = await this.em.transactional((em) =>
+            this.pipelineExecutionService.resetFromNode(em, id, nodeId),
+        );
+        await this.progressService.clearNodes(id, resetNodeIds);
+        await this.pipelineExecutionService.schedulePipelineExecution(id);
+    }
+
+    @Post(':id/abort')
+    @ApiOperation({
+        summary: 'Abort an execution: a module that is running finishes, but no further modules start',
+    })
+    @ApiResponse({ status: 204 })
+    @HttpCode(204)
+    public abort(@Param('id', ParseIntPipe) id: number): Promise<void> {
+        return this.em.transactional((em) => this.pipelineExecutionService.abortExecution(em, id));
+    }
+
     @Post(':id/schedule-execution')
-    @ApiOperation({ summary: 'Schedule the pipeline to be executed again' })
+    @ApiOperation({ summary: 'Retry all failed and aborted nodes of the execution and continue it' })
     @ApiResponse({ status: 204 })
     @HttpCode(204)
     public scheduleExecution(@Param('id', ParseIntPipe) id: number): Promise<void> {
