@@ -23,7 +23,9 @@
             "id": 3,
             "moduleId": "ics-calendar:parse-ics-file@1",
             "position": { "x": 700, "y": -20 },
-            "constantInputData": {}
+            "constantInputData": {
+                "recurrenceHorizon": "P0D"
+            }
         },
         {
             "id": 4,
