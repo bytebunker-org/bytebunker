@@ -1,0 +1,53 @@
+{
+    "edges": [
+        {
+            "id": 0,
+            "source": 1,
+            "target": 2,
+            "sourceHandle": "fileAsset",
+            "targetHandle": "fileAsset"
+        },
+        {
+            "id": 1,
+            "source": 2,
+            "target": 3,
+            "sourceHandle": "activities",
+            "targetHandle": "activities"
+        }
+    ],
+    "nodes": [
+        {
+            "id": 1,
+            "moduleId": "common-pipeline-triggers:local-file-trigger@1",
+            "position": {
+                "x": -60,
+                "y": 240
+            },
+            "constantInputData": {
+                "globPatterns": ["spotify/Streaming_History_Audio_*.json"]
+            }
+        },
+        {
+            "id": 2,
+            "moduleId": "bytebunker-core:execute-code@1",
+            "position": {
+                "x": 220,
+                "y": 240
+            },
+            "constantInputData": {
+                "code": "/**\n * Represents an entry of a song listened to on Spotify.\n */\ninterface SpotifyListenedSongEntry {\n    /**\n     * Timestamp indicating when the track stopped playing in UTC (Coordinated Universal Time).\n     * Format: YYYY-MM-DDTHH:MM:SSZ\n     * @example \"2021-06-21T17:18:03Z\"\n     */\n    ts?: string;\n\n    /**\n     * The platform used when streaming the track (e.g., Android OS, Google Chromecast).\n     * @example \"Linux [x86-64 0]\"\n     */\n    platform?: string;\n\n    /**\n     * Number of milliseconds the track was played.\n     * @example 5282\n     */\n    ms_played?: number;\n\n    /**\n     * Country code of the country where the stream was played.\n     * @example \"DE\"\n     */\n    conn_country?: string;\n\n    /**\n     * IP address logged when streaming the track.\n     * @example \"24.134.224.161\"\n     */\n    ip_addr?: string;\n\n    /**\n     * Name of the track.\n     * @example \"À nos souvenirs\"\n     */\n    master_metadata_track_name?: string;\n\n    /**\n     * Name of the artist, band, or podcast.\n     * @example \"Trois Cafés Gourmands\"\n     */\n    master_metadata_album_artist_name?: string;\n\n    /**\n     * Name of the album of the track.\n     * @example \"Un air de rien\"\n     */\n    master_metadata_album_album_name?: string;\n\n    /**\n     * A Spotify URI, uniquely identifying the track.\n     * Format: \"spotify:track:<base-62 string>\"\n     * @example \"spotify:track:3LgrzjwX7RVTtAX9Ai12Qm\"\n     */\n    spotify_track_uri?: string;\n\n    /**\n     * Name of the episode of the podcast, if applicable.\n     */\n    episode_name?: string;\n\n    /**\n     * Name of the show of the podcast, if applicable.\n     */\n    episode_show_name?: string;\n\n    /**\n     * A Spotify URI, uniquely identifying the podcast episode.\n     * Format: \"spotify:episode:<base-62 string>\"\n     */\n    spotify_episode_uri?: string;\n\n    /**\n     * Title of the audiobook, if applicable.\n     */\n    audiobook_title?: string;\n\n    /**\n     * A Spotify URI, uniquely identifying the audiobook.\n     */\n    audiobook_uri?: string;\n\n    /**\n     * A Spotify URI, uniquely identifying the audiobook chapter.\n     */\n    audiobook_chapter_uri?: string;\n\n    /**\n     * Title of the audiobook chapter, if applicable.\n     */\n    audiobook_chapter_title?: string;\n\n    /**\n     * Value indicating why the track started playing (e.g., \"trackdone\").\n     * @example \"fwdbtn\"\n     */\n    reason_start?: string;\n\n    /**\n     * Value indicating why the track ended (e.g., \"endplay\").\n     * @example \"backbtn\"\n     */\n    reason_end?: string;\n\n    /**\n     * Indicates whether shuffle mode was enabled when playing the track.\n     * @example true\n     */\n    shuffle?: boolean;\n\n    /**\n     * Indicates whether the user skipped to the next song.\n     * @example false\n     */\n    skipped?: boolean;\n\n    /**\n     * Indicates whether the track was played in offline mode.\n     * @example false\n     */\n    offline?: boolean;\n\n    /**\n     * Timestamp of when offline mode was used, if applicable.\n     */\n    offline_timestamp?: string;\n\n    /**\n     * Indicates whether the track was played during a private session.\n     * @example false\n     */\n    incognito_mode?: boolean;\n}\n\ninterface Input {\n    fileAsset: AssetDto;\n}\n\ninterface Output {\n    activities: ASActivity[];\n}\n\nfunction transformSpotifyTrack(entry: SpotifyListenedSongEntry, activityStableKeyService: ActivityStableKeyService): ASObject {\n    return {\n        \"@type\": \"Audio\",\n        \"@secondaryTypes\": [\"MusicRecording\", \"SpotifyTrack\"],\n        stableKeys: [\n            activityStableKeyService.createASObjectStableKey(\"Audio\", {\n                type: \"MusicRecording\",\n                name: entry.master_metadata_track_name,\n                artist: entry.master_metadata_album_artist_name\n            }),\n            activityStableKeyService.createASObjectStableKey(\"Audio\", {\n                identifier: entry.spotify_track_uri\n            }),\n        ],\n        identifier: entry.spotify_track_uri,\n        name: entry.master_metadata_track_name,\n        byArtist: entry.master_metadata_album_artist_name,\n        inAlbum: entry.master_metadata_album_album_name\n    }\n}\n\nfunction transformSpotifyEpisode(entry: SpotifyListenedSongEntry, activityStableKeyService: ActivityStableKeyService): ASObject {\n    return {\n        \"@type\": \"Audio\",\n        \"@secondaryTypes\": [\"PodcastEpisode\", \"SpotifyEpisode\"],\n        stableKeys: [\n            activityStableKeyService.createASObjectStableKey(\"Audio\", {\n                type: \"PodcastEpisode\",\n                name: entry.episode_name,\n                showName: entry.episode_show_name\n            }),\n            activityStableKeyService.createASObjectStableKey(\"Audio\", {\n                identifier: entry.spotify_episode_uri\n            }),\n        ],\n        identifier: entry.spotify_episode_uri,\n        name: entry.episode_name,\n        showName: entry.episode_show_name\n    }\n}\n\nfunction summarize(audioType: \"track\" | \"episode\", entry: SpotifyListenedSongEntry) {\n    const durationMinutes = Duration.fromMillis(entry.ms_played ?? 0).as(\"minutes\");\n    const typeName = audioType === \"track\" ? \"song\" : \"podcast episode\";\n    const name = audioType === \"track\" ? entry.master_metadata_track_name : entry.episode_name;\n\n    return `Listened to ${typeName} \"${name}\" for ${durationMinutes.toFixed(1)} minute${durationMinutes > 1 ? \"s\" : \"\"}`;\n}\n\nfunction transformEntry(entry: SpotifyListenedSongEntry, { logger, ownerActor, generatorExtensionObject, activityStableKeyService }: PipelineModuleExecutionContext<Input>): ASActivity {\n    const startTime = DateTime.fromISO(entry.ts);\n\n    if (!startTime) {\n        throw new Error(\"Can't parse startTime in song entry\" + JSON.stringify(entry));\n    }\n\n    const durationMillis = entry.ms_played ?? 0;\n    const duration = Duration.fromMillis(durationMillis);\n    const endTime = startTime.plus(duration);\n    const audioType = Boolean(entry.master_metadata_track_name) ? \"track\" : Boolean(entry.episode_name) ? \"episode\" : \"audiobook\";\n\n    if (audioType === \"audiobook\") {\n        logger.log(\"Found audiobook entry!\");\n        logger.log(JSON.stringify(entry));\n\n        throw new Error(\"Can't process audiobook entries yet, found one on\" + entry.ts);\n    }\n\n    return {\n        \"@type\": \"Listen\",\n        \"@secondaryTypes\": [\"SpotifyListenActivity\"],\n        generator: generatorExtensionObject,\n        stableKeys: [\n            activityStableKeyService.createActivityStableKey(\"Listen\", {\n                start: startTime,\n                end: endTime\n            }, { dateTimePrecision: \"minute\" })\n        ],\n        actor: ownerActor,\n        summary: summarize(audioType, entry),\n        object: audioType === \"track\" ? transformSpotifyTrack(entry, activityStableKeyService) : transformSpotifyEpisode(entry, activityStableKeyService),\n        startTime,\n        endTime,\n        ...Object.fromEntries([\n            [\"platform\", entry.platform],\n            [\"ipAddress\", entry.ip_addr],\n            [\"reasonStart\", entry.reason_start],\n            [\"reasonEnd\", entry.reason_end],\n            [\"shuffle\", entry.shuffle],\n            [\"skipped\", entry.skipped],\n            [\"offline\", entry.offline],\n            [\"offlineTimestamp\", entry.offline_timestamp],\n            [\"incogniteMode\", entry.incognito_mode]\n        ].filter(([k, v]) => typeof v !== \"undefined\" && v !== null))\n    }\n}\n\nasync function executeModule(context: PipelineModuleExecutionContext<Input>): Promise<Output> {\n    const { inputData, assetService, em } = context;\n    const content = await assetService.getAssetString(em, inputData.fileAsset);\n    const entries = JSON.parse(content) as SpotifyListenedSongEntry[];\n\n    return {\n        activities: entries.map((e) => transformEntry(e, context))\n    };\n}\n",
+                "customInputParameters": ["fileAsset"],
+                "customOutputParameters": ["activities"]
+            }
+        },
+        {
+            "id": 3,
+            "moduleId": "bytebunker-core:store-activity@1",
+            "position": {
+                "x": 500,
+                "y": 240
+            },
+            "constantInputData": {}
+        }
+    ]
+}
