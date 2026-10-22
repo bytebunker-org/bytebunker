@@ -12,6 +12,7 @@ import { GoogleExtensionModule } from './extensions/google/google-extension.modu
 import { IcsCalendarExtensionModule } from './extensions/ics-calendar/ics-calendar-extension.module.js';
 import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.module.js';
 import { SpotifyExtensionModule } from './extensions/spotify/spotify-extension.module.js';
+import { EnrichmentExtensionModule } from './extensions/enrichment/enrichment-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
@@ -19,6 +20,7 @@ const manuallyLoadedExtensions = [
     IcsCalendarExtensionModule,
     YouTubeExtensionModule,
     SpotifyExtensionModule,
+    EnrichmentExtensionModule,
 ];
 
 @Module({

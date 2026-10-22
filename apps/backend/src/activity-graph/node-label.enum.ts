@@ -5,6 +5,8 @@ export enum NodeLabelEnum {
     PLACE = 'Place',
     GOOGLE_PLACE = 'GooglePlace',
     ICS_LOCATION = 'IcsLocation',
+    /** Derived by enrichment: one node per real place, raw places point at it with SAME_AS. Not a Place itself. */
+    CANONICAL_PLACE = 'CanonicalPlace',
     AUDIO = 'Audio',
     MUSIC_RECORDING = 'MusicRecording',
     SPOTIFY_TRACK = 'SpotifyTrack',

@@ -20,6 +20,7 @@ import { YouTubeVideoSchema } from './as-object/youtube-video.schema.js';
 import { AudiobookChapterSchema } from './as-object/audiobook-chapter.schema.js';
 import { SpotifyVideoSchema } from './as-object/spotify-video.schema.js';
 import { SpotifyViewActivitySchema } from './activity/spotify-view-activity.schema.js';
+import { CanonicalPlaceSchema } from './as-object/canonical-place.schema.js';
 
 export function registerGraphSchemas(neode: Neode): void {
     neode.model(NodeLabelEnum.EXTENSION, ExtensionSchema);
@@ -29,6 +30,8 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.PLACE, PlaceSchema);
     neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.GOOGLE_PLACE, GooglePlaceSchema);
     neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.ICS_LOCATION, {});
+    // Deliberately not a Place: queries over raw places must not see the derived ones.
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.CANONICAL_PLACE, CanonicalPlaceSchema);
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.AUDIO, AudioSchema);
     neode.extend(NodeLabelEnum.AUDIO, NodeLabelEnum.MUSIC_RECORDING, MusicRecordingSchema);
     neode.extend(NodeLabelEnum.MUSIC_RECORDING, NodeLabelEnum.SPOTIFY_TRACK, {});

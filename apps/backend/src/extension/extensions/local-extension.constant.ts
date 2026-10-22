@@ -12,6 +12,8 @@ export const YOUTUBE_EXTENSION_ID = '019df6f5-dae3-7099-a14f-22b5d7ddd19e';
 export const YOUTUBE_EXTENSION = 'youtube';
 export const SPOTIFY_EXTENSION_ID = '01a163d0-e355-70d0-9e31-006decec8772';
 export const SPOTIFY_EXTENSION = 'spotify';
+export const ENRICHMENT_EXTENSION_ID = '01a163e4-c3ae-70cf-9f51-1027a9f82a59';
+export const ENRICHMENT_EXTENSION = 'enrichment';
 
 export const localExtensions = [
     {
@@ -41,6 +43,10 @@ export const localExtensions = [
     {
         id: SPOTIFY_EXTENSION_ID,
         name: SPOTIFY_EXTENSION,
+    } as const,
+    {
+        id: ENRICHMENT_EXTENSION_ID,
+        name: ENRICHMENT_EXTENSION,
     } as const,
 ] satisfies { id: string; name: string }[];
 
