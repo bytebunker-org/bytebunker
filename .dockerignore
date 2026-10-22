@@ -4,7 +4,9 @@
 **/.turbo
 **/.svelte-kit
 .git
-**/coverage
+# Test coverage reports only: src/**/coverage holds the data-coverage feature
+apps/*/coverage
+packages/*/coverage
 **/*.log
 # Local scratch data, incl. the ingest harness corpus (personal exports) and import folders
 **/temp
