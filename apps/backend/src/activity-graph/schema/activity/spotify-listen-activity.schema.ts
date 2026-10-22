@@ -11,6 +11,9 @@ export const SpotifyListenActivitySchema = {
     offline: 'boolean',
     offlineTimestamp: 'string',
     incognitoMode: 'boolean',
+    mediaType: 'string',
+    msPlayed: 'integer',
+    connCountry: 'string',
 } satisfies SchemaObject;
 
 export type SpotifyListenActivityNodeType = InferGraphEntityType<typeof SpotifyListenActivitySchema> &
