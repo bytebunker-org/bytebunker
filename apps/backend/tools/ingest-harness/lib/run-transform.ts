@@ -69,6 +69,11 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
         new ParseIcsFilePipelineModule(s.assetService, s.stableKeyService, s.graphService, s.graphNodeService) as never,
     'airbnb-export': (s) =>
         new TransformAirbnbExportPipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
     'spotify-streaming-history': (s) =>
         new TransformSpotifyStreamingHistoryPipelineModule(
             s.assetService,
