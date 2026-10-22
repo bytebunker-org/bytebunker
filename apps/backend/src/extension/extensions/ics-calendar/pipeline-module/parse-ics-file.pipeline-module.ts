@@ -99,7 +99,7 @@ export class ParseIcsFilePipelineModule implements IPipelineModule<ParseIcsFileI
     ) {}
 
     public detectFile(sample: FileSample): FileDetection | undefined {
-        if (/^\uFEFF?\s*BEGIN:VCALENDAR/i.test(sample.head)) {
+        if (/^\uFEFF?\s*begin:vcalendar/i.test(sample.head)) {
             return { confidence: 0.98, format: 'iCalendar (.ics)' };
         }
 
@@ -111,7 +111,10 @@ export class ParseIcsFilePipelineModule implements IPipelineModule<ParseIcsFileI
         inputData,
         progress,
     }: PipelineModuleExecutionContext<ParseIcsFileInput>): Promise<ParseIcsFileOutput> {
-        const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, ICS_CALENDAR_EXTENSION_ID);
+        const generatorExtensionObject = await this.activityGraphNodeService.getExtension(
+            em,
+            ICS_CALENDAR_EXTENSION_ID,
+        );
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
         const actorId = ownerActor.get('id')!;
 
@@ -208,22 +211,27 @@ export class ParseIcsFilePipelineModule implements IPipelineModule<ParseIcsFileI
         } satisfies EventActivity & IcsEventActivityInterface;
     }
 
+    /**
+     * Identity is UID + recurrence instance only: the same event in another export (an old .ics backup, the my-hub
+     * feed) dedupes, while different events that share a start time stay separate. Events without a UID (rare,
+     * invalid per RFC 5545) fall back to a content key.
+     */
     private buildStableKeys(occurrence: IcsOccurrenceModel, summary: string, startTime: DateTime): string[] {
-        const uidKey = occurrence.uid
-            ? occurrence.recurrenceKey
-                ? `ics:${occurrence.uid}:${occurrence.recurrenceKey}`
-                : `ics:${occurrence.uid}`
-            : undefined;
+        if (occurrence.uid) {
+            return [
+                occurrence.recurrenceKey
+                    ? `ics:${occurrence.uid}:${occurrence.recurrenceKey}`
+                    : `ics:${occurrence.uid}`,
+            ];
+        }
 
         return [
-            uidKey,
-            // Content key: catches the same event exported from several calendars under different UIDs.
             this.activityStableKeyService.createActivityStableKey(
                 'Event',
                 { start: startTime, summary },
                 { dateTimePrecision: 'minute' },
             ),
-        ].filter((key): key is string => Boolean(key));
+        ];
     }
 
     private buildLocationPlace(component: IcsComponentModel): Place | undefined {

@@ -36,6 +36,10 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.VIDEO, VideoSchema);
     neode.extend(NodeLabelEnum.VIDEO, NodeLabelEnum.YOUTUBE_VIDEO, YouTubeVideoSchema);
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.NOTE, NoteSchema);
+    neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.PAGE, {});
+    neode.extend(NodeLabelEnum.AUDIO, NodeLabelEnum.AUDIOBOOK_CHAPTER, {});
+    neode.extend(NodeLabelEnum.PLACE, NodeLabelEnum.AIRBNB_LISTING, {});
+    neode.extend(NodeLabelEnum.PERSON, NodeLabelEnum.MY_HUB_PERSON, {});
 
     neode.extend(NodeLabelEnum.AS_OBJECT, NodeLabelEnum.ACTIVITY, ASActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.GOOGLE_TIMELINE_ACTIVITY, GoogleTimelineActivitySchema);
@@ -48,6 +52,16 @@ export function registerGraphSchemas(neode: Neode): void {
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_EVENT, EventActivitySchema);
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_CREATE, {});
     neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_SEARCH, SearchActivitySchema);
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.ACTIVITY_ADD, {});
+
+    neode.extend(NodeLabelEnum.ACTIVITY_EVENT, NodeLabelEnum.ICS_EVENT, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_EVENT, NodeLabelEnum.STAY, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_CREATE, NodeLabelEnum.MESSAGE, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_CREATE, NodeLabelEnum.REVIEW, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_ADD, NodeLabelEnum.BOOKMARK, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_ADD, NodeLabelEnum.SAVED_PLACE, {});
+    neode.extend(NodeLabelEnum.ACTIVITY_VIEW, NodeLabelEnum.BROWSER_VISIT, {});
+    neode.extend(NodeLabelEnum.ACTIVITY, NodeLabelEnum.GOOGLE_MY_ACTIVITY, {});
 }
 
 export const relationshipInfoMap: Record<

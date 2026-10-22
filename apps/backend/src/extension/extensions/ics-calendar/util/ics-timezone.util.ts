@@ -61,15 +61,15 @@ const WINDOWS_ZONE_MAP: Record<string, string> = {
 
 /** Outlook sometimes writes the display name instead of the zone id, e.g. `(UTC+01:00) Amsterdam, Berlin, ...`. */
 const WINDOWS_DISPLAY_NAME_MAP: [RegExp, string][] = [
-    [/Amsterdam, Berlin/i, 'Europe/Berlin'],
-    [/Brussels, Copenhagen, Madrid, Paris/i, 'Europe/Paris'],
-    [/Belgrade, Bratislava, Budapest/i, 'Europe/Budapest'],
-    [/Sarajevo, Skopje, Warsaw/i, 'Europe/Warsaw'],
-    [/Dublin, Edinburgh, Lisbon, London/i, 'Europe/London'],
-    [/Coordinated Universal Time|^\(UTC\)$/i, 'Etc/UTC'],
-    [/Eastern Time \(US & Canada\)/i, 'America/New_York'],
-    [/Pacific Time \(US & Canada\)/i, 'America/Los_Angeles'],
-    [/Osaka, Sapporo, Tokyo/i, 'Asia/Tokyo'],
+    [/amsterdam, berlin/i, 'Europe/Berlin'],
+    [/brussels, copenhagen, madrid, paris/i, 'Europe/Paris'],
+    [/belgrade, bratislava, budapest/i, 'Europe/Budapest'],
+    [/sarajevo, skopje, warsaw/i, 'Europe/Warsaw'],
+    [/dublin, edinburgh, lisbon, london/i, 'Europe/London'],
+    [/coordinated universal time|^\(utc\)$/i, 'Etc/UTC'],
+    [/eastern time \(us & canada\)/i, 'America/New_York'],
+    [/pacific time \(us & canada\)/i, 'America/Los_Angeles'],
+    [/osaka, sapporo, tokyo/i, 'Asia/Tokyo'],
 ];
 
 /**
@@ -82,7 +82,7 @@ export function resolveTzidToIana(tzid: string | undefined): string | undefined 
         return undefined;
     }
 
-    const cleaned = tzid.trim().replace(/^"|"$/g, '');
+    const cleaned = tzid.trim().replaceAll(/^"|"$/g, '');
 
     if (isValidIanaZone(cleaned)) {
         return cleaned;
@@ -109,7 +109,7 @@ export function resolveTzidToIana(tzid: string | undefined): string | undefined 
 
 function isValidIanaZone(zone: string): boolean {
     // "Z", "UTC+1" and similar are valid luxon zones but not IANA names written by calendar producers.
-    return /^[A-Za-z]+(\/[A-Za-z0-9_+-]+)+$|^(UTC|GMT|Etc\/UTC)$/.test(zone) && IANAZone.isValidZone(zone);
+    return /^[A-Za-z]+(\/[\w+-]+)+$|^(UTC|GMT|Etc\/UTC)$/.test(zone) && IANAZone.isValidZone(zone);
 }
 
 export interface IcsTimezoneContext {
@@ -152,7 +152,7 @@ export function resolveIcsDate(
     tzid: string | undefined,
     context: IcsTimezoneContext,
 ): ResolvedIcsDate | undefined {
-    const basicValue = jcalValue.replace(/[-:]/g, '');
+    const basicValue = jcalValue.replaceAll(/[:-]/g, '');
 
     if (valueType === 'date' || /^\d{4}-\d{2}-\d{2}$/.test(jcalValue)) {
         const dateTime = DateTime.fromISO(jcalValue, { zone: context.floatingZone }).startOf('day');

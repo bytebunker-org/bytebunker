@@ -13,6 +13,10 @@ export enum NodeLabelEnum {
     VIDEO = 'Video',
     YOUTUBE_VIDEO = 'YouTubeVideo',
     NOTE = 'Note',
+    PAGE = 'Page',
+    AUDIOBOOK_CHAPTER = 'AudiobookChapter',
+    AIRBNB_LISTING = 'AirbnbListing',
+    MY_HUB_PERSON = 'MyHubPerson',
 
     ACTIVITY = 'Activity',
     GOOGLE_TIMELINE_ACTIVITY = 'GoogleTimelineActivity',
@@ -25,4 +29,15 @@ export enum NodeLabelEnum {
     ACTIVITY_EVENT = 'Event',
     ACTIVITY_CREATE = 'Create',
     ACTIVITY_SEARCH = 'Search',
+    ACTIVITY_ADD = 'Add',
+
+    /* Secondary activity labels, shared across sources (the source is the `generator`). */
+    ICS_EVENT = 'IcsEvent',
+    STAY = 'Stay',
+    MESSAGE = 'Message',
+    REVIEW = 'Review',
+    BOOKMARK = 'Bookmark',
+    SAVED_PLACE = 'SavedPlace',
+    BROWSER_VISIT = 'BrowserVisit',
+    GOOGLE_MY_ACTIVITY = 'GoogleMyActivity',
 }

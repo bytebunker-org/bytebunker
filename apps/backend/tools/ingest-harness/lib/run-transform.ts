@@ -2,6 +2,7 @@
  * Runs a blueprint's transform module directly on a corpus file, with the services it needs stubbed out:
  * no Postgres, Neo4j, Redis or asset storage. Needs SWC decorator support, so it runs under vitest.
  */
+import { NOOP_MODULE_PROGRESS_REPORTER } from '../../../src/etl/pipeline/progress/type/module-progress-reporter.interface.js';
 import fs from 'node:fs/promises';
 import { join } from 'node:path';
 import type { EntityManager } from '@mikro-orm/postgresql';
@@ -34,7 +35,12 @@ type AnyModule = IPipelineModule<Record<string, unknown>, unknown>;
 
 const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
     'google-timeline': (s) =>
-        new TransformTimelinePipelineModule(s.assetService, s.stableKeyService, s.graphService, s.graphNodeService) as never,
+        new TransformTimelinePipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
     'google-semantic-location-history': (s) =>
         new TransformSemanticLocationHistoryPipelineModule(
             s.assetService,
@@ -131,6 +137,8 @@ export async function runTransform(file: CorpusFile): Promise<TransformRun> {
         blueprint,
         currentNode: node,
         inputData,
+        progress: NOOP_MODULE_PROGRESS_REPORTER,
+        dryRun: true,
     })) as { activities?: unknown[] };
     const durationMs = performance.now() - start;
     const heapDeltaBytes = process.memoryUsage().heapUsed - heapBefore;

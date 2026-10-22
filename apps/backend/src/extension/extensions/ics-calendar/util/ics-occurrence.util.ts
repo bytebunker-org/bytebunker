@@ -7,7 +7,12 @@ import type {
     IcsJCalProperty,
     IcsOccurrenceModel,
 } from '@bytebunker/event-schema/extension/ics';
-import { buildRecurrenceKey, type IcsTimezoneContext, resolveIcsDate, type ResolvedIcsDate } from './ics-timezone.util.js';
+import {
+    buildRecurrenceKey,
+    type IcsTimezoneContext,
+    resolveIcsDate,
+    type ResolvedIcsDate,
+} from './ics-timezone.util.js';
 
 export interface ExpandIcsOccurrencesOptions {
     /** Recurring series are expanded up to (excluding) this instant. */
@@ -82,7 +87,7 @@ export function expandIcsOccurrences(
         const exceptionKeys = new Set(
             model.exceptionDates
                 .map((exceptionDate) => resolveDateValue(exceptionDate, context))
-                .filter((resolved): resolved is ResolvedIcsDate => Boolean(resolved))
+                .filter(Boolean)
                 .map(buildRecurrenceKey),
         );
 

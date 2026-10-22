@@ -104,12 +104,12 @@ describe('ParseIcsFilePipelineModule', () => {
             });
         });
 
-        it('uses ics:<UID> as the first stable key for UID-based dedup', () => {
+        it('uses ics:<UID> as the only stable key', () => {
             const activities = module.parseIcsToActivities(MINIMAL_ICS, FAKE_GENERATOR, FAKE_ACTOR_ID);
 
             const event = activities[0] as unknown as EventActivity;
 
-            expect(event.stableKeys).toEqual(['ics:minimal-event-1@test', 'activity-stable-key']);
+            expect(event.stableKeys).toEqual(['ics:minimal-event-1@test']);
         });
 
         it('keeps VEVENTs without a SUMMARY under a placeholder title', () => {
@@ -191,17 +191,14 @@ describe('ParseIcsFilePipelineModule', () => {
         });
 
         it('builds a geo Place from an Apple structured location', () => {
-            const [event] = module.parseIcsToActivities(
-                ICS_APPLE_STRUCTURED_LOCATION,
-                FAKE_GENERATOR,
-                FAKE_ACTOR_ID,
-                { floatingZone: 'Europe/Berlin' },
-            ) as unknown as (EventActivity & IcsEventActivityInterface & { location: Place })[];
+            const [event] = module.parseIcsToActivities(ICS_APPLE_STRUCTURED_LOCATION, FAKE_GENERATOR, FAKE_ACTOR_ID, {
+                floatingZone: 'Europe/Berlin',
+            }) as unknown as (EventActivity & IcsEventActivityInterface & { location: Place })[];
 
             expect(event.location).toMatchObject({
                 name: 'Porta Nigra\nPorta-Nigra-Platz, 54290 Trier',
-                latitude: 49.759722,
-                longitude: 6.644167,
+                latitude: 49.759_722,
+                longitude: 6.644_167,
             });
             expect(event.startTime!.toUTC().toISO()).toBe('2025-08-01T10:00:00.000Z');
             expect(event.endTime!.toUTC().toISO()).toBe('2025-08-01T12:00:00.000Z');

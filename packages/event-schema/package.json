@@ -39,6 +39,26 @@
             "import": "./lib/extension/airbnb/index.js",
             "types": "./lib/extension/airbnb/index.d.ts"
         },
+        "./extension/spotify": {
+            "import": "./lib/extension/spotify/index.js",
+            "types": "./lib/extension/spotify/index.d.ts"
+        },
+        "./extension/whatsapp": {
+            "import": "./lib/extension/whatsapp/index.js",
+            "types": "./lib/extension/whatsapp/index.d.ts"
+        },
+        "./extension/browser-history": {
+            "import": "./lib/extension/browser-history/index.js",
+            "types": "./lib/extension/browser-history/index.d.ts"
+        },
+        "./extension/my-hub": {
+            "import": "./lib/extension/my-hub/index.js",
+            "types": "./lib/extension/my-hub/index.d.ts"
+        },
+        "./extension/google-my-activity": {
+            "import": "./lib/extension/google-my-activity/index.js",
+            "types": "./lib/extension/google-my-activity/index.d.ts"
+        },
         "./package.json": "./package.json"
     },
     "dependencies": {

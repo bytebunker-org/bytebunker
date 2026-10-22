@@ -138,7 +138,12 @@ export interface IcsConferenceModel {
     features: string[];
     label?: string;
     /** Where the conference came from: RFC 7986 CONFERENCE or a vendor property. */
-    source: 'CONFERENCE' | 'X-GOOGLE-CONFERENCE' | 'X-MICROSOFT-SKYPETEAMSMEETINGURL' | 'X-MICROSOFT-ONLINEMEETINGCONFLINK' | 'DESCRIPTION';
+    source:
+        | 'CONFERENCE'
+        | 'X-GOOGLE-CONFERENCE'
+        | 'X-MICROSOFT-SKYPETEAMSMEETINGURL'
+        | 'X-MICROSOFT-ONLINEMEETINGCONFLINK'
+        | 'DESCRIPTION';
 }
 
 export interface IcsGeoModel {

@@ -16,7 +16,12 @@ import type {
     IcsStructuredLocationModel,
     IcsTimezoneModel,
 } from '@bytebunker/event-schema/extension/ics';
-import { buildTimezoneContext, type IcsTimezoneContext, resolveIcsDate, resolveTzidToIana } from './ics-timezone.util.js';
+import {
+    buildTimezoneContext,
+    type IcsTimezoneContext,
+    resolveIcsDate,
+    resolveTzidToIana,
+} from './ics-timezone.util.js';
 
 export interface ParseIcsDocumentOptions {
     /** IANA zone for floating and DATE values when the calendar does not declare X-WR-TIMEZONE. */
@@ -44,7 +49,10 @@ export interface ParsedIcsDocumentWithSources {
     sources: { model: IcsComponentModel; jcal: IcsJCalComponent }[];
 }
 
-export function parseIcsDocumentWithSources(rawIcs: string, options: ParseIcsDocumentOptions): ParsedIcsDocumentWithSources {
+export function parseIcsDocumentWithSources(
+    rawIcs: string,
+    options: ParseIcsDocumentOptions,
+): ParsedIcsDocumentWithSources {
     const parsed = ICAL.parse(normalizeRawIcs(rawIcs)) as IcsJCalComponent | IcsJCalComponent[];
     const roots = (isComponentList(parsed) ? parsed : [parsed]).filter((root) => root[0] === 'vcalendar');
 
@@ -71,7 +79,9 @@ export function parseIcsDocumentWithSources(rawIcs: string, options: ParseIcsDoc
         for (const jcalComponent of root[2]) {
             if (!COMPONENT_TYPES.has(jcalComponent[0])) {
                 if (jcalComponent[0] !== 'vtimezone') {
-                    warnings.push({ message: `Skipped unsupported top-level component ${jcalComponent[0].toUpperCase()}` });
+                    warnings.push({
+                        message: `Skipped unsupported top-level component ${jcalComponent[0].toUpperCase()}`,
+                    });
                 }
                 continue;
             }
@@ -99,11 +109,11 @@ function normalizeRawIcs(rawIcs: string): string {
     return (
         rawIcs
             // Byte order mark
-            .replace(/^﻿/, '')
+            .replace(/^\uFEFF/, '')
             // Bare LF / CR line endings
-            .replace(/\r\n|\r|\n/g, '\r\n')
+            .replaceAll(/\r\n|\r|\n/g, '\r\n')
             // Blank lines between content lines (not allowed, but written by some exporters)
-            .replace(/(\r\n){2,}/g, '\r\n')
+            .replaceAll(/(\r\n){2,}/g, '\r\n')
     );
 }
 
@@ -501,7 +511,7 @@ function parseAppleStructuredLocation(property: IcsJCalProperty): IcsStructuredL
         ...(name ? { name } : {}),
         ...(address ? { address } : {}),
         ...(geo ? { geo } : {}),
-        ...(radius !== undefined ? { radius } : {}),
+        ...(radius === undefined ? {} : { radius }),
         ...(uri && !geo ? { uri } : {}),
     };
 }
@@ -608,7 +618,7 @@ function parseAttachment(property: IcsJCalProperty): IcsAttachmentModel {
         ...(isBinary ? { inlineDataLength: value?.length ?? 0 } : value ? { uri: value } : {}),
         ...(formatType ? { formatType } : {}),
         ...(filename ? { filename } : {}),
-        ...(size !== undefined ? { size } : {}),
+        ...(size === undefined ? {} : { size }),
     };
 }
 
@@ -647,7 +657,9 @@ function parseAlarm(jcalComponent: IcsJCalComponent, context: IcsTimezoneContext
                 alarm.uid = value;
                 break;
             case 'acknowledged':
-                alarm.acknowledged = value ? resolveIcsDate(value, 'date-time', undefined, context)?.value.iso : undefined;
+                alarm.acknowledged = value
+                    ? resolveIcsDate(value, 'date-time', undefined, context)?.value.iso
+                    : undefined;
                 break;
             case 'proximity':
                 alarm.proximity = value;
@@ -661,7 +673,7 @@ function parseAlarm(jcalComponent: IcsJCalComponent, context: IcsTimezoneContext
 }
 
 const MEETING_URL_PATTERN =
-    /https:\/\/(?:meet\.google\.com\/[a-z-]+|[\w.-]*zoom\.us\/(?:j|my)\/[^\s<>"]+|teams\.microsoft\.com\/l\/meetup-join\/[^\s<>"]+|[\w.-]*webex\.com\/[^\s<>"]+|meet\.jit\.si\/[^\s<>"]+)/gi;
+    /https:\/\/(?:meet\.google\.com\/[a-z-]+|[\w.-]*zoom\.us\/(?:j|my)\/[^\s"<>]+|teams\.microsoft\.com\/l\/meetup-join\/[^\s"<>]+|[\w.-]*webex\.com\/[^\s"<>]+|meet\.jit\.si\/[^\s"<>]+)/gi;
 
 /** Meeting links that only appear in the description text (common for invitations) become conferences too. */
 function addConferencesFromDescription(component: IcsComponentModel): void {
@@ -669,7 +681,7 @@ function addConferencesFromDescription(component: IcsComponentModel): void {
     const known = new Set(component.conferences.map((conference) => conference.uri));
 
     for (const match of text.matchAll(MEETING_URL_PATTERN)) {
-        const uri = match[0].replace(/[).,;]+$/, '');
+        const uri = match[0].replace(/[),.;]+$/, '');
 
         if (!known.has(uri)) {
             known.add(uri);
