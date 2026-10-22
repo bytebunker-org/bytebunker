@@ -28,6 +28,8 @@ interface ProcessingFile {
 }
 
 const CHECK_INTERVAL_MS = 5000;
+/** A file must be untouched this long before the sweep picks it up, so it never grabs a file still being written. */
+const SWEEP_MIN_AGE_MS = 5000;
 
 /**
  * Watches the import folder and hands every new file to {@link FileImportService}. The file moves to the processing
@@ -50,6 +52,8 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
     private readonly processingFiles = new Map<string, ProcessingFile>();
     private checkTimer: NodeJS.Timeout | undefined;
     private checking: Promise<void> | undefined;
+    /** Files of the import folder currently being handled, so the watcher and the sweep never take the same file. */
+    private readonly inFlightFiles = new Set<string>();
 
     constructor(
         private readonly em: EntityManager,
@@ -96,9 +100,7 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
         // onFileAdded handles its own errors, but attach a catch as a last line of defence:
         // an unhandled rejection escaping this fire-and-forget handler would otherwise crash the process.
         this.watcher.on('add', (filePath) => {
-            void this.onFileAdded(filePath).catch((error) => {
-                this.logger.error(`Unexpected error handling added file ${filePath}`, error);
-            });
+            void this.handleAddedFile(filePath);
         });
 
         // Not awaited: re-importing files needs the pipeline modules, which register in a later bootstrap hook.
@@ -106,7 +108,10 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
             this.logger.error(`Couldn't reconcile the processing folder ${folders.processing}`, error);
         });
 
-        this.checkTimer = setInterval(() => void this.checkProcessingFiles(), CHECK_INTERVAL_MS);
+        this.checkTimer = setInterval(() => {
+            void this.checkProcessingFiles();
+            void this.sweepImportFolder();
+        }, CHECK_INTERVAL_MS);
         this.checkTimer.unref();
     }
 
@@ -125,6 +130,67 @@ export class LocalFileTriggerService implements OnApplicationBootstrap, OnApplic
         });
 
         return this.checking;
+    }
+
+    /**
+     * Safety net for the watcher: chokidar can miss a file written into a directory that was created just before it
+     * (the new directory is only watched after its own event), e.g. when a whole takeout folder is copied in. Picks
+     * up every file that is still in the import folder and has not changed for a few seconds.
+     */
+    public async sweepImportFolder(): Promise<void> {
+        const folders = this.folders;
+
+        if (!folders) {
+            return;
+        }
+
+        const entries = await fs.readdir(folders.import, { recursive: true, withFileTypes: true }).catch(() => []);
+        const now = Date.now();
+
+        for (const entry of entries) {
+            if (!entry.isFile()) {
+                continue;
+            }
+
+            const absolutePath = join(entry.parentPath, entry.name);
+            const filePath = relative(folders.import, absolutePath);
+
+            if (this.inFlightFiles.has(filePath)) {
+                continue;
+            }
+
+            const stats = await fs.stat(absolutePath).catch(() => undefined);
+
+            // ctime too: a copy that preserves the source's mtime (cp -p) is still new to this folder.
+            if (!stats || now - Math.max(stats.mtimeMs, stats.ctimeMs) < SWEEP_MIN_AGE_MS) {
+                continue;
+            }
+
+            this.logger.warn(`Picked up ${filePath}, which the file watcher missed`);
+            void this.handleAddedFile(filePath);
+        }
+    }
+
+    private async handleAddedFile(filePath: string): Promise<void> {
+        if (this.inFlightFiles.has(filePath)) {
+            return;
+        }
+
+        this.inFlightFiles.add(filePath);
+
+        try {
+            // The sweep may have taken the file before the watcher's (delayed) event arrived.
+            if (!(await fs.stat(join(this.folders!.import, filePath)).catch(() => undefined))) {
+                return;
+            }
+
+            await this.onFileAdded(filePath);
+        } catch (error) {
+            // onFileAdded handles its own errors; this is the last line of defence against an unhandled rejection.
+            this.logger.error(`Unexpected error handling added file ${filePath}`, error);
+        } finally {
+            this.inFlightFiles.delete(filePath);
+        }
     }
 
     private async onFileAdded(filePath: string): Promise<void> {

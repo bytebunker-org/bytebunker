@@ -22,6 +22,7 @@ vi.mock('node:fs/promises', () => ({
         mkdir: vi.fn(() => Promise.resolve()),
         readdir: vi.fn(() => Promise.resolve([])),
         readFile: vi.fn(() => Promise.resolve(Buffer.from('content'))),
+        stat: vi.fn(() => Promise.resolve({ mtimeMs: 0, ctimeMs: 0 })),
     },
 }));
 
@@ -232,6 +233,43 @@ describe('LocalFileTriggerService', () => {
 
         expect(importFile).not.toHaveBeenCalled();
         expect(moveFile).toHaveBeenCalledExactlyOnceWith(importPath(), failedPath());
+    });
+
+    describe('sweep of the import folder', () => {
+        function sweep(): Promise<void> {
+            return service.sweepImportFolder();
+        }
+
+        function folderContains(...files: { name: string; dir?: string }[]) {
+            vi.mocked(fs.readdir).mockResolvedValueOnce(
+                files.map(({ name, dir = '' }) => ({
+                    name,
+                    parentPath: path.join(path.resolve(process.cwd(), IMPORT_FOLDER), dir),
+                    isFile: () => true,
+                })) as never,
+            );
+        }
+
+        it('imports a file the watcher missed once it has settled', async () => {
+            folderContains({ name: 'MeineAktivitäten.html', dir: 'Google Pay' });
+
+            await sweep();
+            await new Promise((resolve) => setImmediate(resolve));
+
+            expect(importFile).toHaveBeenCalledWith(
+                expect.objectContaining({ relativePath: path.join('Google Pay', 'MeineAktivitäten.html') }),
+            );
+        });
+
+        it('leaves a file alone that was written moments ago', async () => {
+            vi.mocked(fs.stat).mockResolvedValueOnce({ mtimeMs: Date.now(), ctimeMs: Date.now() } as never);
+            folderContains({ name: FILE_PATH });
+
+            await sweep();
+            await new Promise((resolve) => setImmediate(resolve));
+
+            expect(importFile).not.toHaveBeenCalled();
+        });
     });
 
     describe('after a restart', () => {
