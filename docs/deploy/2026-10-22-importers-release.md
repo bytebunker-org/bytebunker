@@ -22,36 +22,28 @@ before), tier-1 over the full takeout corpus (0 errors, 0 conflicting keys), ful
 ~3,400/s, no duplicate nodes), production Docker image builds (`docker build -f apps/backend/Dockerfile .`),
 frontend compiles.
 
-## 1. Database schema (run before starting the new backend)
+## 1. Database schema
 
-There are no migrations; this is what `mikro-orm schema:update --dump` reports against a DB at the previous
-schema. Run these statements, **not** `schema:update --run`:
+Handled by migrations (`docs/MIGRATIONS.md`): the image runs `node ./dist/database/migrate.js` before the backend
+starts. On the production database the baseline migration skips itself (the schema exists) and
+`Migration20261022182949_pipeline_dry_run_shipped_blueprints_custom_places` adds `custom_place_entity`,
+`pipeline_blueprint_entity.key`/`shipped_hash` and `pipeline_execution_entity.dry_run`/`trigger_asset_id`
+(idempotent). A failed migration stops the container before the backend starts.
 
-```sql
-create table if not exists "custom_place_entity" (
-    "id" serial primary key,
-    "created_at" timestamptz not null default now(),
-    "updated_at" timestamptz not null default now(),
-    "name" varchar(255) not null,
-    "latitude" double precision not null,
-    "longitude" double precision not null,
-    "radius_meters" int not null default 75,
-    "role" text check ("role" in ('home', 'work', 'other')) not null default 'other',
-    "valid_from" date null,
-    "valid_to" date null,
-    "notes" text null
-);
+After migrating, the log warns that `asset_entity.parent_asset_id` differs from the entities. That column is not
+dropped by anything; leave it until it is clear nothing needs it. Do not run `schema:update --run` any more.
 
-alter table "pipeline_blueprint_entity"
-    add column if not exists "key" varchar(255) null,
-    add column if not exists "shipped_hash" varchar(64) null;
-alter table "pipeline_blueprint_entity" add constraint "pipeline_blueprint_entity_key_unique" unique ("key");
+## 1b. Volumes
 
-alter table "pipeline_execution_entity" add column if not exists "dry_run" boolean not null default false;
-```
+Besides the existing `data/import`, `data/import-finished` and `data/import-failed` mounts:
 
-`schema:update --run` would also drop `asset_entity.parent_asset_id` (a column the code does not know). Leave it
-until it is clear nothing needs it.
+| Host | Container | Why |
+|---|---|---|
+| `/data/bytebunker/import-processing` | `/opt/app/apps/backend/data/import-processing` | Files stay here while their pipelines run; picked up again after a restart. |
+| `/data/bytebunker/temp` | `/opt/app/apps/backend/temp` | GeoNames dump cache (`geocoding.dataDir`), so it is not downloaded again after a restart. |
+
+Optional: a host folder at `/tmp` if large Takeout zips are uploaded through the UI (`POST /imports` stages uploads
+there).
 
 ## 2. Configuration
 
@@ -78,9 +70,9 @@ top of a graph built with the old keys creates duplicates. Recommended: wipe the
 ## 4. Rollout
 
 1. Back up Postgres and the Neo4j volume.
-2. Run the SQL from step 1.
-3. Deploy the backend image built from `development`; check `/health` and that the log lists
-   "Installed shipped blueprint …" for every extension.
+2. Create the host folders from step 1b and add the mounts.
+3. Deploy the backend image built from `development`; check that the log shows "Applied 1 migration(s)" (or 2 on an
+   empty database), then `/health`, and "Installed shipped blueprint …" for every extension.
 4. Deploy the frontend (`pnpm --filter @bytebunker/frontend run deploy`, with the production env; plain `pnpm deploy` is a different pnpm command).
 5. Optional: wipe and re-import (step 3) by uploading exports on the import page or into the import folder.
 6. Optional: configure `myHub` and run the `my-hub/persons` blueprint once (`POST /my-hub/sync`).
