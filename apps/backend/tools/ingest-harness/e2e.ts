@@ -703,8 +703,6 @@ async function main(): Promise<void> {
             await resetInstance(db, graph, folders);
         }
 
-        await installBlueprints(db, [...new Set(corpus.map((f) => f.importer))]);
-
         const predictions = sampleSize
             ? undefined
             : await fs
@@ -718,6 +716,10 @@ async function main(): Promise<void> {
             log(`starting backend (log: ${backend['logPath']})`);
             await backend.start();
         }
+
+        // After the backend started: it registers pipeline modules on boot, and blueprints reference them by
+        // foreign key, so modules added since the last boot must exist first.
+        await installBlueprints(db, [...new Set(corpus.map((f) => f.importer))]);
 
         const ctx = { db, graph, folders, backend };
         const results: FileResult[] = [];
