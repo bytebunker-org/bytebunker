@@ -96,4 +96,7 @@ async function bootstrap() {
 
 bootstrap().catch((error) => {
     console.error("Couldn't bootstrap NestJS application", error);
+    // Exit instead of staying alive: a half-started app (e.g. port already in use) still runs its BullMQ workers and
+    // keeps taking pipeline jobs with whatever code it was built from.
+    process.exit(1);
 });
