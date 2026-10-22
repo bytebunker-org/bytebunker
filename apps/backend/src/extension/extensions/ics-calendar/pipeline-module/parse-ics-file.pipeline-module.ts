@@ -18,6 +18,7 @@ import type {
 } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
 import { ICS_CALENDAR_EXTENSION, ICS_CALENDAR_EXTENSION_ID } from '../../local-extension.constant.js';
 import { icalTimeToLuxon, parseAttendees } from './parse-ics-file.util.js';
+import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
 
 @PipelineModuleJsonSchema()
 export class ParseIcsFileInput {
@@ -47,25 +48,35 @@ export class ParseIcsFilePipelineModule implements IPipelineModule<ParseIcsFileI
         private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
 
+    public detectFile(sample: FileSample): FileDetection | undefined {
+        if (/^\uFEFF?\s*BEGIN:VCALENDAR/i.test(sample.head)) {
+            return { confidence: 0.98, format: 'iCalendar (.ics)' };
+        }
+
+        return undefined;
+    }
+
     public async executeModule({
         em,
         inputData,
+        progress,
     }: PipelineModuleExecutionContext<ParseIcsFileInput>): Promise<ParseIcsFileOutput> {
-        const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, ICS_CALENDAR_EXTENSION_ID);
+        const generatorExtensionObject = await this.activityGraphNodeService.getExtension(
+            em,
+            ICS_CALENDAR_EXTENSION_ID,
+        );
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
         const actorId = ownerActor.get('id')!;
 
+        progress.message('Reading calendar');
         const rawIcs = await this.assetService.getAssetString(em, inputData.icsFile);
+        progress.message('Parsing events');
         const activities = this.parseIcsToActivities(rawIcs, generatorExtensionObject, actorId);
 
         return { activities };
     }
 
-    public parseIcsToActivities(
-        rawIcs: string,
-        generatorExtensionObject: ASObject,
-        actorId: string,
-    ): ActivityDto[] {
+    public parseIcsToActivities(rawIcs: string, generatorExtensionObject: ASObject, actorId: string): ActivityDto[] {
         const calendar = new ICAL.Component(ICAL.parse(rawIcs));
         const vevents = calendar.getAllSubcomponents('vevent');
         const activities: ActivityDto[] = [];

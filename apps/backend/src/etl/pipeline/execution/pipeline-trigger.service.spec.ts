@@ -95,7 +95,7 @@ describe('PipelineTriggerService', () => {
             7,
             3,
             { fileAsset: { id: TRIGGER_ASSET_ID } },
-            { triggerAssetId: TRIGGER_ASSET_ID },
+            { triggerAssetId: TRIGGER_ASSET_ID, dryRun: false },
         );
         expect(service.findMatchingTriggerNodes).toHaveBeenCalledOnce();
     });
@@ -108,6 +108,7 @@ describe('PipelineTriggerService', () => {
             {
                 blueprint: 7,
                 triggerAsset: TRIGGER_ASSET_ID,
+                dryRun: false,
                 executionStatus: {
                     $in: [PipelineExecutionStatusEnum.SUCCESS, PipelineExecutionStatusEnum.WAITING],
                 },

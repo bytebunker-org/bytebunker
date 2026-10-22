@@ -121,7 +121,7 @@ describe('ActivityGraphPersisterService', () => {
 
         const result = await service.createActivityGraph(em, activities);
 
-        expect(result).toEqual({ createdCount: 3, existingCount: 0 });
+        expect(result).toMatchObject({ createdCount: 3, existingCount: 0 });
         expect(capturedQueries).toHaveLength(1);
 
         const videoNodeIds = new Set(capturedQueries[0]!.rows.map((row) => row.objects['object']!.id));
@@ -146,7 +146,7 @@ describe('ActivityGraphPersisterService', () => {
             [0, 1, 2].map((index) => createViewActivity(index, 'abc')),
         );
 
-        expect(result).toEqual({ createdCount: 0, existingCount: 3 });
+        expect(result).toMatchObject({ createdCount: 0, existingCount: 3 });
         expect(capturedQueries).toHaveLength(0);
     });
 
@@ -172,7 +172,7 @@ describe('ActivityGraphPersisterService', () => {
 
         const result = await service.createActivityGraph(em, [viewActivity, moveActivity]);
 
-        expect(result).toEqual({ createdCount: 2, existingCount: 0 });
+        expect(result).toMatchObject({ createdCount: 2, existingCount: 0 });
         expect(capturedQueries).toHaveLength(2);
 
         const viewQuery = capturedQueries.find((captured) => captured.query.includes('YouTubeViewActivity'))!;
@@ -261,7 +261,7 @@ describe('ActivityGraphPersisterService', () => {
 
         const result = await service.createActivityGraph(em, activities);
 
-        expect(result).toEqual({ createdCount: activityCount, existingCount: 0 });
+        expect(result).toMatchObject({ createdCount: activityCount, existingCount: 0 });
         expect(capturedQueries).toHaveLength(2);
         expect(capturedQueries[0]!.rows).toHaveLength(ACTIVITY_GRAPH_CHUNK_SIZE);
         expect(capturedQueries[1]!.rows).toHaveLength(activityCount - ACTIVITY_GRAPH_CHUNK_SIZE);

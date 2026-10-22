@@ -1,4 +1,14 @@
-import { IsInt, IsOptional, IsString, IsEnum, IsObject, IsArray, ValidateNested, Min } from 'class-validator';
+import {
+    IsBoolean,
+    IsInt,
+    IsOptional,
+    IsString,
+    IsEnum,
+    IsObject,
+    IsArray,
+    ValidateNested,
+    Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { TimestampDto } from '../../../database/util/timestamp.dto.js';
 import { PipelineBlueprintDto } from '../blueprint/dto/pipeline-blueprint.dto.js';
@@ -29,6 +39,10 @@ export class PipelineExecutionDto extends TimestampDto {
     @Type(() => AssetDto)
     @ValidateNested()
     public triggerAsset?: DtoRef<AssetDto>;
+
+    /** Dry runs execute every module but skip writes */
+    @IsBoolean()
+    public dryRun!: boolean;
 
     /** Current execution status */
     @IsEnum(PipelineExecutionStatusEnum)

@@ -15,6 +15,12 @@ import type { EntityManager } from '@mikro-orm/postgresql';
 import { NEODE_PROVIDER } from './graph-database/neode.constant.js';
 import { NodeLabelEnum } from './node-label.enum.js';
 import { ACTIVITY_GRAPH_CHUNK_SIZE } from './activity-graph.constant.js';
+import type {
+    ActivityGraphSampleDto,
+    CreateActivityGraphOptions,
+    CreateActivityGraphResult,
+    ImportProvenance,
+} from './type/create-activity-graph.interface.js';
 import {
     NodeStableKeyIndexService,
     type NodeStableKeyRow,
@@ -47,6 +53,12 @@ interface PreparedRow {
 /**
  * The shape of a single `$rows` entry handed to the batched Cypher statement.
  */
+interface ChunkStats {
+    createdObjectCount: number;
+    samples: CreateActivityGraphResult['samples'];
+    sampleSize: number;
+}
+
 interface CypherRow {
     id: string;
     props: Record<string, unknown>;
@@ -73,8 +85,15 @@ export class ActivityGraphPersisterService {
     public async createActivityGraph(
         em: EntityManager,
         activities: ActivityDto[],
-    ): Promise<{ createdCount: number; existingCount: number }> {
+        options: CreateActivityGraphOptions = {},
+    ): Promise<CreateActivityGraphResult> {
         const activityType = activities[0]?.['@type'] ?? 'unknown';
+        const dryRun = options.dryRun ?? false;
+        const stats: ChunkStats = {
+            createdObjectCount: 0,
+            samples: { created: [], existing: [] },
+            sampleSize: options.sampleSize ?? 5,
+        };
 
         /**
          * stable key -> node id for the whole call. Seeded from Postgres per chunk and extended
@@ -90,11 +109,20 @@ export class ActivityGraphPersisterService {
         let processedCount = 0;
 
         for (const [chunkIndex, chunk] of chunks.entries()) {
-            const chunkResult = await this.persistChunk(em, chunk, nodeIdByStableKey);
+            const chunkResult = await this.persistChunk(em, chunk, nodeIdByStableKey, stats, {
+                dryRun,
+                provenance: options.provenance,
+            });
 
             createdCount += chunkResult.createdCount;
             existingCount += chunkResult.existingCount;
             processedCount += chunk.length;
+            options.onProgress?.({
+                processed: processedCount,
+                total: activities.length,
+                created: createdCount,
+                existing: existingCount,
+            });
 
             this.logger.log(
                 `Stored ${processedCount}/${activities.length} ${activityType} activity graphs ` +
@@ -103,12 +131,15 @@ export class ActivityGraphPersisterService {
         }
 
         this.logger.log(
-            `Done storing ${createdCount} ${activityType} activity graphs, found ${existingCount} duplicates!`,
+            `${dryRun ? '[dry run] Would store' : 'Done storing'} ${createdCount} ${activityType} activity graphs, found ${existingCount} duplicates!`,
         );
 
         return {
             createdCount,
             existingCount,
+            createdObjectCount: stats.createdObjectCount,
+            dryRun,
+            samples: stats.samples,
         };
     }
 
@@ -116,6 +147,8 @@ export class ActivityGraphPersisterService {
         em: EntityManager,
         activities: ActivityDto[],
         nodeIdByStableKey: Map<string, string>,
+        stats: ChunkStats,
+        { dryRun, provenance }: { dryRun: boolean; provenance?: ImportProvenance },
     ): Promise<{ createdCount: number; existingCount: number }> {
         const newStableKeys: NodeStableKeyRow[] = [];
 
@@ -139,8 +172,11 @@ export class ActivityGraphPersisterService {
 
             if (stableKeys.some((stableKey) => nodeIdByStableKey.has(stableKey))) {
                 existingCount++;
+                addSample(stats.samples.existing, activity, stats.sampleSize);
                 continue;
             }
+
+            addSample(stats.samples.created, activity, stats.sampleSize);
 
             const nodeId = uuidV7();
             newActivities.push({ activity, nodeId });
@@ -169,9 +205,21 @@ export class ActivityGraphPersisterService {
             await this.nodeStableKeyIndexService.findNodeIds(em, unknownObjectStableKeys),
         );
 
+        const objectKeyCountBefore = newStableKeys.length;
         const rows = activityGraphs.map((activityGraph, index) =>
             this.prepareRow(activityGraph, newActivities[index]!.nodeId, nodeIdByStableKey, newStableKeys),
         );
+        stats.createdObjectCount += new Set(newStableKeys.slice(objectKeyCountBefore).map((row) => row.nodeId)).size;
+
+        if (dryRun) {
+            return { createdCount: newActivities.length, existingCount };
+        }
+
+        const provenanceParameter = {
+            executionId: provenance?.executionId ?? null,
+            assetId: provenance?.assetId ?? null,
+            importedAt: new Date().toISOString(),
+        };
 
         // 3. One Cypher statement per shape, plus one batched stable key insert, in one transaction.
         const rowsByShape = new Map<string, PreparedRow[]>();
@@ -190,6 +238,7 @@ export class ActivityGraphPersisterService {
             for (const shapeRows of rowsByShape.values()) {
                 await this.neode.writeCypher(this.buildShapeCypher(shapeRows[0]!), {
                     rows: shapeRows.map((row) => this.toCypherRow(row)),
+                    provenance: provenanceParameter,
                 });
             }
 
@@ -426,7 +475,13 @@ function buildNodeMergeLines(alias: string, labels: string[], rowPath: string): 
         setItems.push(`${alias}${additionalLabels.map((label) => `:${escapeIdentifier(label)}`).join('')}`);
     }
 
-    return [`MERGE (${alias}:${escapeIdentifier(anchorLabel!)} { id: ${rowPath}.id })`, `SET ${setItems.join(', ')}`];
+    return [
+        `MERGE (${alias}:${escapeIdentifier(anchorLabel!)} { id: ${rowPath}.id })`,
+        // Provenance: which execution (and imported file) created the node. Only on create, so re-imports and
+        // other sources that touch the node later don't overwrite where it came from.
+        `ON CREATE SET ${alias}.importExecutionId = $provenance.executionId, ${alias}.importAssetId = $provenance.assetId, ${alias}.importedAt = $provenance.importedAt`,
+        `SET ${setItems.join(', ')}`,
+    ];
 }
 
 /**
@@ -462,4 +517,32 @@ function buildNodeProps(source: Record<string, unknown>, excludedKeys: string[])
     }
 
     return props;
+}
+
+function addSample(target: ActivityGraphSampleDto[], activity: ActivityDto, sampleSize: number): void {
+    if (target.length >= sampleSize) {
+        return;
+    }
+
+    const record = activity as unknown as Record<string, unknown>;
+    const objects: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(record)) {
+        if (key === 'actor' || key === 'generator' || !value || typeof value !== 'object') {
+            continue;
+        }
+
+        const object = value as Record<string, unknown>;
+
+        if (object['@type']) {
+            objects[key] = String(object['name'] ?? object['identifier'] ?? object['@type']);
+        }
+    }
+
+    target.push({
+        type: String(record['@type']),
+        startTime: record['startTime'] ? String(record['startTime']) : undefined,
+        summary: record['summary'] ? String(record['summary']) : undefined,
+        objects,
+    });
 }

@@ -4,15 +4,12 @@ import type { Mocked } from '@suites/doubles.vitest';
 import type { EntityManager } from '@mikro-orm/postgresql';
 import type { ASObject, EventActivity, Place } from '@bytebunker/event-schema';
 import { ParseIcsFilePipelineModule } from './parse-ics-file.pipeline-module.js';
+import { NOOP_MODULE_PROGRESS_REPORTER } from '../../../../etl/pipeline/progress/type/module-progress-reporter.interface.js';
 import { AssetService } from '../../../../etl/asset/asset.service.js';
 import { ActivityStableKeyService } from '../../../../activity-graph/activity-stable-key.service.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
-import {
-    ICS_WITH_INVALID_VEVENT,
-    ICS_WITH_LOCATION_AND_ATTENDEES,
-    MINIMAL_ICS,
-} from './parse-ics-file.fixture.js';
+import { ICS_WITH_INVALID_VEVENT, ICS_WITH_LOCATION_AND_ATTENDEES, MINIMAL_ICS } from './parse-ics-file.fixture.js';
 
 const FAKE_ACTOR_ID = '00000000-0000-0000-0000-0000000000aa';
 const FAKE_GENERATOR: ASObject = {
@@ -107,6 +104,8 @@ describe('ParseIcsFilePipelineModule', () => {
             const { activities } = await module.executeModule({
                 em,
                 inputData: { icsFile },
+                progress: NOOP_MODULE_PROGRESS_REPORTER,
+                dryRun: false,
             } as never);
 
             expect(assetService.getAssetString).toHaveBeenCalledWith(em, icsFile);

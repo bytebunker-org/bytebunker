@@ -8,9 +8,11 @@ import { PipelineSingleModuleExecutionConsumer } from './pipeline-single-module-
 import { QueueModule } from '../../../queue/queue.module.js';
 import { StartPipelineExecutionConsumer } from './start-pipeline-execution.consumer.js';
 import { PipelineExecutionLogController } from './pipeline-execution-log.controller.js';
+import { PipelineProgressService } from '../progress/pipeline-progress.service.js';
+import { RedisModule } from '../../../shared/redis/redis.module.js';
 
 @Module({
-    imports: [QueueModule, PipelineModuleModule],
+    imports: [QueueModule, PipelineModuleModule, RedisModule],
     controllers: [PipelineExecutionController, PipelineExecutionLogController],
     providers: [
         PipelineExecutionService,
@@ -18,7 +20,8 @@ import { PipelineExecutionLogController } from './pipeline-execution-log.control
         ContinuePipelineExecutionConsumer,
         PipelineSingleModuleExecutionConsumer,
         StartPipelineExecutionConsumer,
+        PipelineProgressService,
     ],
-    exports: [PipelineExecutionService, PipelineTriggerService],
+    exports: [PipelineExecutionService, PipelineTriggerService, PipelineProgressService],
 })
 export class PipelineExecutionModule {}

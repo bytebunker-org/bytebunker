@@ -8,7 +8,12 @@ import type {
 } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
 import { PipelineModuleJsonSchema } from '../../../../etl/pipeline/pipeline-module/decorator/pipeline-module-json-schema.decorator.js';
 import { AssetService } from '../../../../etl/asset/asset.service.js';
-import type { Activity, LocationHistoryTimeline, SemanticSegment, Visit } from '@bytebunker/event-schema/extension/google';
+import type {
+    Activity,
+    LocationHistoryTimeline,
+    SemanticSegment,
+    Visit,
+} from '@bytebunker/event-schema/extension/google';
 import { ActivityTypeEnum } from '@bytebunker/event-schema/extension/google';
 import type { Arrive, ASObject, Move, Place } from '@bytebunker/event-schema';
 import { createUnknownASType } from '@bytebunker/event-schema';
@@ -21,6 +26,7 @@ import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
 import { NodeLabelEnum } from '../../../../activity-graph/node-label.enum.js';
+import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
 
 @PipelineModuleJsonSchema()
 export class TransformTimelineInput {
@@ -71,16 +77,28 @@ export class TransformTimelinePipelineModule
         private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
 
+    public detectFile(sample: FileSample): FileDetection | undefined {
+        if (sample.extension === 'json' && /^\s*\{\s*"semanticSegments"\s*:/.test(sample.head)) {
+            return { confidence: 0.95, format: 'Google Timeline (on-device export, 2024+)' };
+        }
+
+        return undefined;
+    }
+
     public async executeModule({
         em,
         inputData,
+        progress,
     }: PipelineModuleExecutionContext<TransformTimelineInput>): Promise<TransformTimelineOutput> {
         const { rawJson: rawJsonAsset, minVisitProbability = 0, skipAlreadyImported = false } = inputData;
 
         const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, GOOGLE_EXTENSION_ID);
 
+        progress.message(`Reading ${rawJsonAsset.originalFilename ?? 'timeline'}`);
         const rawJson = await this.assetService.getAssetString(em, rawJsonAsset);
+        progress.message('Parsing JSON');
         const timeline = JSON.parse(rawJson) as LocationHistoryTimeline;
+        const segments = timeline.semanticSegments ?? [];
 
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
         const actorId = ownerActor.get('id')!;
@@ -97,8 +115,17 @@ export class TransformTimelinePipelineModule
         }
 
         return {
-            activities: (timeline.semanticSegments ?? [])
-                .map((segment) => {
+            activities: segments
+                .map((segment, index) => {
+                    if (index % 500 === 0) {
+                        progress.report({
+                            current: index,
+                            total: segments.length,
+                            unit: 'segments',
+                            message: 'Transforming segments',
+                        });
+                    }
+
                     if (segment.visit) {
                         return this.transformVisit({
                             generatorExtensionObject,
@@ -252,9 +279,7 @@ export class TransformTimelinePipelineModule
                     lat: latitude,
                     lng: longitude,
                 }),
-                placeId
-                    ? this.activityStableKeyService.createASObjectStableKey('Place', { placeId })
-                    : undefined,
+                placeId ? this.activityStableKeyService.createASObjectStableKey('Place', { placeId }) : undefined,
             ].filter(Boolean),
             latitude,
             longitude,

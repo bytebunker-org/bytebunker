@@ -18,6 +18,7 @@ import type {
 } from '../../../../etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
 import { YOUTUBE_EXTENSION, YOUTUBE_EXTENSION_ID } from '../../local-extension.constant.js';
 import { parseYouTubeWatchHistory } from '../util/youtube-watch-history.parser.js';
+import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
 import type { YouTubeViewActivityInterface } from '../type/youtube-view-activity.interface.js';
 import type { YouTubeVideoObjectInterface } from '../type/youtube-video-object.interface.js';
 
@@ -51,16 +52,43 @@ export class TransformYouTubeWatchHistoryPipelineModule
         private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
 
+    public detectFile(sample: FileSample): FileDetection | undefined {
+        if (sample.extension !== 'html' || !/youtube\.com\/watch\?v=/.test(sample.head)) {
+            return undefined;
+        }
+
+        // "My Activity" exports use the same HTML but mix in searches and other products.
+        if (/my activity|meine aktivit/i.test(sample.relativePath)) {
+            return { confidence: 0.3, format: 'Google My Activity (YouTube)' };
+        }
+
+        const isWatchHistoryName = /watch-history|wiedergabeverlauf/i.test(sample.fileName);
+
+        return {
+            confidence: isWatchHistoryName ? 0.95 : 0.7,
+            format: 'YouTube watch history (Google Takeout)',
+        };
+    }
+
     public async executeModule({
         em,
         inputData,
+        progress,
     }: PipelineModuleExecutionContext<TransformYouTubeWatchHistoryInput>): Promise<TransformYouTubeWatchHistoryOutput> {
         const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, YOUTUBE_EXTENSION_ID);
         const ownerActor = await this.activityGraphService.getOwnerActor(em);
         const actorId = ownerActor.get('id')!;
 
+        progress.message('Reading watch history');
         const rawHtml = await this.assetService.getAssetString(em, inputData.rawHtml);
+        progress.message('Parsing HTML');
         const entries = parseYouTubeWatchHistory(rawHtml, this.logger);
+        progress.report({
+            current: 0,
+            total: entries.length,
+            unit: 'entries',
+            message: `Found ${entries.length} entries`,
+        });
 
         this.logger.log(`Parsed ${entries.length} YouTube watch history entries`);
 

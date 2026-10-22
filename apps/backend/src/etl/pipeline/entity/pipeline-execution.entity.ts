@@ -50,6 +50,13 @@ export class PipelineExecutionEntity extends TimestampEntity implements Pipeline
     })
     public triggerAsset?: Ref<AssetEntity>;
 
+    /**
+     * Dry runs execute every module but skip writes: store modules report what they would create instead.
+     * Never counted as an earlier import by the re-import guard.
+     */
+    @Property({ default: false })
+    public dryRun: boolean & Opt = false;
+
     @Enum({
         items: [
             PipelineExecutionStatusEnum.WAITING,

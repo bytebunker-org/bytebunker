@@ -13,10 +13,7 @@ export function icalTimeToLuxon(time: ICAL.Time | null | undefined): DateTime<tr
     }
 
     if (time.isDate) {
-        const dt = DateTime.fromObject(
-            { year: time.year, month: time.month, day: time.day },
-            { zone: 'utc' },
-        );
+        const dt = DateTime.fromObject({ year: time.year, month: time.month, day: time.day }, { zone: 'utc' });
 
         return dt.isValid ? dt : undefined;
     }

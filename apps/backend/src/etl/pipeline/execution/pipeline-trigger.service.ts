@@ -94,6 +94,7 @@ export class PipelineTriggerService {
             buildNodeData,
             resolveTriggerAsset,
             allowReimport,
+            dryRun = false,
         }: {
             matchNode?: (context: PipelineTriggerContext<Input>) => boolean | Promise<boolean>;
             buildNodeData: (context: PipelineTriggerContext<Input>) => Output | Promise<Output>;
@@ -108,6 +109,8 @@ export class PipelineTriggerService {
              * so a trigger module can expose the option in its own node configuration.
              */
             allowReimport?: boolean | ((context: PipelineTriggerContext<Input>) => boolean);
+            /** Create dry-run executions: every module runs, nothing is written. Never blocked by the re-import guard. */
+            dryRun?: boolean;
         },
     ): Promise<PipelineTriggerResult[]> {
         const triggerContexts = await this.findMatchingTriggerNodes(em, triggerModuleClass, {
@@ -122,7 +125,7 @@ export class PipelineTriggerService {
                 const reimportAllowed =
                     typeof allowReimport === 'function' ? allowReimport(triggerContext) : allowReimport === true;
 
-                if (triggerAssetId && !reimportAllowed) {
+                if (triggerAssetId && !reimportAllowed && !dryRun) {
                     const duplicate = await this.findDuplicateExecution(em, blueprintEntity.id, triggerAssetId);
 
                     if (duplicate) {
@@ -148,7 +151,7 @@ export class PipelineTriggerService {
                     blueprintEntity.id,
                     node.id,
                     outputData,
-                    { triggerAssetId },
+                    { triggerAssetId, dryRun },
                 );
 
                 return {
@@ -209,6 +212,7 @@ export class PipelineTriggerService {
             {
                 blueprint: blueprintId,
                 triggerAsset: triggerAssetId,
+                dryRun: false,
                 executionStatus: {
                     $in: [PipelineExecutionStatusEnum.SUCCESS, PipelineExecutionStatusEnum.WAITING],
                 },

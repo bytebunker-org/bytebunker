@@ -12,6 +12,13 @@ export interface PipelineModuleOptions<Input, Output> {
     inputType?: Constructable<Input>;
 
     outputType?: Constructable<Output>;
+
+    /**
+     * Share of the whole pipeline's progress this module accounts for, relative to the other nodes (default 1,
+     * trigger modules 0). Heavy modules such as store-activity use a higher weight so the pipeline progress bar
+     * moves with the actual work.
+     */
+    progressWeight?: number;
 }
 
 export const PIPELINE_MODULE_METADATA = 'pipeline-module-metadata';

@@ -10,6 +10,7 @@ import type { BlueprintNodeDto } from '../blueprint/dto/blueprint-node.dto.js';
 import { groupByKeySingle, hasOwn } from '../../../util/util.js';
 import type { Collection, Loaded } from '@mikro-orm/core';
 import { PipelineModuleService } from '../pipeline-module/pipeline-module.service.js';
+import { PipelineModuleTypeEnum } from '../pipeline-module/type/pipeline-module-type.enum.js';
 import { CreateHoldExecutionDto } from '../dto/create-hold-execution.dto.js';
 import { PipelineExecutionLogEntity } from '../entity/pipeline-execution-log.entity.js';
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq';
@@ -19,6 +20,7 @@ import { QueueNameEnum } from '../../../queue/queue-name.enum.js';
 import type { JobDataType } from '../../../queue/queue-data.type.js';
 import { serializeError } from 'serialize-error';
 import type { QueueConsumerJob } from '../../../queue/abstract-queue-consumer.class.js';
+import { PipelineProgressService, type ThrottledReporter } from '../progress/pipeline-progress.service.js';
 
 @Injectable()
 export class PipelineExecutionService {
@@ -32,6 +34,7 @@ export class PipelineExecutionService {
         private readonly continuePipelineExecutionQueue: Queue,
         @InjectQueue(QueueNameEnum.START_PIPELINE_EXECUTION)
         private readonly startPipelineExecutionQueue: Queue,
+        private readonly progressService: PipelineProgressService,
     ) {}
 
     public async executeBlueprintFromTrigger(
@@ -45,6 +48,8 @@ export class PipelineExecutionService {
              * a later trigger for the very same content can recognise it was already imported.
              */
             triggerAssetId?: string;
+            /** Run every module but write nothing (see {@link PipelineExecutionEntity.dryRun}). */
+            dryRun?: boolean;
         },
     ): Promise<PipelineExecutionEntity> {
         const blueprintEntity = await em.findOneOrFail(PipelineBlueprintEntity, { id: blueprintId });
@@ -53,6 +58,7 @@ export class PipelineExecutionService {
         const pipelineExecution = em.create(PipelineExecutionEntity, {
             blueprint: blueprintEntity,
             triggerAsset: options?.triggerAssetId ? em.getReference(AssetEntity, options.triggerAssetId) : undefined,
+            dryRun: options?.dryRun ?? false,
         });
 
         const initialTriggerNode = blueprint.getNode(triggerNodeId);
@@ -79,6 +85,43 @@ export class PipelineExecutionService {
         await this.schedulePipelineExecution(pipelineExecution.id);
 
         return pipelineExecution;
+    }
+
+    /**
+     * Starts a new execution of the same blueprint with the same trigger output as an existing one, e.g. to apply a
+     * dry run for real, or to preview a re-import. The source execution is left untouched.
+     */
+    public async rerunFromTrigger(
+        em: EntityManager,
+        sourceExecutionId: number,
+        options: { dryRun: boolean },
+    ): Promise<PipelineExecutionEntity> {
+        const source = await em.findOneOrFail(
+            PipelineExecutionEntity,
+            { id: sourceExecutionId },
+            { populate: ['blueprint', 'executionData'] },
+        );
+        const blueprint = new Blueprint(source.blueprint.$.data);
+        const triggerNodeIds = new Set(
+            blueprint
+                .getNodes()
+                .filter(
+                    (node) =>
+                        this.moduleService.getPipelineModuleOptions(node.moduleId)?.type ===
+                        PipelineModuleTypeEnum.TRIGGER,
+                )
+                .map((node) => node.id),
+        );
+        const triggerData = source.executionData.find((d) => triggerNodeIds.has(d.nodeId));
+
+        if (!triggerData) {
+            throw new Error(`Execution ${sourceExecutionId} has no stored trigger output to re-run from`);
+        }
+
+        return this.executeBlueprintFromTrigger(em, source.blueprint.id, triggerData.nodeId, triggerData.data, {
+            triggerAssetId: source.triggerAsset?.id,
+            dryRun: options.dryRun,
+        });
     }
 
     public async schedulePipelineExecution(pipelineId: number, forceExecute = false): Promise<void> {
@@ -113,7 +156,10 @@ export class PipelineExecutionService {
         );
 
         if (forceExecute) {
-            if (pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED) {
+            if (
+                pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED ||
+                pipelineExecution.executionStatus === PipelineExecutionStatusEnum.FAILED
+            ) {
                 pipelineExecution.executionStatus = PipelineExecutionStatusEnum.WAITING;
                 em.persist(pipelineExecution);
             }
@@ -134,7 +180,8 @@ export class PipelineExecutionService {
 
         if (
             pipelineExecution.executionStatus === PipelineExecutionStatusEnum.SUCCESS ||
-            pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED
+            pipelineExecution.executionStatus === PipelineExecutionStatusEnum.ABORTED ||
+            pipelineExecution.executionStatus === PipelineExecutionStatusEnum.FAILED
         ) {
             return;
         }
@@ -285,8 +332,10 @@ export class PipelineExecutionService {
         }
 
         const inputData = this.buildNodeInputData(pipelineExecution, node);
+        let progress: ThrottledReporter | undefined;
 
         try {
+            await this.moduleService.whenModulesReady();
             const module = this.moduleService.getPipelineModule(node.moduleId);
 
             if (!module) {
@@ -297,6 +346,9 @@ export class PipelineExecutionService {
                 );
             }
 
+            progress = await this.progressService.startNode(pipelineExecution.id, node.id);
+            const moduleProgress = progress;
+
             const outputDataOrHoldExecution = await em.fork().transactional((em) =>
                 module.executeModule({
                     em,
@@ -304,6 +356,8 @@ export class PipelineExecutionService {
                     blueprint,
                     currentNode: node,
                     inputData,
+                    progress: moduleProgress,
+                    dryRun: pipelineExecution.dryRun,
                 }),
             );
 
@@ -314,8 +368,9 @@ export class PipelineExecutionService {
             }
 
             await em.flush();
+            await progress.finish(outputDataOrHoldExecution instanceof CreateHoldExecutionDto ? 'failed' : 'success');
 
-            this.logger.log(`Executed module ${node.moduleId}, returned ${outputDataOrHoldExecution}`);
+            this.logger.log(`Executed module ${node.moduleId} in pipeline execution ${pipelineExecution.id}`);
         } catch (error) {
             this.logger.warn(
                 `Couldn't execute module ${node.moduleId} in pipeline execution ${pipelineExecution.id} (node ${node.id})`,
@@ -333,6 +388,8 @@ export class PipelineExecutionService {
                     message = error.message;
                 }
             }
+
+            await progress?.finish('failed', message ?? 'Unexpected error');
 
             await this.holdModuleExecution(
                 em,
@@ -386,10 +443,9 @@ export class PipelineExecutionService {
         pipelineExecution.executionLogs.add(executionLog);
 
         if (isUnexpectedError) {
-            if (pipelineExecution.errorRetryCount >= 3) {
-                pipelineExecution.executionStatus = PipelineExecutionStatusEnum.FAILED;
-            }
-
+            // Nothing retries automatically, so an execution left "waiting" here would hang forever. Mark it failed;
+            // scheduling it again (force execute) resets it to waiting. errorRetryCount counts the attempts.
+            pipelineExecution.executionStatus = PipelineExecutionStatusEnum.FAILED;
             pipelineExecution.errorRetryCount = Math.min(pipelineExecution.errorRetryCount + 1, 100);
         } else if (isAbort) {
             pipelineExecution.executionStatus = PipelineExecutionStatusEnum.ABORTED;

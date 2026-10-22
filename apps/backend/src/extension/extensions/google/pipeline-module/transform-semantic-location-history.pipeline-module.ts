@@ -26,6 +26,7 @@ import { ActivityStableKeyService } from '../../../../activity-graph/activity-st
 import { ActivityDto } from '../../../../activity-graph/dto/activity.dto.js';
 import { ActivityGraphService } from '../../../../activity-graph/activity-graph.service.js';
 import { ActivityGraphNodeService } from '../../../../activity-graph/activity-graph-node.service.js';
+import type { FileDetection, FileSample } from '../../../../etl/import/type/file-detection.interface.js';
 
 @PipelineModuleJsonSchema()
 export class TransformSemanticLocationHistoryInput {
@@ -61,14 +62,24 @@ export class TransformSemanticLocationHistoryPipelineModule
         private readonly activityGraphNodeService: ActivityGraphNodeService,
     ) {}
 
+    public detectFile(sample: FileSample): FileDetection | undefined {
+        if (sample.extension === 'json' && /^\s*\{\s*"timelineObjects"\s*:/.test(sample.head)) {
+            return { confidence: 0.95, format: 'Google Semantic Location History (monthly file, before 2024)' };
+        }
+
+        return undefined;
+    }
+
     public async executeModule({
         em,
         inputData,
+        progress,
     }: PipelineModuleExecutionContext<TransformSemanticLocationHistoryInput>): Promise<TransformSemanticLocationHistoryOutput> {
         const { rawJson: rawJsonAsset, minPlaceConfidence = PlaceConfidenceEnum.MEDIUM_CONFIDENCE } = inputData;
 
         const generatorExtensionObject = await this.activityGraphNodeService.getExtension(em, GOOGLE_EXTENSION_ID);
 
+        progress.message(`Reading ${rawJsonAsset.originalFilename ?? 'semantic location history'}`);
         const rawJson = await this.assetService.getAssetString(em, rawJsonAsset);
         const rawLocations = JSON.parse(rawJson) as SemanticLocationHistory;
 
@@ -76,7 +87,16 @@ export class TransformSemanticLocationHistoryPipelineModule
 
         return {
             activities: rawLocations.timelineObjects
-                .map((timelineObject) => {
+                .map((timelineObject, index, all) => {
+                    if (index % 200 === 0) {
+                        progress.report({
+                            current: index,
+                            total: all.length,
+                            unit: 'entries',
+                            message: 'Transforming entries',
+                        });
+                    }
+
                     if (hasOwn(timelineObject, 'activitySegment')) {
                         return this.transformActivitySegment(
                             generatorExtensionObject,

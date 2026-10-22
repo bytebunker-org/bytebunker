@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ICAL from 'ical.js';
-import {
-    extractAttendeeEmail,
-    firstParameterString,
-    icalTimeToLuxon,
-    parseAttendees,
-} from './parse-ics-file.util.js';
+import { extractAttendeeEmail, firstParameterString, icalTimeToLuxon, parseAttendees } from './parse-ics-file.util.js';
 import {
     ICS_WITH_ALL_DAY_EVENT,
     ICS_WITH_LOCATION_AND_ATTENDEES,
