@@ -341,5 +341,10 @@ blueprint validation, blueprints as code, module catalog for AI, filter/sample/d
 redesign, schedule trigger, enrichment framework, place consolidation (28,201 → 2,635 places), home/work periods,
 coverage heatmap, and the frontend for all of it (import page, execution page, editor validation and JSON import/export).
 
-Open: geocoding (needs a decision on regions), derived activities (in progress), "exports that could fill gaps" on the
-coverage page, chunked node outputs (plan step 4).
+Derived activities ran live on the full graph (whole enrichment chain ~20 s): 35 trips, 52,122 listens/views linked to
+the move they happened during, 170 of 491 calendar events confirmed (4 by place name, 128 at an unnamed place, 38 by
+overlap), 3,248 daily summaries. Trip names are weak ("Trip to Lidl" for a week-long trip) because most canonical places
+have no name yet; geocoding fixes that.
+
+Open: geocoding (needs a decision on regions), "exports that could fill gaps" on the coverage page, chunked node outputs
+(plan step 4), naming trips by city/country once places are geocoded.
