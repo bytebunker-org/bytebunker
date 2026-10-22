@@ -11,6 +11,7 @@
 	import LucideWorkflow from '~icons/lucide/workflow';
 	import LucideCircuitBoard from '~icons/lucide/circuit-board';
 	import LucideSettings from '~icons/lucide/settings';
+	import LucideUpload from '~icons/lucide/upload';
 	import LogoIcon from '~icons/custom/logo';
 	import { toastManager } from '$lib/util/toastManager.svelte.js';
 	import { AuthApi } from '$lib/api/AuthApi.js';
@@ -80,6 +81,12 @@
 						</li>
 					</ul>
 				</details>
+			</li>
+			<li>
+				<a href="/import" class:menu-active={page.route.id === '/(app)/import'}>
+					<LucideUpload />
+					Import
+				</a>
 			</li>
 			<li>
 				<a href="/settings" class:menu-active={page.route.id === '/(app)/settings'}>
