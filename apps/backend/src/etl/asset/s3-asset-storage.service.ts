@@ -50,7 +50,7 @@ export class S3AssetStorageService extends AssetStorageService {
         size?: number,
         metadata?: CommonMetadata & Record<string, unknown>,
     ): Promise<void> {
-        await this.minioClient.putObject(this.bucketName, storagePath, data, size, metadata);
+        await this.minioClient.putObject(this.bucketName, storagePath, data, size, toS3Metadata(metadata));
     }
 
     public override retrieveAssetStream(storagePath: string): Promise<Readable> {
@@ -119,4 +119,24 @@ export class S3AssetStorageService extends AssetStorageService {
             readableStream.on('error', reject);
         });
     }
+}
+
+/**
+ * S3 user metadata travels as `x-amz-meta-*` HTTP headers, which only carry printable ASCII: a value like the
+ * original path `Meine Aktivitäten/MeineAktivitäten.html` makes the request signature mismatch. Such values are
+ * percent-encoded; the full metadata is kept on the asset row anyway.
+ */
+export function toS3Metadata(
+    metadata: (CommonMetadata & Record<string, unknown>) | undefined,
+): (CommonMetadata & Record<string, unknown>) | undefined {
+    if (!metadata) {
+        return undefined;
+    }
+
+    return Object.fromEntries(
+        Object.entries(metadata).map(([key, value]) => [
+            key,
+            typeof value === 'string' && /[^\u0020-\u007E]/.test(value) ? encodeURIComponent(value) : value,
+        ]),
+    ) as CommonMetadata & Record<string, unknown>;
 }
