@@ -18,6 +18,10 @@ import { ScheduleTriggerPipelineModule } from '../../common-pipeline-triggers/pi
 import { toDesiredSchedule } from '../../common-pipeline-triggers/schedule-trigger.util.js';
 import { ConsolidatePlacesPipelineModule } from '../pipeline-module/consolidate-places.pipeline-module.js';
 import { DeriveHomeWorkPipelineModule } from '../pipeline-module/derive-home-work.pipeline-module.js';
+import { DeriveTripsPipelineModule } from '../pipeline-module/derive-trips.pipeline-module.js';
+import { LinkListensToMovesPipelineModule } from '../pipeline-module/link-listens-to-moves.pipeline-module.js';
+import { ConfirmEventsPipelineModule } from '../pipeline-module/confirm-events.pipeline-module.js';
+import { DailySummaryPipelineModule } from '../pipeline-module/daily-summary.pipeline-module.js';
 
 /**
  * The module rows the validation service reads from the database, built from the module classes the same way module
@@ -48,9 +52,15 @@ function moduleRow(moduleClass: Constructable<unknown>) {
     };
 }
 
-const modules = [ScheduleTriggerPipelineModule, ConsolidatePlacesPipelineModule, DeriveHomeWorkPipelineModule].map(
-    (moduleClass) => moduleRow(moduleClass as Constructable<unknown>),
-);
+const modules = [
+    ScheduleTriggerPipelineModule,
+    ConsolidatePlacesPipelineModule,
+    DeriveHomeWorkPipelineModule,
+    DeriveTripsPipelineModule,
+    LinkListensToMovesPipelineModule,
+    ConfirmEventsPipelineModule,
+    DailySummaryPipelineModule,
+].map((moduleClass) => moduleRow(moduleClass as Constructable<unknown>));
 
 const em = {
     find: (_entity: unknown, where: { id?: { $in?: string[] } }) =>
@@ -70,6 +80,10 @@ describe('enrichment/places blueprint', () => {
             ['common-pipeline-triggers:schedule-trigger@1', PipelineModuleTypeEnum.TRIGGER],
             ['enrichment:consolidate-places@1', PipelineModuleTypeEnum.NORMAL],
             ['enrichment:derive-home-work@1', PipelineModuleTypeEnum.NORMAL],
+            ['enrichment:derive-trips@1', PipelineModuleTypeEnum.NORMAL],
+            ['enrichment:link-listens-to-moves@1', PipelineModuleTypeEnum.NORMAL],
+            ['enrichment:confirm-events@1', PipelineModuleTypeEnum.NORMAL],
+            ['enrichment:daily-summary@1', PipelineModuleTypeEnum.NORMAL],
         ]);
     });
 
@@ -81,7 +95,7 @@ describe('enrichment/places blueprint', () => {
         expect(result.valid).toBe(true);
     });
 
-    it('orders consolidate-places before derive-home-work via the success handle', async () => {
+    it('chains places, home/work, trips, listens on moves, events and daily summaries via the success handle', async () => {
         const { data } = await loadBlueprint();
         const moduleOf = (id: number) => data.nodes.find((node) => node.id === id)?.moduleId;
 
@@ -100,6 +114,10 @@ describe('enrichment/places blueprint', () => {
                 'dependentModules',
             ],
             ['enrichment:consolidate-places@1', 'success', 'enrichment:derive-home-work@1', 'dependentModules'],
+            ['enrichment:derive-home-work@1', 'success', 'enrichment:derive-trips@1', 'dependentModules'],
+            ['enrichment:derive-trips@1', 'success', 'enrichment:link-listens-to-moves@1', 'dependentModules'],
+            ['enrichment:link-listens-to-moves@1', 'success', 'enrichment:confirm-events@1', 'dependentModules'],
+            ['enrichment:confirm-events@1', 'success', 'enrichment:daily-summary@1', 'dependentModules'],
         ]);
     });
 
