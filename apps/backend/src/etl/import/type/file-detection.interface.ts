@@ -17,5 +17,6 @@ export interface FileDetection {
     format: string;
 }
 
-export const FILE_SAMPLE_HEAD_BYTES = 64 * 1024;
+// Google's HTML exports inline ~140 KB of CSS before the first entry.
+export const FILE_SAMPLE_HEAD_BYTES = 256 * 1024;
 export const FILE_DETECTION_MIN_CONFIDENCE = 0.5;

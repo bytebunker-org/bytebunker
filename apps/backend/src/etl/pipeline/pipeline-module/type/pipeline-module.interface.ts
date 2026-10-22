@@ -24,7 +24,7 @@ export interface IPipelineModule<Input, Output> {
      * Optional, for modules that read an imported file: recognise the file by its content so it is routed to this
      * module's blueprints even when no trigger glob matches (localised takeout names, files dropped in the UI).
      * Return undefined (or confidence < 0.5) if the file is not for this module. Must be cheap: it sees only the
-     * first 64 KB.
+     * first 256 KB.
      */
     detectFile?(sample: FileSample): FileDetection | undefined;
 
