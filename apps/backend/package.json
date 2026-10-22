@@ -26,6 +26,9 @@
         "test:cov": "vitest run --coverage",
         "test:debug": "vitest --inspect-brk --inspect --logHeapUsage --threads=false",
         "test:e2e": "vitest run --config ./vitest-e2e.config.ts",
+        "ingest:corpus": "tsx tools/ingest-harness/corpus.ts",
+        "ingest:transform": "vitest run --config ./tools/ingest-harness/vitest.ingest.config.ts",
+        "ingest:e2e": "tsx tools/ingest-harness/e2e.ts",
         "test:watch": "vitest",
         "test:watch-ui": "vitest --ui",
         "nest": "nest"
@@ -150,8 +153,8 @@
         "@types/passport-local": "^1.0.38",
         "@types/pg": "^8.15.2",
         "@types/supertest": "^6.0.3",
-        "@vitest/coverage-v8": "^1.6.1",
-        "@vitest/ui": "^1.6.1",
+        "@vitest/coverage-v8": "^4.0.0",
+        "@vitest/ui": "^4.0.0",
         "cross-env": "^7.0.3",
         "eslint": "^9.27.0",
         "eslint-config-prettier": "^9.1.0",
@@ -167,8 +170,8 @@
         "tsconfig-paths": "4.2.0",
         "typescript-eslint": "^8.32.1",
         "unplugin-swc": "^1.5.3",
-        "vitest": "^2.1.9",
-        "vitest-mock-extended": "^2.0.2"
+        "vitest": "^4.0.0",
+        "vitest-mock-extended": "^3.0.0"
     },
     "lint-staged": {
         "*.{js,ts}": [
