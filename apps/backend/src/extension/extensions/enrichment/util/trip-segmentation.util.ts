@@ -289,7 +289,11 @@ function attachTransportModes(trips: Trip[], moves: TripMove[]): void {
 
     for (const [trip, tripMoves] of movesByTrip) {
         const known = new Set(trip.activityIds);
-        trip.activityIds.push(...tripMoves.map((move) => move.id).filter((id) => !known.has(id)));
+        for (const move of tripMoves) {
+            if (!known.has(move.id)) {
+                trip.activityIds.push(move.id);
+            }
+        }
     }
 
     for (const [trip, modes] of modesByTrip) {

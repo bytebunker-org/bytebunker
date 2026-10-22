@@ -202,7 +202,10 @@ export class ActivityInputReaderService {
                 onProgress && ((read) => onProgress(offset + read)),
             );
 
-            plays.push(...rows);
+            // A spread of 200k+ rows overflows the call stack.
+            for (const row of rows) {
+                plays.push(row);
+            }
         }
 
         return plays;
