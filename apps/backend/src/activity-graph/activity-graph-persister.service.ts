@@ -26,9 +26,11 @@ import {
     type NodeStableKeyRow,
     truncateStableKey,
 } from './node-stable-key-index.service.js';
+import type { UpsertObjectsOptions, UpsertObjectsResult } from './type/upsert-objects.interface.js';
 
 const ACTIVITY_ALIAS = 'activity';
 const OBJECT_ALIAS_PREFIX = 'obj_';
+const STANDALONE_OBJECT_ALIAS = 'node';
 
 /**
  * A required object of an activity, resolved to the node it will be written to.
@@ -417,6 +419,142 @@ export class ActivityGraphPersisterService {
                 row.objects.map((object) => [object.propertyKey, { id: object.nodeId, props: object.props }]),
             ),
         };
+    }
+
+    /**
+     * Writes objects that exist on their own, without an activity (e.g. persons synced from my-hub).
+     *
+     * Each object resolves to a node like a required object of an activity: the first of its stable keys that is
+     * already indexed (in Postgres or earlier in this call) picks the node, otherwise a new node is created (with the
+     * object's `@id` if it has one). Unlike the activity path, an existing node is updated: its properties are
+     * overwritten with the ones the object carries (`+=`), labels are added, and stable keys the node did not have yet
+     * are indexed to it, so e.g. a person that gained an email is found by it from then on. A key that is already
+     * indexed to a different node stays there and is counted in `conflictingKeyCount`.
+     */
+    public async upsertObjects(
+        em: EntityManager,
+        objects: ASObject[],
+        options: UpsertObjectsOptions = {},
+    ): Promise<UpsertObjectsResult> {
+        const result: UpsertObjectsResult = {
+            createdCount: 0,
+            updatedCount: 0,
+            conflictingKeyCount: 0,
+            dryRun: options.dryRun ?? false,
+        };
+        const nodeIdByStableKey = new Map<string, string>();
+        let processedCount = 0;
+
+        for (const chunk of R.chunk(objects, ACTIVITY_GRAPH_CHUNK_SIZE)) {
+            await this.upsertObjectChunk(em, chunk, nodeIdByStableKey, result, options.provenance);
+
+            processedCount += chunk.length;
+            options.onProgress?.({
+                processed: processedCount,
+                total: objects.length,
+                created: result.createdCount,
+                updated: result.updatedCount,
+            });
+        }
+
+        this.logger.log(
+            `${result.dryRun ? '[dry run] Would upsert' : 'Upserted'} ${objects.length} standalone objects: ` +
+                `${result.createdCount} created, ${result.updatedCount} updated, ${result.conflictingKeyCount} conflicting keys`,
+        );
+
+        return result;
+    }
+
+    private async upsertObjectChunk(
+        em: EntityManager,
+        objects: ASObject[],
+        nodeIdByStableKey: Map<string, string>,
+        result: UpsertObjectsResult,
+        provenance: ImportProvenance | undefined,
+    ): Promise<void> {
+        const stableKeysOf = (object: ASObject): string[] => [
+            ...new Set((object.stableKeys ?? []).filter(Boolean).map((stableKey) => truncateStableKey(stableKey))),
+        ];
+
+        this.rememberStableKeys(
+            nodeIdByStableKey,
+            await this.nodeStableKeyIndexService.findNodeIds(
+                em,
+                objects.flatMap(stableKeysOf).filter((stableKey) => !nodeIdByStableKey.has(stableKey)),
+            ),
+        );
+
+        const newStableKeys: NodeStableKeyRow[] = [];
+        const rowsByLabels = new Map<
+            string,
+            { labels: string[]; rows: { id: string; props: Record<string, unknown> }[] }
+        >();
+
+        for (const object of objects) {
+            const type = object['@type'];
+
+            if (!type) {
+                throw new Error('Standalone objects need a @type to be written to the graph');
+            }
+
+            const labels = this.resolveLabels(type, object['@secondaryTypes'], `standalone object ${type}`);
+            const stableKeys = stableKeysOf(object);
+            const existingNodeId = stableKeys
+                .map((stableKey) => nodeIdByStableKey.get(stableKey))
+                .find((nodeId) => nodeId !== undefined);
+            const nodeId = existingNodeId ?? extractASObjectId(object['@id']) ?? uuidV7();
+
+            if (existingNodeId) {
+                result.updatedCount++;
+            } else {
+                result.createdCount++;
+            }
+
+            for (const stableKey of stableKeys) {
+                const indexedNodeId = nodeIdByStableKey.get(stableKey);
+
+                if (indexedNodeId === undefined) {
+                    nodeIdByStableKey.set(stableKey, nodeId);
+                    newStableKeys.push({ stableKey, nodeId });
+                } else if (indexedNodeId !== nodeId) {
+                    result.conflictingKeyCount++;
+                }
+            }
+
+            const labelsKey = labels.join(':');
+            const group = rowsByLabels.get(labelsKey) ?? { labels, rows: [] };
+            group.rows.push({
+                id: nodeId,
+                props: buildNodeProps(object as unknown as Record<string, unknown>, [
+                    '@id',
+                    '@type',
+                    '@secondaryTypes',
+                    'stableKeys',
+                ]),
+            });
+            rowsByLabels.set(labelsKey, group);
+        }
+
+        if (result.dryRun || rowsByLabels.size === 0) {
+            return;
+        }
+
+        const provenanceParameter = {
+            executionId: provenance?.executionId ?? null,
+            assetId: provenance?.assetId ?? null,
+            importedAt: new Date().toISOString(),
+        };
+
+        await em.fork().transactional(async (transactionalEm) => {
+            for (const { labels, rows } of rowsByLabels.values()) {
+                await this.neode.writeCypher(
+                    ['UNWIND $rows AS row', ...buildNodeMergeLines(STANDALONE_OBJECT_ALIAS, labels, 'row')].join('\n'),
+                    { rows, provenance: provenanceParameter },
+                );
+            }
+
+            await this.nodeStableKeyIndexService.insertMissing(transactionalEm, newStableKeys);
+        });
     }
 
     /**

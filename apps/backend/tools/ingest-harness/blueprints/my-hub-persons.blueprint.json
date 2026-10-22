@@ -1,0 +1,29 @@
+{
+    "edges": [
+        { "id": 0, "source": 1, "target": 2, "sourceHandle": "success", "targetHandle": "dependentModules" },
+        { "id": 1, "source": 2, "target": 3, "sourceHandle": "objects", "targetHandle": "objects" }
+    ],
+    "nodes": [
+        {
+            "id": 1,
+            "moduleId": "my-hub:my-hub-sync-trigger@1",
+            "position": { "x": 260, "y": 0 },
+            "constantInputData": {}
+        },
+        {
+            "id": 2,
+            "moduleId": "my-hub:sync-persons@1",
+            "position": { "x": 480, "y": -20 },
+            "constantInputData": {
+                "includePlaceholders": false,
+                "includeHidden": true
+            }
+        },
+        {
+            "id": 3,
+            "moduleId": "bytebunker-core:store-objects@1",
+            "position": { "x": 800, "y": -20 },
+            "constantInputData": {}
+        }
+    ]
+}

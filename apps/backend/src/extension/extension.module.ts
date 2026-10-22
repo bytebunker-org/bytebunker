@@ -14,6 +14,7 @@ import { AirbnbExtensionModule } from './extensions/airbnb/airbnb-extension.modu
 import { WhatsappExtensionModule } from './extensions/whatsapp/whatsapp-extension.module.js';
 import { YouTubeExtensionModule } from './extensions/youtube/youtube-extension.module.js';
 import { SpotifyExtensionModule } from './extensions/spotify/spotify-extension.module.js';
+import { MyHubExtensionModule } from './extensions/my-hub/my-hub-extension.module.js';
 
 const manuallyLoadedExtensions = [
     CommonPipelineTriggersModule,
@@ -23,6 +24,7 @@ const manuallyLoadedExtensions = [
     YouTubeExtensionModule,
     AirbnbExtensionModule,
     SpotifyExtensionModule,
+    MyHubExtensionModule,
 ];
 
 @Module({
