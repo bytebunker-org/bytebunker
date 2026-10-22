@@ -451,7 +451,9 @@ export class PipelineExecutionService {
                 );
             }
 
-            progress = await this.progressService.startNode(pipelineExecution.id, node.id);
+            progress = await this.progressService.startNode(pipelineExecution.id, node.id, (percent) =>
+                job.updateProgress(percent),
+            );
             const moduleProgress = progress;
 
             const outputDataOrHoldExecution = await em.fork().transactional((em) =>
