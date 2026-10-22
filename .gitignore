@@ -13,3 +13,6 @@ vite.config.ts.timestamp-*
 foundTcds.jsonl
 # Local prod-DB tunnel + MCP secrets (do not commit)
 tunnel-prod-dbs.sh
+
+# Per-worktree dev instance state (tools/worktree/wt.sh)
+.worktree/

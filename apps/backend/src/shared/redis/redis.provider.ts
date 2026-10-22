@@ -15,6 +15,7 @@ export const redisProvider: FactoryProvider = {
             port: config.port,
             username: config.username,
             password: config.password,
+            db: config.db,
             maxRetriesPerRequest: null,
         };
 

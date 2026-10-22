@@ -17,4 +17,14 @@ export class RedisConfig {
     @IsOptional()
     @IsString()
     public readonly password?: string;
+
+    /**
+     * Logical database index. Git worktrees use their own index so their BullMQ workers never pick
+     * up the main checkout's jobs.
+     */
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    @Max(15)
+    public readonly db?: number;
 }

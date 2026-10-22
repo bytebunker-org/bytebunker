@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import Icons from 'unplugin-icons/vite';
 import { imagetools } from '@zerodevx/svelte-img/vite';
 import { FileSystemIconLoader } from 'unplugin-icons/loaders';
-import type { Plugin } from 'vite';
+import { loadEnv, type Plugin } from 'vite';
 import { dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,30 +32,36 @@ function autoInjectTWTheme() {
 	} satisfies Plugin;
 }
 
-export default defineConfig({
-	plugins: [
-		tailwindcss(),
-		autoInjectTWTheme(),
-		sveltekit(),
-		imagetools(),
-		Icons({
-			compiler: 'svelte',
-			customCollections: {
-				custom: FileSystemIconLoader('./src/lib/assets/icons')
-			}
-		})
-	],
-	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}']
-	},
-	server: {
-		host: true,
-		port: 12101,
-		strictPort: true
-	},
-	preview: {
-		host: true,
-		port: 12101,
-		strictPort: true
-	}
+export default defineConfig(({ mode }) => {
+	// Git worktrees set DEV_SERVER_PORT in .env.development.local (tools/worktree/wt.sh), so plain
+	// `pnpm dev` binds the worktree's own port; the main checkout keeps 12101.
+	const port = Number(loadEnv(mode, process.cwd(), 'DEV_SERVER_PORT').DEV_SERVER_PORT || 12101);
+
+	return {
+		plugins: [
+			tailwindcss(),
+			autoInjectTWTheme(),
+			sveltekit(),
+			imagetools(),
+			Icons({
+				compiler: 'svelte',
+				customCollections: {
+					custom: FileSystemIconLoader('./src/lib/assets/icons')
+				}
+			})
+		],
+		test: {
+			include: ['src/**/*.{test,spec}.{js,ts}']
+		},
+		server: {
+			host: true,
+			port,
+			strictPort: true
+		},
+		preview: {
+			host: true,
+			port,
+			strictPort: true
+		}
+	};
 });

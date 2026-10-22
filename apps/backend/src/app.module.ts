@@ -78,7 +78,7 @@ export class AppModule implements NestModule {
             .apply(
                 session({
                     secret: this.config.session.secret,
-                    name: 'sid',
+                    name: this.config.session.cookieName ?? 'sid',
                     resave: false,
                     saveUninitialized: false,
                     proxy: true,

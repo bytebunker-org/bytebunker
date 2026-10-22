@@ -1,0 +1,52 @@
+{
+    "$schema": "https://t3.codes/schema/t3.json",
+    "iconPath": "apps/frontend/static/favicon/favicon.svg",
+    "defaultThreadEnvMode": "worktree",
+    "scripts": [
+        {
+            "name": "Setup",
+            "command": "tools/worktree/wt.sh setup",
+            "icon": "configure",
+            "runOnWorktreeCreate": true,
+            "async": false
+        },
+        { "name": "Info", "command": "tools/worktree/wt.sh info", "icon": "debug" },
+        { "name": "All dev servers", "command": "tools/worktree/wt.sh services && pnpm dev", "icon": "play" },
+        { "name": "Backend", "command": "tools/worktree/wt.sh backend", "icon": "play" },
+        { "name": "Frontend", "command": "tools/worktree/wt.sh frontend", "icon": "play" },
+        {
+            "name": "Build libs",
+            "command": "pnpm turbo run build:lib build:generate-metadata build:mikro-orm-cache --filter=@bytebunker/backend... --filter=@bytebunker/frontend...",
+            "icon": "build"
+        },
+        { "name": "Lint", "command": "pnpm lint 2>&1 | tail -80", "icon": "lint" },
+        { "name": "Format", "command": "pnpm format", "icon": "lint" },
+        {
+            "name": "Frontend check",
+            "command": "pnpm --filter @bytebunker/frontend check 2>&1 | tail -40",
+            "icon": "lint"
+        },
+        {
+            "name": "Backend tests",
+            "command": "pnpm --filter @bytebunker/backend test 2>&1 | tail -200",
+            "icon": "test"
+        },
+        { "name": "Schema diff", "command": "tools/worktree/wt.sh schema", "icon": "debug" },
+        {
+            "name": "Schema update",
+            "command": "pnpm --filter @bytebunker/backend mikro-orm schema:update --run",
+            "icon": "build"
+        },
+        { "name": "DB psql", "command": "tools/worktree/wt.sh db psql", "icon": "debug" },
+        { "name": "DB reset", "command": "tools/worktree/wt.sh db reset", "icon": "configure" },
+        {
+            "name": "DB reset (fresh snapshot)",
+            "command": "tools/worktree/wt.sh db reset --fresh",
+            "icon": "configure"
+        },
+        { "name": "Graph reset", "command": "tools/worktree/wt.sh graph reset", "icon": "configure" },
+        { "name": "List worktree instances", "command": "tools/worktree/wt.sh list", "icon": "debug" },
+        { "name": "Prune removed worktrees", "command": "tools/worktree/wt.sh prune", "icon": "configure" },
+        { "name": "Teardown", "command": "tools/worktree/wt.sh teardown", "icon": "configure" }
+    ]
+}
