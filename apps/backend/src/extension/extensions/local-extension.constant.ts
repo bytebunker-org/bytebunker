@@ -10,6 +10,8 @@ export const ICS_CALENDAR_EXTENSION_ID = '01958c1b-0a4f-7f12-9a6c-7a4c2dbb31ea';
 export const ICS_CALENDAR_EXTENSION = 'ics-calendar';
 export const YOUTUBE_EXTENSION_ID = '019df6f5-dae3-7099-a14f-22b5d7ddd19e';
 export const YOUTUBE_EXTENSION = 'youtube';
+export const SPOTIFY_EXTENSION_ID = '01a163d0-e355-70d0-9e31-006decec8772';
+export const SPOTIFY_EXTENSION = 'spotify';
 
 export const localExtensions = [
     {
@@ -35,6 +37,10 @@ export const localExtensions = [
     {
         id: YOUTUBE_EXTENSION_ID,
         name: YOUTUBE_EXTENSION,
+    } as const,
+    {
+        id: SPOTIFY_EXTENSION_ID,
+        name: SPOTIFY_EXTENSION,
     } as const,
 ] satisfies { id: string; name: string }[];
 

@@ -69,6 +69,15 @@ export async function loadSyncedCorpus(filter?: { only?: string[]; importers?: I
         return [];
     }
 
+    // The importer comes from the manifest, not the index: a source can move to another importer (Spotify moved from
+    // the script blueprint to the spotify module) without re-syncing the corpus.
+    const importerBySource = new Map(corpusSources.map((source) => [source.id, source.importer]));
+    files = files.flatMap((file) => {
+        const importer = importerBySource.get(file.sourceId);
+
+        return importer ? [{ ...file, importer }] : [];
+    });
+
     return files.filter(
         (file) =>
             (!filter?.only?.length || filter.only.includes(file.sourceId) || filter.only.includes(file.importPath)) &&

@@ -14,11 +14,12 @@ import type { AssetDto } from '../../../src/etl/asset/dto/asset.dto.js';
 import type { BlueprintDataDto } from '../../../src/etl/pipeline/blueprint/dto/blueprint-data.dto.js';
 import { Blueprint } from '../../../src/etl/pipeline/blueprint/util/blueprint.class.js';
 import type { IPipelineModule } from '../../../src/etl/pipeline/pipeline-module/type/pipeline-module.interface.js';
+import { NOOP_MODULE_PROGRESS_REPORTER } from '../../../src/etl/pipeline/progress/type/module-progress-reporter.interface.js';
 import { TransformTimelinePipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-timeline.pipeline-module.js';
 import { TransformSemanticLocationHistoryPipelineModule } from '../../../src/extension/extensions/google/pipeline-module/transform-semantic-location-history.pipeline-module.js';
 import { TransformYouTubeWatchHistoryPipelineModule } from '../../../src/extension/extensions/youtube/pipeline-module/transform-youtube-watch-history.pipeline-module.js';
 import { ParseIcsFilePipelineModule } from '../../../src/extension/extensions/ics-calendar/pipeline-module/parse-ics-file.pipeline-module.js';
-import { ExecuteCodePipelineModule } from '../../../src/etl/pipeline/pipeline-module/core-module/execute-code.pipeline-module.js';
+import { TransformSpotifyStreamingHistoryPipelineModule } from '../../../src/extension/extensions/spotify/pipeline-module/transform-spotify-streaming-history.pipeline-module.js';
 import { importers, type ImporterId } from '../corpus.manifest.js';
 import { BLUEPRINT_DIR, corpusFilePath, type CorpusFile } from './corpus.js';
 
@@ -34,7 +35,12 @@ type AnyModule = IPipelineModule<Record<string, unknown>, unknown>;
 
 const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
     'google-timeline': (s) =>
-        new TransformTimelinePipelineModule(s.assetService, s.stableKeyService, s.graphService, s.graphNodeService) as never,
+        new TransformTimelinePipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
     'google-semantic-location-history': (s) =>
         new TransformSemanticLocationHistoryPipelineModule(
             s.assetService,
@@ -51,8 +57,13 @@ const moduleFactories: Record<ImporterId, (s: ModuleServices) => AnyModule> = {
         ) as never,
     'ics-calendar': (s) =>
         new ParseIcsFilePipelineModule(s.assetService, s.stableKeyService, s.graphService, s.graphNodeService) as never,
-    'spotify-streaming-history-script': (s) =>
-        new ExecuteCodePipelineModule(s.graphService, s.graphNodeService, s.stableKeyService, s.assetService) as never,
+    'spotify-streaming-history': (s) =>
+        new TransformSpotifyStreamingHistoryPipelineModule(
+            s.assetService,
+            s.stableKeyService,
+            s.graphService,
+            s.graphNodeService,
+        ) as never,
 };
 
 /** Same defaults as `settingsConfig` (eventUniqueLocationPrecision / eventUniqueDateTimePrecision). */
@@ -91,6 +102,8 @@ export async function loadBlueprint(importer: ImporterId): Promise<BlueprintData
 
 export interface TransformRun {
     activities: unknown[];
+    /** Rows the module skipped instead of failing, if it reports them (`skipped` output). */
+    skipped?: { total: number; byReason: Record<string, number> };
     durationMs: number;
     heapDeltaBytes: number;
 }
@@ -131,7 +144,9 @@ export async function runTransform(file: CorpusFile): Promise<TransformRun> {
         blueprint,
         currentNode: node,
         inputData,
-    })) as { activities?: unknown[] };
+        progress: NOOP_MODULE_PROGRESS_REPORTER,
+        dryRun: false,
+    })) as { activities?: unknown[]; skipped?: TransformRun['skipped'] };
     const durationMs = performance.now() - start;
     const heapDeltaBytes = process.memoryUsage().heapUsed - heapBefore;
 
@@ -143,5 +158,5 @@ export async function runTransform(file: CorpusFile): Promise<TransformRun> {
     // strings, undefined disappears. Analyse what store-activity will actually receive.
     const activities = JSON.parse(JSON.stringify(output.activities)) as unknown[];
 
-    return { activities, durationMs, heapDeltaBytes };
+    return { activities, skipped: output.skipped, durationMs, heapDeltaBytes };
 }

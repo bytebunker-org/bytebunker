@@ -97,6 +97,7 @@ describe.skipIf(!corpus.length)('ingest transform harness', () => {
                     heapDeltaBytes: run.heapDeltaBytes,
                     ...dedup,
                     analysis,
+                    skippedRows: run.skipped?.byReason,
                 });
             } catch (error) {
                 rows.push({
