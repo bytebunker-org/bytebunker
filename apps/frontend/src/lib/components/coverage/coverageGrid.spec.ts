@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildYearGrid, expandDays, formatGap, intensityLevel } from './coverageGrid.js';
+import {
+	buildMonthBuckets,
+	buildYearGrid,
+	expandDays,
+	formatGap,
+	intensityLevel,
+	OVERFLOW_COLOR,
+	seriesColor,
+	yearSpan
+} from './coverageGrid.js';
 
 describe('coverageGrid', () => {
 	it('lays out a year Monday-first', () => {
@@ -30,5 +39,25 @@ describe('coverageGrid', () => {
 		expect(formatGap({ from: '2020-03-02', to: '2020-06-14', days: 105 })).toBe(
 			'keine Daten 2020-03-02 – 2020-06-14, 105 Tage'
 		);
+	});
+});
+
+describe('buildMonthBuckets', () => {
+	it('sums days and counts per month, keeping empty months', () => {
+		const buckets = buildMonthBuckets(
+			{ '2020-02-01': 3, '2020-02-29': 1, '2021-12-31': 2, '2019-05-05': 9 },
+			[2020, 2021]
+		);
+		expect(buckets).toHaveLength(24);
+		expect(buckets[1]).toEqual({ year: 2020, month: 1, days: 2, daysInMonth: 29, count: 4 });
+		expect(buckets[0]).toMatchObject({ days: 0, count: 0, daysInMonth: 31 });
+		expect(buckets[23]).toMatchObject({ year: 2021, month: 11, days: 1, count: 2 });
+	});
+
+	it('spans years and picks colours in fixed order', () => {
+		expect(yearSpan('2018-03-01', '2020-01-01')).toEqual([2018, 2019, 2020]);
+		expect(yearSpan(undefined, '2020-01-01')).toEqual([]);
+		expect(seriesColor(0)).toBe('#2a78d6');
+		expect(seriesColor(99)).toBe(OVERFLOW_COLOR);
 	});
 });

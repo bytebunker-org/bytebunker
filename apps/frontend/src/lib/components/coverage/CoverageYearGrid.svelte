@@ -10,9 +10,11 @@
 		/** First/last day with data in the series; cells outside are drawn fainter. */
 		firstDay?: string;
 		lastDay?: string;
+		/** Fill of cells with data; defaults to the theme's primary colour. */
+		color?: string;
 	}
 
-	let { year, days, max, gapDays, firstDay, lastDay }: Props = $props();
+	let { year, days, max, gapDays, firstDay, lastDay, color }: Props = $props();
 
 	const CELL = 11;
 	const STEP = 13;
@@ -46,7 +48,8 @@
 					width={CELL}
 					height={CELL}
 					rx="2"
-					class="fill-primary"
+					class={color ? undefined : 'fill-primary'}
+					fill={color}
 					opacity={OPACITY[level]}
 				>
 					<title>{cell.day}: {count.toLocaleString('de-DE')} Aktivitäten</title>
