@@ -66,7 +66,10 @@ export function formatGap(gap: { from: string; to: string; days: number }): stri
 	return `keine Daten ${gap.from} – ${gap.to}, ${gap.days} Tage`;
 }
 
-/** Categorical series colours in fixed order (CVD-checked for adjacent pairs); beyond 8 series fall back to grey. */
+/**
+ * Categorical series colours in fixed order (the first eight are CVD-checked for adjacent pairs). Never grey: a grey
+ * series reads as "no data". Past the list, hues are spread by the golden angle.
+ */
 export const SERIES_COLORS = [
 	'#2a78d6',
 	'#eb6834',
@@ -75,12 +78,32 @@ export const SERIES_COLORS = [
 	'#e87ba4',
 	'#008300',
 	'#6250d6',
-	'#e34948'
+	'#e34948',
+	'#0891b2',
+	'#a16207',
+	'#c026d3',
+	'#65a30d',
+	'#1e40af',
+	'#db2777',
+	'#0d9488',
+	'#9333ea'
 ];
-export const OVERFLOW_COLOR = '#8a8984';
+/** The combined "Alle" series. */
+export const ALL_SERIES_COLOR = '#4338ca';
 
 export function seriesColor(index: number): string {
-	return SERIES_COLORS[index] ?? OVERFLOW_COLOR;
+	return SERIES_COLORS[index] ?? `hsl(${Math.round((index * 137.508) % 360)} 70% 42%)`;
+}
+
+/**
+ * A data cell's fill: the series colour mixed with white, never below `MIN_MIX` so sparse cells keep their hue
+ * (lowering opacity instead turns every colour grey on the light background).
+ */
+const MIN_MIX = 38;
+
+export function cellFill(color: string, strength: number): string {
+	const mix = Math.round(MIN_MIX + (100 - MIN_MIX) * Math.min(1, Math.max(0, strength)));
+	return `color-mix(in oklab, ${color} ${mix}%, white)`;
 }
 
 export interface MonthBucket {

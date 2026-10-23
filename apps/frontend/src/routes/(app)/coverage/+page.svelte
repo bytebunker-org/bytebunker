@@ -9,7 +9,7 @@
 	} from '$lib/components/coverage/CoverageMonthBand.svelte';
 	import {
 		buildMonthBuckets,
-		OVERFLOW_COLOR,
+		ALL_SERIES_COLOR,
 		seriesColor,
 		yearSpan
 	} from '$lib/components/coverage/coverageGrid.js';
@@ -45,13 +45,13 @@
 					{
 						key: data.overall.key,
 						label: 'Alle',
-						color: OVERFLOW_COLOR,
+						color: ALL_SERIES_COLOR,
 						buckets: buildMonthBuckets(data.overall.days, years)
 					},
 					...data.series.map((series) => ({
 						key: series.key,
 						label: series.label,
-						color: colors.get(series.key) ?? OVERFLOW_COLOR,
+						color: colors.get(series.key) ?? seriesColor(0),
 						buckets: buildMonthBuckets(series.days, years)
 					}))
 				]

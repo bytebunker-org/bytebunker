@@ -5,7 +5,7 @@ import {
 	expandDays,
 	formatGap,
 	intensityLevel,
-	OVERFLOW_COLOR,
+	cellFill,
 	seriesColor,
 	yearSpan
 } from './coverageGrid.js';
@@ -58,6 +58,8 @@ describe('buildMonthBuckets', () => {
 		expect(yearSpan('2018-03-01', '2020-01-01')).toEqual([2018, 2019, 2020]);
 		expect(yearSpan(undefined, '2020-01-01')).toEqual([]);
 		expect(seriesColor(0)).toBe('#2a78d6');
-		expect(seriesColor(99)).toBe(OVERFLOW_COLOR);
+		expect(seriesColor(99)).toMatch(/^hsl\(/);
+		expect(cellFill('#2a78d6', 0)).toBe('color-mix(in oklab, #2a78d6 38%, white)');
+		expect(cellFill('#2a78d6', 1)).toBe('color-mix(in oklab, #2a78d6 100%, white)');
 	});
 });

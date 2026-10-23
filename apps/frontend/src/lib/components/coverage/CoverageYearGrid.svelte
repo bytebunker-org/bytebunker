@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { buildYearGrid, intensityLevel } from './coverageGrid.js';
+	import { ALL_SERIES_COLOR, buildYearGrid, cellFill, intensityLevel } from './coverageGrid.js';
 
 	interface Props {
 		year: number;
@@ -10,7 +10,7 @@
 		/** First/last day with data in the series; cells outside are drawn fainter. */
 		firstDay?: string;
 		lastDay?: string;
-		/** Fill of cells with data; defaults to the theme's primary colour. */
+		/** Fill of cells with data; defaults to the combined series' colour. */
 		color?: string;
 	}
 
@@ -23,7 +23,8 @@
 
 	let grid = $derived(buildYearGrid(year));
 	let width = $derived(LEFT + grid.weeks * STEP);
-	const OPACITY = [0, 0.3, 0.5, 0.75, 1];
+	/** Fill strength per intensity level; level 1 keeps enough colour to be seen. */
+	const STRENGTH = [0, 0, 0.35, 0.7, 1];
 </script>
 
 <!-- One SVG per year with plain rects: ~370 nodes, cheap even for many series and years. -->
@@ -48,9 +49,7 @@
 					width={CELL}
 					height={CELL}
 					rx="2"
-					class={color ? undefined : 'fill-primary'}
-					fill={color}
-					opacity={OPACITY[level]}
+					style:fill={cellFill(color ?? ALL_SERIES_COLOR, STRENGTH[level])}
 				>
 					<title>{cell.day}: {count.toLocaleString('de-DE')} Aktivitäten</title>
 				</rect>

@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import { monthLabel, type MonthBucket } from './coverageGrid.js';
+	import { cellFill, monthLabel, type MonthBucket } from './coverageGrid.js';
 
 	export type CoverageMetric = 'days' | 'count';
 
@@ -38,10 +38,13 @@
 	let svgWidth = $derived(LABEL_WIDTH + yearWidth * years.length);
 	let height = $derived(TOP + rows.length * (ROW_HEIGHT + ROW_GAP));
 
-	/** 0…1 fill strength: share of days with data, or log-scaled count relative to the row's busiest month. */
+	/**
+	 * 0…1 fill strength: share of days with data (square root, so a few days a month still stand out), or log-scaled
+	 * count relative to the row's busiest month.
+	 */
 	function strength(bucket: MonthBucket, rowMax: number): number {
 		if (metric === 'days') {
-			return bucket.days / bucket.daysInMonth;
+			return Math.sqrt(bucket.days / bucket.daysInMonth);
 		}
 		return bucket.count > 0 && rowMax > 0 ? Math.log1p(bucket.count) / Math.log1p(rowMax) : 0;
 	}
@@ -111,8 +114,7 @@
 						height={ROW_HEIGHT}
 						rx="1.5"
 						class="cursor-pointer {bucket.days > 0 ? '' : 'fill-base-content/10'}"
-						fill={bucket.days > 0 ? row.color : undefined}
-						opacity={bucket.days > 0 ? 0.18 + 0.82 * value : 1}
+						style:fill={bucket.days > 0 ? cellFill(row.color, value) : undefined}
 						role="presentation"
 						onclick={() => onselect(bucket.year)}
 					>
