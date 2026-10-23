@@ -46,8 +46,10 @@ drop databases, Neo4j containers/volumes and KeyDB indexes whose worktree is gon
   compose MinIO (root credentials from `docker-compose.yml`), like the main dev checkout, and
   `wt.sh backend` refuses to start if any uncommented line in the worktree's env files still
   mentions `syscy.de`. There is no opt-out.
-- **Schema:** there are no migrations; MikroORM `schema:update` changes the schema. `wt.sh schema`
-  shows the SQL it would run (read-only). Running it is your call (**Schema update** script).
+- **Schema:** MikroORM migrations (`docs/MIGRATIONS.md`). After `wt.sh db reset` or pulling a new
+  migration, apply them with `pnpm --filter @bytebunker/backend migrate` (**Migrate** script).
+  `wt.sh schema` shows the remaining SQL difference between the entities and the DB (read-only); do
+  not run `schema:update --run`, create a migration instead.
 
 ## Commands
 
@@ -78,7 +80,7 @@ the stock config.
 
 `t3.json` defines **Setup** (runs on worktree creation and holds the agent until it finishes, about
 40 s plus `pnpm install`), **Info**, **Backend**, **Frontend**, **All dev servers**, **Build libs**,
-lint/check/test scripts, **Schema diff/update**, DB/graph resets, **List**, **Prune**, **Stop
+lint/check/test scripts, **Schema diff**, **Migrate**, DB/graph resets, **List**, **Prune**, **Stop
 servers**, **Settle: stop servers** and **Teardown** (`teardown --stop`). `t3.json` only reaches new
 worktrees once it is committed on the branch they start from.
 
