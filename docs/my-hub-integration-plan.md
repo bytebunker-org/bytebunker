@@ -1,7 +1,8 @@
 # my-hub integration — plan
 
 _2026-10-23. Builds on "my-hub integration" in `docs/import/takeout-import-plan.md` (what exists today) and the
-my-hub code as of `78151c63`. my-hub paths below are relative to `~/dev/my-hub/apps/backend/src`._
+my-hub code as of `78151c63`. my-hub paths below are relative to `~/dev/my-hub/apps/backend/src`. The brief for
+the agent doing the my-hub side is `docs/my-hub-handoff.md`._
 
 ## Goal
 
@@ -62,7 +63,19 @@ job queue ── POST /my-hub/hook {seq} ────────┼────
    anything bytebunker has but my-hub no longer returns gets `myHubDeletedAt`. Catches raw-SQL writes that bypass the
    ORM and any feed bug.
 
-Why not the alternatives:
+### Same host, different containers (decided)
+
+Both apps run on `titan` in separate Coolify stacks (bytebunker on `coolify`, my-hub on `my-hub-network`). Pull +
+hint stays the design; both calls go over a shared external Docker network `bytebunker-link` that both backends
+join, so traffic never leaves the host and no public route is needed. my-hub calls
+`http://bytebunker-backend:12100/my-hub/hook` (HMAC-signed, `X-Hub-Timestamp` + `X-Hub-Signature`), bytebunker pulls
+`http://<my-hub-backend>:11000/export/changes` with a scoped `export:read` token. Public URLs remain the fallback if
+the apps are split across hosts.
+
+Considered and rejected: a read-only Postgres role on my-hub's DB plus `LISTEN dav_change`. Lower latency and less
+code, but bytebunker would depend on my-hub's table layout and migrations, and it stops working once the hosts split.
+
+Why not the other alternatives:
 - SSE `/live/stream`: no ids, no payload, no replay, and persons publish nothing. Fine for UIs, not for sync.
 - CalDAV `sync-collection` for calendars: works, but needs a DAV client in bytebunker and covers only calendars.
   `dav_change` gives the same tombstones through the same feed as everything else.
@@ -85,8 +98,8 @@ Why not the alternatives:
 4. `GET /export/vocabulary`: relationship types with `reverse`/`group`/`canonical`, fact enums, the DB taxonomy
    (life event, activity, gift types), handle platforms, date precision. bytebunker stores them as strings and reads
    labels from here; no shared npm package across two repos.
-5. **Scoped token**: an `export:read` API key accepted only on `/export/*` (a small guard next to `ApiKeyGuard`).
-   bytebunker stops holding the admin key.
+5. **Scoped token**: `export_token` rows with scopes `export:read` / `export:media`, accepted only on `/export/*`
+   (a guard next to `ApiKeyGuard`, which must reject them). bytebunker stops holding the admin key.
 6. Webhook job: `bytebunker.hookUrl` + `hookSecret` in config; off in worktrees.
 7. Retention: keep `export_change` rows for 30 days. A cursor older than that gets `410 Gone` → bytebunker runs a full
    reconcile and resets its cursor (same idea as DAV's `valid-sync-token`).
@@ -111,6 +124,12 @@ Why not the alternatives:
      edges but set props only on create. Generalise as a per-node `authority` prop (`my-hub`), checked in the shape
      Cypher.
    - **Deletes**: never remove history. Set `myHubDeletedAt`; queries hide it by default.
+   - **Merges** (decided): the merged-away node stays as a tombstone with label `MergedInto` and an edge to the
+     survivor, so old references and keys still resolve.
+   - **Sensitivity** (decided): every node gets a `sensitivity` prop, `normal` | `private` | `secret`, taken from
+     the my-hub payload (sensitive facts → `secret`, notes, journal, message text → `private`). The search API and
+     frontend hide `private` and `secret` unless the request asks for them (`includeSensitive`); the timeline shows a
+     toggle. Nothing is filtered at import time: everything is copied.
 3. **History of curated data** — something my-hub cannot offer: every `upsert` that changes props also records the
    previous values (an `Update` activity `GENERATED_BY` the sync, `object` = the node, `formerProps` JSON). A deleted
    note, an ended relationship or a renamed person stays visible in the timeline.
@@ -128,7 +147,7 @@ Why not the alternatives:
 | `phone_call` (manual) | `Call` activity, key `myhub:phone_call:<externalId or id>` | |
 | `contact_signal` (Android call/message log) | `Call` / `Message` activities per signal, key `myhub:signal:<clientId>` | Real history my-hub already collects; complements WhatsApp exports |
 | `conversation` + messages | `Note` objects with `Create` activities | Same shape as the WhatsApp importer |
-| `person_note`, `person_fact` | `Note` / `Fact` objects `ABOUT` the person | Ask: copy `isSensitive` facts too? |
+| `person_note`, `person_fact` | `Note` / `Fact` objects `ABOUT` the person | All copied; `isSensitive` facts → `sensitivity = secret`, notes → `private` |
 | `gift` | `Gift` object, `Give`/`Receive` activity when `giftedAt` is set | |
 | current calendar (`calendar_object`, STORED + DERIVED except birthdays) | `Event` activities via the existing ICS parser, keys `ics:<UID>[:<rid>]` | Now with upsert; tombstones set `myHubDeletedAt` |
 | `entity_link` (event ↔ person, place, photo, journal) | Edges `ATTENDED_BY`, `AT`, `HAS_PHOTO` | Gives attendees as persons without parsing ATTENDEE |
@@ -137,16 +156,43 @@ Why not the alternatives:
 | trips (`trip_planner_trip`, `itinerary`) after they end | `Travel` activity with the planned places | Compare with bytebunker's derived trips |
 | `cook_session` | `Cook` activity `INVOLVES` the recipe | Low priority |
 
-### B. External services my-hub only mirrors
+### B. External services my-hub mirrors (decided: all through my-hub)
 
-my-hub's copy is a convenience, not the source. Per the roadmap, bytebunker gets the originals.
+my-hub is bytebunker's only live source for these; my-hub's importers are extended to keep everything (handoff
+WP4–WP8).
 
 | Data | Plan |
 |---|---|
-| Spotify plays (15 min API sync) | Take them from my-hub as the **live tail** after the last streaming-history export. Key mismatch: my-hub has `playedAt` but no `ms_played`, so live plays cannot share the export key; key them `spotify:play:<playedAt>:<uri>` and let the next export link by URI + time window (dedupe module) |
-| Email (Microsoft Graph) | Metadata (from/to, subject, time) through my-hub for now → `Message` activities with persons by email key. Full bodies later via a direct connector |
-| Immich | Direct from Immich (asset thumbnail + link), not via my-hub. Reuse my-hub's `immich_person.person` mapping: export it so faces resolve to `person:myhub:` |
-| Bring shopping, weather | Skip |
+| Spotify | Only through my-hub. my-hub adds a `/me/player` sampler (ms played, device, skips, episodes) and gap detection; today it loses plays after a 50-track outage, never sees episodes, and stores no duration or device. Live plays get key `spotify:live:<playedAt>:<uri>`; a dedupe module links a later Extended Streaming History row (same URI, end time within ±30 s) to the live node instead of creating a second one. Reported gaps are filled by the next export |
+| Email | Metadata plus extracted plain text (`textContent`) as `Message` activities, persons by email key, searchable. The full mail is not copied: bytebunker loads HTML on view from `GET /export/email/:messageId/html` or links `webLink` / my-hub's mail page |
+| Immich | my-hub's mirror (`immich_asset`, `immich_person` with hub person links), no direct Immich connector and no extra thumbnail copy. bytebunker stores `thumbnailUrl` / `previewUrl` and proxies them from my-hub (`export:media` scope); my-hub already keeps a 400 px AVIF sidecar per asset |
+| Weather | my-hub's own recent observations for its configured location (it keeps them instead of pruning after 24 h). The history comes from bytebunker's own historic weather enrichment below |
+| Phone feed | Calls, message signals and, new, message text captured from Android notifications (`contact_message`, `sensitivity = private`, hidden in the hub UI) |
+| Bring shopping | Skip |
+
+### Historic weather (bytebunker enrichment)
+
+Goal: weather at the place the owner was, per hour, for every day with location history (2014 →). Sources (from
+knowledge, check terms before building):
+
+| Source | Coverage | Resolution | Licence / limits | Use |
+|---|---|---|---|---|
+| Open-Meteo Historical Weather API (ERA5, ERA5-Land, ECMWF IFS) | Worldwide, 1940 → ~5 days ago | Hourly, ~9–25 km grid | CC BY 4.0; free non-commercial, about 10k calls/day | Default for every place |
+| Bright Sky (DWD open data) | Germany, 2010 → today, station observations | Hourly | Free, DWD open data licence | Germany: real observations, better than reanalysis |
+| DWD Climate Data Center (CDC) | Germany, stations, decades | Hourly / 10 min | Open data | Bulk alternative to Bright Sky |
+| Meteostat | Worldwide stations | Hourly / daily | CC BY-NC 4.0; bulk dumps free | Station data outside Germany |
+| NOAA ISD / GHCN-Daily | Worldwide stations | Hourly (ISD), daily (GHCN) | Public domain | Fallback, bulk |
+| Visual Crossing | Worldwide | Hourly | 1,000 records/day free | Not needed |
+
+Plan:
+- `enrichment:historic-weather` module: for each `DailySummary` day and the canonical places visited that day (or
+  the hourly position from `Move`/`Arrive`), batch one Open-Meteo archive request per place cluster and date range
+  (the API takes date ranges, so a whole trip is one call). Germany uses Bright Sky first, Open-Meteo second.
+- Graph: `WeatherObservation` objects (hourly: temperature, precipitation, weather code, wind, cloud cover) `AT` a
+  `CanonicalPlace`, linked from the `DailySummary`; daily min/max/sum props on the summary itself. Keys
+  `weather:<source>:<lat2>:<lon2>:<hour>` (coordinates rounded to the grid), so re-runs and overlapping places dedupe.
+- Scheduled nightly after the places chain, resumable like the geocoding refiners, with a request budget per run.
+- my-hub's own observations (above) feed the same node type with source `my-hub` for the recent days.
 
 ### C. Not copied
 
@@ -181,24 +227,29 @@ my-hub's stay-in-touch and relationship-signal jobs would get much better input 
 | # | Work | Where | Depends on |
 |---|---|---|---|
 | 0 | Rebase `feat/bytebunker-person-export` onto main, scoped `export:read` token, deploy | my-hub | — |
-| 1 | `export_change` outbox, merge/delete rows, `/export/changes` (persons only), retention + 410 | my-hub | 0 |
+| 1 | `export_change` outbox, merge/delete rows, `/export/changes` (persons + `dav_change`), retention + 410 | my-hub | 0 |
 | 2 | Pull module + cursor, schedule fallback, `mergeNodes`, `myHubDeletedAt`, person precedence | bytebunker | 1 |
-| 3 | Webhook job → `POST /my-hub/hook` with HMAC and debounce | both | 2 |
+| 3 | Hint job → `POST /my-hub/hook` over `bytebunker-link`, HMAC, debounce | both | 2 |
 | 4 | Calendar through `dav_change` in the same feed, activity upsert mode, `entity_link` edges | both | 2 |
 | 5 | Friends data: relationships, life events, activities, calls, signals, conversations, notes, facts, gifts | both | 2 |
 | 6 | Change history (`Update` activities with former props) | bytebunker | 2 |
-| 7 | Journal, fitness, ended trips, Spotify live tail, email metadata | both | 5 |
+| 7 | Spotify (sampler, gaps, live/export dedupe), journal, fitness, ended trips | both | 5 |
+| 7b | Email text + HTML on view, Immich mirror + thumbnail proxy, phone message text, weather observations, sensitivity in search/frontend | both | 5 |
+| 7c | Historic weather enrichment (Open-Meteo archive, Bright Sky) | bytebunker | — |
 | 8 | Read API + MCP for my-hub; first consumers: last contact, "on this day" | bytebunker, then my-hub | 5 |
 
 Phases 1–3 give live persons end to end and are the base for everything else. Phase 8 can start in parallel once
 persons link (it reads what export importers already wrote).
 
+## Decisions (2026-10-23)
+
+- Sensitive data: copy everything; mark `sensitivity` and hide `private`/`secret` by default.
+- Phone feed: import call/message log including message text (captured by my-hub from notifications).
+- Spotify: only through my-hub.
+- Transport: pull feed + signed hint over a shared internal Docker network (above).
+- Merges: keep a `MergedInto` tombstone node.
+
 ## Open questions
 
-1. Sensitive data: copy `isSensitive` facts, private notes and full journal text into bytebunker? (Earlier decision:
-   full message text is stored.)
-2. Should `contact_signal` (Android call/message log) be imported? It is the richest contact history my-hub has.
-3. Spotify live tail through my-hub, or a direct Spotify connector in bytebunker right away?
-4. Hook direction: is my-hub allowed to call bytebunker (needs a reachable bytebunker URL from my-hub's container;
-   both run on titan), or pull-only every minute?
-5. Merge handling: keep the secondary as a `MergedInto` tombstone node (recommended), or delete it after re-pointing?
+1. Should my-hub get a minimal mail page so `hubUrl` works, or is the Outlook `webLink` enough?
+2. Historic weather: hourly for every day, or hourly only on travel days and daily elsewhere (fewer nodes)?

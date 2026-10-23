@@ -81,3 +81,13 @@ top of a graph built with the old keys creates duplicates. Recommended: wipe the
 
 See `docs/import/takeout-import-plan.md` ("Open issues"). Spotify plays keep the IP address (`ipAddress`),
 decided 2026-10-23.
+
+## Rollout log (2026-10-23)
+
+Production wiped and re-imported from the ingest corpus (133 files). Backups:
+`titan:~/backups/bytebunker/2026-10-23/` (`postgres.pgdump`, `neo4j-data.tgz`). Removed the hand-made blueprints
+1, 2, 4, 5, 6 (superseded by shipped ones; the old Spotify script blueprint used other keys), stale BullMQ execution
+jobs and progress keys. Result: 811,148 activities, 1.13 M nodes, 1.12 M stable keys, 0 duplicate nodes; enrichment
+chain ran (8,834 canonical places, 31 trips, 4,097 daily summaries). A Coolify auto-deploy restarted the backend in
+the middle of the last batch; 25 files landed in the failed folder and were re-dropped (24 skipped as already
+imported, 1 imported).
