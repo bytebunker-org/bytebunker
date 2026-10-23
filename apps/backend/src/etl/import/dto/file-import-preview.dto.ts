@@ -13,6 +13,18 @@ export class FileImportPreviewMatchDto {
     public confidence?: number;
 }
 
+/** An earlier real (non dry-run) import of a file with the same name and size by a matching blueprint. */
+export class FileImportPreviousImportDto {
+    public blueprintId!: number;
+
+    public blueprintTitle!: string;
+
+    public executionId!: number;
+
+    /** ISO timestamp of the earlier execution. */
+    public importedAt!: string;
+}
+
 export class FileImportPreviewDto {
     /** Path inside the upload or zip, with `/` separators. */
     public relativePath!: string;
@@ -33,6 +45,12 @@ export class FileImportPreviewDto {
 
     /** More than one blueprint would import the file. */
     public conflict!: boolean;
+
+    /**
+     * Earlier imports of a file with the same name and size. Only a hint: the re-import guard compares content
+     * hashes, so these files are probably (not certainly) skipped unless re-import is allowed.
+     */
+    public previousImports!: FileImportPreviousImportDto[];
 
     /** Why nothing matched, or why the preview failed. */
     public message?: string;

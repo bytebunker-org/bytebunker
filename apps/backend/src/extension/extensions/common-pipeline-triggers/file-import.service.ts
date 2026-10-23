@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
 import micromatch from 'micromatch';
+import path from 'node:path';
 import { PipelineTriggerService } from '../../../etl/pipeline/execution/pipeline-trigger.service.js';
 import { PipelineModuleService } from '../../../etl/pipeline/pipeline-module/pipeline-module.service.js';
 import { AssetService } from '../../../etl/asset/asset.service.js';
@@ -21,12 +22,22 @@ import type {
     FileImportMatchSource,
     FileImportResultDto,
 } from '../../../etl/import/dto/file-import-result.dto.js';
-import type { FileImportPreviewDto } from '../../../etl/import/dto/file-import-preview.dto.js';
+import type {
+    FileImportPreviewDto,
+    FileImportPreviousImportDto,
+} from '../../../etl/import/dto/file-import-preview.dto.js';
+import { PipelineExecutionEntity } from '../../../etl/pipeline/entity/pipeline-execution.entity.js';
+import { PipelineExecutionStatusEnum } from '../../../etl/pipeline/type/pipeline-execution-status.enum.js';
 import {
     type LocalFileTriggerInput,
     type LocalFileTriggerOutput,
     LocalFileTriggerPipelineModule,
 } from './pipeline-module/local-file-trigger.pipeline-module.js';
+
+/** Same file name and size: the cheap stand-in for "same content" before the file is uploaded. */
+function previousImportKey(fileName: string, size: number | undefined): string {
+    return JSON.stringify([fileName, size ?? null]);
+}
 
 export interface FileImportRequest {
     absolutePath: string;
@@ -227,9 +238,68 @@ export class FileImportService {
 
     /** What importing each file would do, from its head only: nothing is stored and no execution is created. */
     public async previewSamples(samples: FileSample[], blueprintIds?: number[]): Promise<FileImportPreviewDto[]> {
-        const triggers = await this.loadTriggers(this.em.fork());
+        const em = this.em.fork();
+        const triggers = await this.loadTriggers(em);
+        const previews = samples.map((sample) => this.previewSample(sample, triggers, blueprintIds));
+        const previous = await this.findPreviousImports(em, previews);
 
-        return samples.map((sample) => this.previewSample(sample, triggers, blueprintIds));
+        for (const preview of previews) {
+            const blueprints = new Set(preview.matches.map((match) => match.blueprintId));
+            preview.previousImports = (
+                previous.get(previousImportKey(path.basename(preview.relativePath), preview.size)) ?? []
+            ).filter((entry) => blueprints.has(entry.blueprintId));
+        }
+
+        return previews;
+    }
+
+    /** Successful real executions of assets with the same file name and size, keyed by {@link previousImportKey}. */
+    private async findPreviousImports(
+        em: EntityManager,
+        previews: FileImportPreviewDto[],
+    ): Promise<Map<string, FileImportPreviousImportDto[]>> {
+        const names = [
+            ...new Set(previews.filter((preview) => preview.matches.length).map((p) => path.basename(p.relativePath))),
+        ];
+        const byKey = new Map<string, FileImportPreviousImportDto[]>();
+
+        if (!names.length) {
+            return byKey;
+        }
+
+        const executions = await em.find(
+            PipelineExecutionEntity,
+            {
+                triggerAsset: { originalFilename: { $in: names } },
+                dryRun: false,
+                executionStatus: PipelineExecutionStatusEnum.SUCCESS,
+            },
+            { populate: ['triggerAsset', 'blueprint'], orderBy: { createdAt: 'desc' }, limit: 5000 },
+        );
+
+        for (const execution of executions) {
+            const asset = execution.triggerAsset?.getEntity();
+
+            if (!asset) {
+                continue;
+            }
+
+            const key = previousImportKey(asset.originalFilename, asset.size ?? undefined);
+            const list = byKey.get(key) ?? [];
+
+            // Newest first; one entry per blueprint is enough for the hint.
+            if (!list.some((entry) => entry.blueprintId === execution.blueprint.id)) {
+                list.push({
+                    blueprintId: execution.blueprint.id,
+                    blueprintTitle: execution.blueprint.getEntity().title,
+                    executionId: execution.id,
+                    importedAt: execution.createdAt.toISO() ?? '',
+                });
+            }
+            byKey.set(key, list);
+        }
+
+        return byKey;
     }
 
     private previewSample(sample: FileSample, triggers: TriggerNodes, blueprintIds?: number[]): FileImportPreviewDto {
@@ -250,6 +320,7 @@ export class FileImportService {
                 confidence: routing.confidence,
                 unsupportedFormat: routing.unsupportedFormat,
                 conflict: routing.matches.length > 1,
+                previousImports: [],
                 message: routing.matches.length ? undefined : this.explainNoMatch(routing),
             };
         } catch (error) {
@@ -260,6 +331,7 @@ export class FileImportService {
                 size: sample.size,
                 matches: [],
                 conflict: false,
+                previousImports: [],
                 message: error instanceof Error ? error.message : String(error),
             };
         }

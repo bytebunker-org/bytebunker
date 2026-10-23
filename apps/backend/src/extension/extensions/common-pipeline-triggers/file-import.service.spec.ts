@@ -35,7 +35,11 @@ describe('FileImportService routing', () => {
     let dir: string;
     let service: FileImportService;
     let triggers: ReturnType<typeof triggerBlueprint>[];
-    const em = { fork: (): unknown => em } as unknown as EntityManager;
+    const previousExecutions: unknown[] = [];
+    const em = {
+        fork: (): unknown => em,
+        find: vi.fn(() => Promise.resolve(previousExecutions)),
+    } as unknown as EntityManager;
 
     beforeAll(async () => {
         dir = await fs.mkdtemp(join(tmpdir(), 'file-import-spec-'));
@@ -170,6 +174,26 @@ describe('FileImportService routing', () => {
         });
         expect(notes.matches).toEqual([]);
         expect(notes.message).toContain('No blueprint matched');
+    });
+
+    it('hints at earlier imports of a file with the same name and size by a matching blueprint', async () => {
+        const execution = (blueprintId: number, size: number) => ({
+            id: 40 + blueprintId,
+            createdAt: { toISO: () => '2026-10-01T10:00:00.000Z' },
+            blueprint: { id: blueprintId, getEntity: () => ({ title: `Blueprint ${blueprintId}` }) },
+            triggerAsset: { getEntity: () => ({ originalFilename: 'Zeitachse.json', size }) },
+        });
+        // Same name and size by the matching blueprint; a different size; an unrelated blueprint.
+        previousExecutions.push(execution(1, 25), execution(1, 999), execution(7, 25));
+
+        const [preview] = await service.previewSamples([
+            buildFileSampleFromHead('Takeout/Zeitachse.json', 25, Buffer.from('{ "semanticSegments": [')),
+        ]);
+
+        expect(preview.previousImports).toEqual([
+            { blueprintId: 1, blueprintTitle: 'Blueprint 1', executionId: 41, importedAt: '2026-10-01T10:00:00.000Z' },
+        ]);
+        previousExecutions.length = 0;
     });
 
     it('flags a conflict when several blueprints would import a file', async () => {

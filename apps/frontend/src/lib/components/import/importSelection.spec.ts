@@ -60,6 +60,7 @@ describe('isUploadable', () => {
 			relativePath: '',
 			size: 0,
 			conflict: false,
+			previousImports: [],
 			matches: Array.from({ length: matches }, () => ({
 				blueprintId: 1,
 				blueprintTitle: 'Timeline',

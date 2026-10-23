@@ -63,6 +63,17 @@
 
 	let conflicts = $derived(byCategory.importable.filter(hasConflict));
 	let tooLarge = $derived(byCategory.importable.filter((item) => item.tooLarge));
+	let importedBefore = $derived(
+		byCategory.importable.filter((item) => (item.preview?.previousImports.length ?? 0) > 0)
+	);
+
+	function previousImportTitle(item: ImportItem): string {
+		const lines = (item.preview?.previousImports ?? []).map(
+			(previous) =>
+				`${previous.blueprintTitle}: Ausführung #${previous.executionId} am ${new Date(previous.importedAt).toLocaleString('de-DE')}`
+		);
+		return `Eine Datei mit gleichem Namen und gleicher Größe wurde schon importiert. Ohne „Re-import erlauben“ wird sie vermutlich übersprungen.\n${lines.join('\n')}`;
+	}
 
 	function setExcluded(targets: ImportItem[], excluded: boolean) {
 		for (const item of targets) item.excluded = excluded;
@@ -123,6 +134,14 @@
 		{/if}
 		{#if conflicts.length > 0}
 			<span class="badge badge-warning">{conflicts.length} Konflikte</span>
+		{/if}
+		{#if importedBefore.length > 0}
+			<span
+				class="badge badge-info"
+				title="Gleicher Name und gleiche Größe wie eine früher importierte Datei; ohne „Re-import erlauben“ vermutlich übersprungen"
+			>
+				{importedBefore.length} vermutlich schon importiert
+			</span>
 		{/if}
 		{#if byCategory.pending.length > 0}
 			<span class="badge badge-info badge-outline">{byCategory.pending.length} in Analyse</span>
@@ -211,6 +230,11 @@
 									{/if}
 									{#if item.duplicate}
 										<span class="badge badge-warning badge-xs ml-1">doppelt</span>
+									{/if}
+									{#if item.preview?.previousImports.length}
+										<span class="badge badge-info badge-xs ml-1" title={previousImportTitle(item)}>
+											schon importiert?
+										</span>
 									{/if}
 								</td>
 								<td class="text-right whitespace-nowrap">{formatBytes(item.source.size)}</td>
