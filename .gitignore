@@ -5,6 +5,8 @@ frontend/.svelte-kit
 .env
 .env.*
 !.env.example
+!apps/frontend/.env
+!apps/frontend/.env.production
 !.env.production.toml
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
