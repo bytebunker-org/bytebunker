@@ -28,13 +28,14 @@
 	<title>{title}</title>
 </svelte:head>
 
-<div class="hidden min-h-screen flex-row md:flex">
-	<aside class="min-h-screen min-w-64 2xl:min-w-80">
+<!-- Page content renders once for every screen size; only the menu differs (fixed sidebar vs. drawer). -->
+<div class="flex min-h-screen flex-row">
+	<aside class="hidden min-h-screen min-w-64 md:block 2xl:min-w-80">
 		<div class="fixed min-h-screen min-w-64 2xl:min-w-80" style="view-transition-name: main-menu">
 			<MainMenu />
 		</div>
 	</aside>
-	<main class="w-full px-8 pt-4 xl:px-16">
+	<main class="w-full min-w-0 px-2 pt-12 md:px-8 md:pt-4 xl:px-16">
 		{#if !isHome}
 			<div style="view-transition-name: breadcrumb">
 				<Breadcrumb class="mb-6 hidden pt-0 text-sm lg:block">
@@ -55,7 +56,7 @@
 			</div>
 		{/if}
 
-		<div class="mb-6 flex items-center justify-between">
+		<div class="mb-6 hidden items-center justify-between md:flex">
 			<h1 class="font-stratos flex items-center gap-2 text-2xl font-bold">
 				<Icon />
 				{title}
@@ -73,20 +74,16 @@
 <div class="drawer drawer-end md:hidden">
 	<input id="main-drawer" type="checkbox" class="drawer-toggle" />
 
-	<div class="drawer-content min-h-screen">
+	<div class="drawer-content">
 		<label
 			for="main-drawer"
 			class="fixed top-4 right-4 z-50 block cursor-pointer rounded-lg border border-neutral-700 bg-neutral-900 p-2"
 		>
 			<LucideEllipsisVertical class="size-6 text-white" />
 		</label>
-
-		<main class="w-full px-2 pt-12 lg:px-4 lg:px-8">
-			{@render children()}
-		</main>
 	</div>
 
-	<div class="drawer-side">
+	<div class="drawer-side z-50">
 		<label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
 		<div class="min-h-full w-80 bg-neutral-900 p-4">
 			<MainMenu />

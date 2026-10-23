@@ -122,12 +122,13 @@
 					</div>
 				</Avatar.Root>
 
-				<button
+				<!-- span, not button: the trigger already is a <button> and nested buttons break hydration -->
+				<span
 					class="pointer-events-none flex w-full items-center justify-between gap-2 text-[15px] font-bold text-neutral-700 lg:gap-4 dark:text-neutral-200"
 				>
 					<span>{user.username}</span>
 					<LucideEllipsisVertical />
-				</button>
+				</span>
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content
 				class=" bg-base-100 rounded-box z-1 shadow-sm"
