@@ -79,5 +79,5 @@ top of a graph built with the old keys creates duplicates. Recommended: wipe the
 
 ## Open points
 
-See `docs/import/takeout-import-plan.md` ("Open issues"). Notably: Spotify plays store the IP address
-(`ipAddress`); decide whether to keep it before the re-import.
+See `docs/import/takeout-import-plan.md` ("Open issues"). Spotify plays keep the IP address (`ipAddress`),
+decided 2026-10-23.

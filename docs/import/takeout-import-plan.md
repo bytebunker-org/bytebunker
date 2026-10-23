@@ -277,8 +277,7 @@ Firefox default-release alone: 236,606 visits in 60 s. Every importer ships its 
 
 ## Open issues
 
-- Spotify plays keep the IP address (`ipAddress`) since the merge with the harness branch, although this
-  thread's brief said not to store it. Decide and, if dropping, also clear existing nodes.
+- Decided 2026-10-23: Spotify plays keep the IP address (`ipAddress`).
 - Person props are last-write-wins: an importer's Person can overwrite a my-hub name. Needs a precedence rule in
   the persister (my-hub props win).
 - Attendees/organizers are JSON on Event activities; graph edges to Person need multi-valued relationships
