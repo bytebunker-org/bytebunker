@@ -63,8 +63,8 @@
 		<LucideUpload class="text-base-content/60 size-10" />
 		<p class="font-semibold">Dateien, Ordner oder ZIP-Archive hierher ziehen</p>
 		<p class="text-base-content/60 text-sm">
-			z. B. ein komplettes Google Takeout. ZIPs werden auf dem Server entpackt und jede Datei
-			einzeln zugeordnet.
+			z. B. ein komplettes Google Takeout. ZIPs werden im Browser gelesen; hochgeladen wird nur, was
+			ein Importer liest.
 		</p>
 		<div class="flex gap-2">
 			<button class="btn btn-sm" {disabled} onclick={() => fileInput?.click()}>

@@ -8,7 +8,8 @@ import { AssetTypeEnum } from '../../../etl/asset/type/asset-type.enum.js';
 import type { Blueprint } from '../../../etl/pipeline/blueprint/util/blueprint.class.js';
 import type { BlueprintNodeDto } from '../../../etl/pipeline/blueprint/dto/blueprint-node.dto.js';
 import type { PipelineTriggerResult } from '../../../etl/pipeline/execution/pipeline-trigger-result.type.js';
-import { buildFileSample, isIgnoredImportPath } from '../../../etl/import/file-sample.util.js';
+import { buildFileSample } from '../../../etl/import/file-sample.util.js';
+import { isIgnoredImportPath } from '../../../etl/import/ignored-import-paths.constant.js';
 import { guessKnownFormat } from '../../../etl/import/known-file-formats.constant.js';
 import {
     FILE_DETECTION_MIN_CONFIDENCE,
@@ -20,6 +21,7 @@ import type {
     FileImportMatchSource,
     FileImportResultDto,
 } from '../../../etl/import/dto/file-import-result.dto.js';
+import type { FileImportPreviewDto } from '../../../etl/import/dto/file-import-preview.dto.js';
 import {
     type LocalFileTriggerInput,
     type LocalFileTriggerOutput,
@@ -39,6 +41,7 @@ export interface FileImportRequest {
 
 interface BlueprintMatch {
     blueprintId: number;
+    blueprintTitle: string;
     matchedBy: FileImportMatchSource;
     detection?: FileDetection;
 }
@@ -53,6 +56,8 @@ export interface FileRouting {
     confidence?: number;
     unsupportedFormat?: boolean;
 }
+
+type TriggerNodes = Awaited<ReturnType<FileImportService['loadTriggers']>>;
 
 export interface FileImportOutput extends FileImportResultDto {
     /** Undefined when the file could not even be read. */
@@ -81,20 +86,29 @@ export class FileImportService {
     ) {}
 
     public async route(em: EntityManager, request: FileImportRequest): Promise<FileRouting> {
+        const sample = await buildFileSample(request.absolutePath, request.relativePath);
+
+        return this.routeSample(sample, await this.loadTriggers(em), request.blueprintIds);
+    }
+
+    private async loadTriggers(em: EntityManager) {
         // Files dropped while the app boots must not be routed against an empty module registry.
         await this.pipelineModuleService.whenModulesReady();
-        const sample = await buildFileSample(request.absolutePath, request.relativePath);
-        const triggers = await this.pipelineTriggerService.findMatchingTriggerNodes<
-            LocalFileTriggerInput,
-            LocalFileTriggerOutput
-        >(em, LocalFileTriggerPipelineModule);
 
+        return this.pipelineTriggerService.findMatchingTriggerNodes<LocalFileTriggerInput, LocalFileTriggerOutput>(
+            em,
+            LocalFileTriggerPipelineModule,
+        );
+    }
+
+    /** Routing from the file head alone; shared by disk files and the upload preview (heads sent by the UI). */
+    private routeSample(sample: FileSample, triggers: TriggerNodes, blueprintIds?: number[]): FileRouting {
         const considered: FileRouting['considered'] = [];
         const ruleMatches: BlueprintMatch[] = [];
         const detections: BlueprintMatch[] = [];
 
         for (const { blueprintEntity, blueprint, node } of triggers) {
-            if (request.blueprintIds && !request.blueprintIds.includes(blueprintEntity.id)) {
+            if (blueprintIds && !blueprintIds.includes(blueprintEntity.id)) {
                 continue;
             }
 
@@ -103,12 +117,20 @@ export class FileImportService {
             considered.push({ nodeId: node.id, blueprintTitle: blueprintEntity.title, globPatterns });
 
             if (globPatterns.length && micromatch.isMatch(sample.relativePath, globPatterns)) {
-                ruleMatches.push({ blueprintId: blueprintEntity.id, matchedBy: 'glob' });
+                ruleMatches.push({
+                    blueprintId: blueprintEntity.id,
+                    blueprintTitle: blueprintEntity.title,
+                    matchedBy: 'glob',
+                });
                 continue;
             }
 
             if (this.matchesContentPatterns(sample, options.contentPatterns, blueprintEntity.title)) {
-                ruleMatches.push({ blueprintId: blueprintEntity.id, matchedBy: 'content-pattern' });
+                ruleMatches.push({
+                    blueprintId: blueprintEntity.id,
+                    blueprintTitle: blueprintEntity.title,
+                    matchedBy: 'content-pattern',
+                });
                 continue;
             }
 
@@ -116,7 +138,12 @@ export class FileImportService {
                 const detection = this.detectWithConnectedModules(sample, blueprint, node);
 
                 if (detection) {
-                    detections.push({ blueprintId: blueprintEntity.id, matchedBy: 'content-detection', detection });
+                    detections.push({
+                        blueprintId: blueprintEntity.id,
+                        blueprintTitle: blueprintEntity.title,
+                        matchedBy: 'content-detection',
+                        detection,
+                    });
                 }
             }
         }
@@ -194,6 +221,46 @@ export class FileImportService {
                 executions: [],
                 message: error instanceof Error ? error.message : String(error),
                 triggerResults: [],
+            };
+        }
+    }
+
+    /** What importing each file would do, from its head only: nothing is stored and no execution is created. */
+    public async previewSamples(samples: FileSample[], blueprintIds?: number[]): Promise<FileImportPreviewDto[]> {
+        const triggers = await this.loadTriggers(this.em.fork());
+
+        return samples.map((sample) => this.previewSample(sample, triggers, blueprintIds));
+    }
+
+    private previewSample(sample: FileSample, triggers: TriggerNodes, blueprintIds?: number[]): FileImportPreviewDto {
+        try {
+            const routing = this.routeSample(sample, triggers, blueprintIds);
+
+            return {
+                relativePath: sample.relativePath,
+                size: sample.size,
+                matches: routing.matches.map((match) => ({
+                    blueprintId: match.blueprintId,
+                    blueprintTitle: match.blueprintTitle,
+                    matchedBy: match.matchedBy,
+                    format: match.detection?.format,
+                    confidence: match.detection?.confidence,
+                })),
+                format: routing.format,
+                confidence: routing.confidence,
+                unsupportedFormat: routing.unsupportedFormat,
+                conflict: routing.matches.length > 1,
+                message: routing.matches.length ? undefined : this.explainNoMatch(routing),
+            };
+        } catch (error) {
+            this.logger.error(`Preview of ${sample.relativePath} failed`, error);
+
+            return {
+                relativePath: sample.relativePath,
+                size: sample.size,
+                matches: [],
+                conflict: false,
+                message: error instanceof Error ? error.message : String(error),
             };
         }
     }

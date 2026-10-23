@@ -9,6 +9,7 @@ import type { PipelineTriggerService } from '../../../etl/pipeline/execution/pip
 import type { PipelineModuleService } from '../../../etl/pipeline/pipeline-module/pipeline-module.service.js';
 import type { AssetService } from '../../../etl/asset/asset.service.js';
 import type { FileSample } from '../../../etl/import/type/file-detection.interface.js';
+import { buildFileSampleFromHead } from '../../../etl/import/file-sample.util.js';
 
 const TIMELINE_MODULE = 'google:transform-timeline@1';
 const SCRIPT_MODULE = 'bytebunker-core:execute-code@1';
@@ -34,7 +35,7 @@ describe('FileImportService routing', () => {
     let dir: string;
     let service: FileImportService;
     let triggers: ReturnType<typeof triggerBlueprint>[];
-    const em = {} as EntityManager;
+    const em = { fork: (): unknown => em } as unknown as EntityManager;
 
     beforeAll(async () => {
         dir = await fs.mkdtemp(join(tmpdir(), 'file-import-spec-'));
@@ -86,7 +87,7 @@ describe('FileImportService routing', () => {
             relativePath: 'google/timeline/timeline.json',
         });
 
-        expect(routing.matches).toEqual([{ blueprintId: 1, matchedBy: 'glob' }]);
+        expect(routing.matches).toEqual([{ blueprintId: 1, blueprintTitle: 'Timeline', matchedBy: 'glob' }]);
     });
 
     it('routes a renamed file by the importer recognising its content', async () => {
@@ -98,6 +99,7 @@ describe('FileImportService routing', () => {
         expect(routing.matches).toEqual([
             {
                 blueprintId: 1,
+                blueprintTitle: 'Timeline',
                 matchedBy: 'content-detection',
                 detection: { confidence: 0.95, format: 'Google Timeline' },
             },
@@ -111,7 +113,9 @@ describe('FileImportService routing', () => {
             relativePath: 'my_spotify_data/Streaming_History_Audio_2024.json',
         });
 
-        expect(routing.matches).toEqual([{ blueprintId: 2, matchedBy: 'content-pattern' }]);
+        expect(routing.matches).toEqual([
+            { blueprintId: 2, blueprintTitle: 'Spotify script', matchedBy: 'content-pattern' },
+        ]);
     });
 
     it('does not use content detection when a rule already matched another blueprint', async () => {
@@ -141,6 +145,42 @@ describe('FileImportService routing', () => {
 
         expect(result.matches).toEqual([]);
         expect(result.considered.map((c) => c.blueprintTitle)).toEqual(['Timeline', 'Spotify script']);
+    });
+
+    it('previews files from their heads without storing anything', async () => {
+        const [timeline, notes] = await service.previewSamples([
+            buildFileSampleFromHead('Zeitachse.json', 50_000_000, Buffer.from('{ "semanticSegments": [')),
+            buildFileSampleFromHead('notes.txt', 5, Buffer.from('hello')),
+        ]);
+
+        expect(timeline).toMatchObject({
+            relativePath: 'Zeitachse.json',
+            size: 50_000_000,
+            matches: [
+                {
+                    blueprintId: 1,
+                    blueprintTitle: 'Timeline',
+                    matchedBy: 'content-detection',
+                    format: 'Google Timeline',
+                    confidence: 0.95,
+                },
+            ],
+            format: 'Google Timeline',
+            conflict: false,
+        });
+        expect(notes.matches).toEqual([]);
+        expect(notes.message).toContain('No blueprint matched');
+    });
+
+    it('flags a conflict when several blueprints would import a file', async () => {
+        triggers.push(triggerBlueprint(3, 'Timeline copy', { globPatterns: ['**/timeline.json'] }, TIMELINE_MODULE));
+
+        const [preview] = await service.previewSamples([
+            buildFileSampleFromHead('google/timeline/timeline.json', 10, Buffer.from('{}')),
+        ]);
+
+        expect(preview.matches.map((match) => match.blueprintTitle)).toEqual(['Timeline', 'Timeline copy']);
+        expect(preview.conflict).toBe(true);
     });
 
     it('ignores media and system files', () => {
@@ -186,7 +226,7 @@ describe('FileImportService.importFile', () => {
         );
         vi.spyOn(service, 'route').mockResolvedValue({
             sample: { relativePath: 'timeline.json', size: 3 } as FileSample,
-            matches: [{ blueprintId: 1, matchedBy: 'glob' }],
+            matches: [{ blueprintId: 1, blueprintTitle: 'Timeline', matchedBy: 'glob' }],
             considered: [],
         });
 
