@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # wt-lib.sh: shared engine for per-worktree dev instances (own slot, ports, Postgres DB copy).
 #
-# VENDORED FILE. The source of truth is ~/dev/arch-config/wt/wt-lib.sh; `wt sync` copies it into
+# VENDORED FILE. The source of truth is wt/wt-lib.sh in the t3-worktree-scripts repo; `wt sync` copies it into
 # every project. Do not edit the copy in a project: change the source and sync.
 #
 # A project's wt.sh sets the config below, defines hooks, then sources this file and calls
@@ -23,6 +23,10 @@
 #   wt_db_cloned (after a worktree DB was (re)cloned), wt_db_extra <sub> (after `db <sub>`),
 #   wt_stop_extra, wt_teardown_extra, wt_gc_extra, wt_describe_extra.
 # Setup exports WT_SETUP_INSTALL / WT_SETUP_BUILD / WT_SETUP_DB (1 or 0) for the hooks.
+#
+# Runs on Linux and macOS (WT_OS = `uname -s`). Linux uses /proc, ss, ip, flock and sha1sum; macOS uses
+# lsof, ps, ifconfig, perl (for flock(2)) and shasum. Works with bash 3.2 (macOS /bin/bash) and later.
+# wt_main checks the tools a command needs first (wt_preflight) and lists every missing one.
 
 WT_LIB_VERSION=2
 
@@ -32,13 +36,26 @@ log() { printf '\033[1;36m[wt]\033[0m %s\n' "$*" >&2; }
 warn() { printf '\033[1;33m[wt]\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31m[wt]\033[0m %s\n' "$*" >&2; exit 1; }
 
+WT_OS="$(uname -s)"
+# Test suite only (tests/run.sh sets both): run the macOS code paths on Linux.
+if [ "${WT_TEST_RUN:-}" = 1 ] && [ -n "${WT_TEST_FORCE_OS:-}" ]; then WT_OS=$WT_TEST_FORCE_OS; fi
+case "$WT_OS" in
+    Linux | Darwin) ;;
+    *) die "unsupported OS: $WT_OS (wt-lib.sh runs on Linux and macOS)" ;;
+esac
+if [ "${BASH_VERSINFO[0]}" -lt 3 ] || { [ "${BASH_VERSINFO[0]}" = 3 ] && [ "${BASH_VERSINFO[1]}" -lt 2 ]; }; then
+    die "bash $BASH_VERSION is too old: wt-lib.sh needs bash 3.2 or later"
+fi
+command -v git >/dev/null 2>&1 || die "missing required tool: git"
+
 ROOT="$(git rev-parse --show-toplevel)"
 COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
 MAIN_ROOT="$(dirname "$COMMON_DIR")"
 # Never inherit another instance's identity from the parent shell.
 unset SLOT ID DB WT_SLOT WT_ID
 
-WT_SELF="$(readlink -f "$0")"
+# macOS before 12.3 has no readlink -f: fall back to the script's physical directory.
+WT_SELF="$(readlink -f "$0" 2>/dev/null || printf '%s/%s\n' "$(cd "$(dirname "$0")" && pwd -P)" "$(basename "$0")")"
 is_main() { [ "$ROOT" = "$MAIN_ROOT" ]; }
 
 wt_defaults() {
@@ -104,9 +121,23 @@ load_state() {
 # dir name never share a database. Postgres identifiers stop at 63 bytes.
 new_id() {
     local name hash
-    name="$(basename "$ROOT" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9\n' '_' | cut -c1-32)"
-    hash="$(printf '%s' "$ROOT" | sha1sum | cut -c1-6)"
+    # Byte-wise in the C locale, so GNU and BSD tr/cut give the same name (non-ASCII bytes → _).
+    name="$(basename "$ROOT" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -c '[:lower:][:digit:]\n' '_' | LC_ALL=C cut -c1-32)"
+    if [ "$WT_OS" = Darwin ]; then
+        hash="$(printf '%s' "$ROOT" | shasum -a 1 | cut -c1-6)"
+    else
+        hash="$(printf '%s' "$ROOT" | sha1sum | cut -c1-6)"
+    fi
     echo "${name}_$hash"
+}
+
+# macOS has no flock(1): perl takes the same flock(2) lock on the shell's fd 9. The lock belongs to the
+# open file, so it outlives the perl process and ends when the fd is closed or this script exits,
+# exactly like `flock 9` (no stale locks).
+slot_lock_darwin() {
+    # shellcheck disable=SC2016 # perl code, not shell
+    perl -MFcntl=:flock -e 'open(my $f, ">&=", 9) or die "fd 9: $!\n"; flock($f, LOCK_EX) or die "flock: $!\n"' ||
+        die "could not lock $COMMON_DIR/wt-slots.lock"
 }
 
 # Lowest slot not claimed by another live worktree.
@@ -114,17 +145,18 @@ allocate_slot() {
     mkdir -p "$STATE_DIR"
     [ -f "$STATE_FILE" ] && return
     exec 9>"$COMMON_DIR/wt-slots.lock"
-    flock 9
+    if [ "$WT_OS" = Darwin ]; then slot_lock_darwin; else flock 9; fi
     local used=" " path slot id
     while read -r path; do
         [ "$path" = "$ROOT" ] && continue
         read -r slot _ <<<"$(state_identity "$path")"
         [ -n "$slot" ] && used+="$slot "
     done < <(wt_worktree_paths)
-    for slot in $(seq 1 "$WT_MAX_SLOT"); do
+    for ((slot = 1; slot <= WT_MAX_SLOT; slot++)); do
         if [[ "$used" != *" $slot "* ]]; then
             # A slot whose ports are taken (e.g. a server left from a deleted worktree) is not free.
             local busy
+            # shellcheck disable=SC1007 # ID= and DB= deliberately empty in this subshell
             busy="$(SLOT=$slot ID= DB=; WT_PORTS=(); wt_ports; listening_ports | tr '\n' ' ')"
             if [ -n "$busy" ]; then
                 warn "slot $slot skipped: ports in use ($busy) — 'wt gc' stops servers of deleted worktrees"
@@ -179,6 +211,14 @@ copy_from_main() {
 
 # This machine's private LAN IPv4 addresses (docker bridges and VPN tunnels skipped).
 lan_ips() {
+    if [ "$WT_OS" = Darwin ]; then
+        # Skip loopback, VPN tunnels, VM/container bridges and Apple's peer-to-peer links.
+        ifconfig 2>/dev/null |
+            awk '/^[^ \t]/ { iface = $1; sub(/:$/, "", iface) }
+                 $1 == "inet" && iface !~ /^(lo|utun|tun|tap|wg|ipsec|ppp|gif|stf|bridge|vmenet|vnic|feth|awdl|llw|anpi|ap[0-9]|docker|tailscale)/ { print $2 }' |
+            grep -E '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' || true
+        return 0
+    fi
     ip -4 -o addr show scope global 2>/dev/null |
         awk '$2 !~ /^(docker|br-|veth|virbr|tun|wg|tailscale|CloudflareWARP)/ { sub(/\/.*/, "", $4); print $4 }' |
         grep -E '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' || true
@@ -199,7 +239,7 @@ cors_origins() {
 
 port_of() { # port_of <name>: port of a WT_PORTS entry
     local entry
-    for entry in "${WT_PORTS[@]}"; do
+    for entry in ${WT_PORTS[@]+"${WT_PORTS[@]}"}; do
         [ "${entry%%=*}" = "$1" ] && { echo "${entry#*=}"; return; }
     done
     die "no port named $1"
@@ -216,8 +256,10 @@ pg_ready() { wt_pg pg_isready -U "$WT_PG_USER" -q >/dev/null 2>&1; }
 
 wait_pg() {
     local i
-    for i in $(seq 1 30); do
+    for ((i = 1; i <= 30; i++)); do
         pg_ready && return
+        # Name the real cause instead of waiting 30s for a Docker daemon that is not running.
+        [ $i = 1 ] && ! docker info >/dev/null 2>&1 && die "the Docker daemon is not reachable (docker info failed) — start Docker, then retry"
         sleep 1
     done
     die "postgres ($WT_PG_CONTAINER) did not become ready"
@@ -330,8 +372,26 @@ self_chain() {
     local pid=$$
     while [ "${pid:-0}" -gt 1 ]; do
         echo "$pid"
-        pid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null) || break
+        if [ "$WT_OS" = Darwin ]; then
+            pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ') || break
+        else
+            pid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null) || break
+        fi
     done
+}
+
+# "pid cwd" of every process we may inspect (macOS: from lsof; Linux reads /proc directly).
+proc_cwds_darwin() {
+    lsof -n -d cwd -Fpn 2>/dev/null | awk '/^p/ { pid = substr($0, 2) } /^n/ { print pid, substr($0, 2) }' || true
+}
+
+# Process name like /proc/<pid>/comm: basename of the executable, login shells' "-" dropped.
+proc_comm_darwin() {
+    local comm
+    comm=$(ps -o comm= -p "$1" 2>/dev/null) || return 1
+    [ -n "$comm" ] || return 1
+    comm=${comm#-}
+    echo "${comm##*/}"
 }
 
 # PIDs of processes working inside this worktree: cwd below $ROOT and not below a nested worktree,
@@ -340,7 +400,11 @@ worktree_pids() {
     local self others p cwd comm o nested
     # Never this script, its ancestors, its own children (subshells, helpers) or the other commands
     # of its pipeline (`wt.sh teardown | tail`: same parent and process group).
-    self=" $(self_chain | tr '\n' ' ') $(ps -eo pid=,ppid=,pgid= | awk -v root=$$ '
+    # shellcheck disable=SC2054 # commas belong to the ps format list
+    local ps_all=(ps -eo pid=,ppid=,pgid=)
+    # shellcheck disable=SC2054
+    [ "$WT_OS" = Darwin ] && ps_all=(ps -A -o pid=,ppid=,pgid=)
+    self=" $(self_chain | tr '\n' ' ') $("${ps_all[@]}" | awk -v root=$$ '
         { parent[$1] = $2; group[$1] = $3 }
         END {
             for (p in parent) {
@@ -350,6 +414,31 @@ worktree_pids() {
             }
         }' | tr '\n' ' ') "
     others="$(wt_worktree_paths | grep -vxF "$ROOT" || true)"
+    if [ "$WT_OS" = Darwin ]; then
+        # Captured first: lsof and awk list themselves, and are gone (no comm) when checked below.
+        # lsof prints physical paths (/private/var/…): compare against physical paths.
+        local pid cwds root_p others_p=""
+        cwds="$(proc_cwds_darwin)"
+        root_p="$(cd "$ROOT" 2>/dev/null && pwd -P || printf '%s\n' "$ROOT")"
+        while read -r o; do
+            [ -n "$o" ] && others_p+="$(cd "$o" 2>/dev/null && pwd -P || printf '%s\n' "$o")"$'\n'
+        done <<<"$others"
+        while read -r pid cwd; do
+            [ -n "$pid" ] || continue
+            cwd=${cwd% (deleted)}
+            [[ "$cwd" == "$root_p" || "$cwd" == "$root_p/"* ]] || continue
+            nested=0
+            while read -r o; do
+                [ -n "$o" ] && [[ "$cwd" == "$o" || "$cwd" == "$o/"* ]] && nested=1 && break
+            done <<<"$others_p"
+            [ $nested = 1 ] && continue
+            [[ "$self" == *" $pid "* ]] && continue
+            comm=$(proc_comm_darwin "$pid") || continue
+            case "$comm" in bash | zsh | sh | fish | claude | codex | tmux*) continue ;; esac
+            echo "$pid"
+        done <<<"$cwds"
+        return 0
+    fi
     for p in /proc/[0-9]*; do
         cwd=$(readlink "$p/cwd" 2>/dev/null) || continue
         cwd=${cwd% (deleted)}
@@ -370,8 +459,13 @@ worktree_pids() {
 # Slot ports something listens on.
 listening_ports() {
     local entry port open
-    open=" $(ss -Hltn 2>/dev/null | awk '{n = split($4, a, ":"); print a[n]}' | tr '\n' ' ') "
-    for entry in "${WT_PORTS[@]}"; do
+    if [ "$WT_OS" = Darwin ]; then
+        # lsof exits 1 when nothing listens. It only sees sockets of processes we may inspect.
+        open=" $({ lsof -nP -iTCP -sTCP:LISTEN -Fn 2>/dev/null || true; } | awk '/^n/ {n = split($0, a, ":"); print a[n]}' | tr '\n' ' ') "
+    else
+        open=" $(ss -Hltn 2>/dev/null | awk '{n = split($4, a, ":"); print a[n]}' | tr '\n' ' ') "
+    fi
+    for entry in ${WT_PORTS[@]+"${WT_PORTS[@]}"}; do
         port=${entry#*=}
         [[ "$open" == *" $port "* ]] && echo "${entry%%=*}:$port"
     done
@@ -382,12 +476,16 @@ stop_servers() {
     local pids
     pids="$(worktree_pids | tr '\n' ' ')"
     if [ -n "${pids// /}" ]; then
-        log "stopping $(wc -w <<<"$pids") process(es) in $ROOT"
+        log "stopping $(wc -w <<<"$pids" | tr -d ' ') process(es) in $ROOT"
         # shellcheck disable=SC2086
         kill -TERM $pids 2>/dev/null || true
         local i
-        for i in $(seq 1 10); do
-            pids="$(for p in $pids; do if [ -d "/proc/$p" ]; then echo "$p"; fi; done | tr '\n' ' ')"
+        for ((i = 1; i <= 10; i++)); do
+            if [ "$WT_OS" = Darwin ]; then
+                pids="$(for p in $pids; do if kill -0 "$p" 2>/dev/null; then echo "$p"; fi; done | tr '\n' ' ')"
+            else
+                pids="$(for p in $pids; do if [ -d "/proc/$p" ]; then echo "$p"; fi; done | tr '\n' ' ')"
+            fi
             [ -z "${pids// /}" ] && break
             sleep 0.5
         done
@@ -405,7 +503,7 @@ stop_servers() {
 
 git_report() {
     local dirty ahead branch
-    dirty=$(git -C "$ROOT" status --porcelain 2>/dev/null | wc -l)
+    dirty=$(git -C "$ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
     branch=$(git -C "$ROOT" branch --show-current)
     ahead=$(git -C "$ROOT" rev-list --count '@{u}..HEAD' 2>/dev/null || echo "?")
     [ "$dirty" -gt 0 ] && warn "$dirty uncommitted change(s) in $ROOT (kept — teardown never touches code)"
@@ -454,7 +552,7 @@ cmd_info() {
     echo "database  $DB"
     local entry
     local scheme
-    for entry in "${WT_PORTS[@]}"; do
+    for entry in ${WT_PORTS[@]+"${WT_PORTS[@]}"}; do
         scheme=http
         [[ " ${WT_HTTPS_PORTS[*]:-} " == *" ${entry%%=*} "* ]] && scheme=https
         printf '%-9s %s\n' "${entry%%=*}" "$scheme://127.0.0.1:${entry#*=}"
@@ -510,7 +608,7 @@ cmd_describe() {
         echo "slot=$SLOT"
         echo "id=$ID"
         echo "db=$DB"
-        echo "ports=${WT_PORTS[*]}"
+        echo "ports=${WT_PORTS[*]:-}"
         echo "listening=$(listening_ports | tr '\n' ' ' | sed 's/ $//')"
     else
         echo "slot="
@@ -556,7 +654,7 @@ cmd_teardown() {
     with_pg_end
     if declare -F wt_teardown_extra >/dev/null; then wt_teardown_extra; fi
     local file
-    for file in "${WT_GENERATED_FILES[@]}"; do rm -f "${ROOT:?}/$file"; done
+    for file in ${WT_GENERATED_FILES[@]+"${WT_GENERATED_FILES[@]}"}; do rm -f "${ROOT:?}/$file"; done
     rm -rf "${STATE_DIR:?}"
     log "slot $SLOT released"
 }
@@ -592,7 +690,56 @@ Shared commands (wt-lib.sh v$WT_LIB_VERSION): setup info list describe stop sett
 EOF
 }
 
+# Package that provides a tool, for the "missing tools" hint.
+wt_tool_hint() {
+    if [ "$WT_OS" = Darwin ]; then
+        case "$1" in
+            docker) echo "Docker Desktop, OrbStack or colima" ;;
+            git) echo "xcode-select --install, or brew install git" ;;
+            lsof | shasum | perl | ifconfig | ps | readlink) echo "part of macOS: check PATH" ;;
+            *) echo "brew install $1" ;;
+        esac
+    else
+        case "$1" in
+            flock) echo "util-linux" ;;
+            ss | ip) echo "iproute2" ;;
+            ps) echo "procps / procps-ng" ;;
+            awk) echo "gawk or mawk" ;;
+            docker) echo "docker.io / docker" ;;
+            sha1sum | readlink | cut | tr | head | wc | sleep | basename | dirname) echo "coreutils" ;;
+            *) echo "$1" ;;
+        esac
+    fi
+}
+
+# Tools a command needs, checked with `command -v` only (no subprocesses): one error naming every
+# missing required tool, one warning for missing optional ones. help needs nothing; describe/info/list
+# only read state and ports, so they run without docker.
+wt_preflight() {
+    local cmd=$1 need opt tool missing="" absent=""
+    case "$cmd" in "" | help | -h | --help) return 0 ;; esac
+    need="git awk sed grep ps cut tr head wc sleep basename dirname"
+    case "$cmd" in describe | info | list) ;; *) need="$need docker" ;; esac
+    if [ "$WT_OS" = Darwin ]; then
+        need="$need lsof shasum perl readlink"
+        opt="ifconfig"
+    else
+        need="$need flock ss sha1sum readlink"
+        opt="ip"
+    fi
+    for tool in $need; do
+        command -v "$tool" >/dev/null 2>&1 || missing="$missing, $tool ($(wt_tool_hint "$tool"))"
+    done
+    for tool in $opt; do
+        command -v "$tool" >/dev/null 2>&1 || absent="$absent $tool"
+    done
+    [ -n "$absent" ] && warn "optional tool missing:$absent (LAN IPs are left out of CORS origins)"
+    [ -z "$missing" ] || die "missing required tools on $WT_OS: ${missing#, } — install them (package in parentheses) and retry"
+    return 0
+}
+
 wt_main() {
+    wt_preflight "${1:-}"
     wt_defaults
     local cmd=${1:-}
     shift || true
